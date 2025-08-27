@@ -1,8 +1,35 @@
 import { ClaimsDashboard } from "@/components/claims/ClaimsDashboard";
+import { PolicyTypesManager } from "@/components/admin/PolicyTypesManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   // Direct access to dashboard with mock admin
-  return <ClaimsDashboard />;
+  return (
+    <div className="min-h-screen bg-background">
+      <Tabs defaultValue="dashboard" className="w-full">
+        <div className="border-b bg-card">
+          <div className="container mx-auto">
+            <TabsList className="w-full justify-start h-14 bg-transparent border-0">
+              <TabsTrigger value="dashboard" className="text-base">
+                Claims Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="text-base">
+                Admin Settings
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+        <div className="container mx-auto p-6">
+          <TabsContent value="dashboard" className="mt-0">
+            <ClaimsDashboard />
+          </TabsContent>
+          <TabsContent value="admin" className="mt-0">
+            <PolicyTypesManager />
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
+  );
 };
 
 export default Index;
