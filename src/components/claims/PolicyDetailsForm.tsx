@@ -142,6 +142,11 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         );
 
       case 'select':
+        const hasOtherOption = field.options?.includes('Other');
+        const isOtherSelected = fieldValue === 'Other';
+        const otherFieldName = `${field.name}_other`;
+        const otherFieldValue = watch(otherFieldName);
+        
         return (
           <div key={field.name} className="space-y-2">
             <Label htmlFor={field.name}>
@@ -149,7 +154,13 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             </Label>
             <Select
               value={fieldValue || ""}
-              onValueChange={(value) => setValue(field.name, value)}
+              onValueChange={(value) => {
+                setValue(field.name, value);
+                // Clear the other field when switching away from "Other"
+                if (value !== 'Other') {
+                  setValue(otherFieldName, '');
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
@@ -166,6 +177,28 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               <p className="text-sm text-destructive">
                 {errors[field.name]?.message as string}
               </p>
+            )}
+            
+            {/* Conditional "Other" text input */}
+            {hasOtherOption && isOtherSelected && (
+              <div className="space-y-2">
+                <Label htmlFor={otherFieldName}>
+                  Please specify {field.label.toLowerCase()}:
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id={otherFieldName}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  {...register(otherFieldName, { 
+                    required: isOtherSelected ? `Please specify ${field.label.toLowerCase()}` : false 
+                  })}
+                />
+                {errors[otherFieldName] && (
+                  <p className="text-sm text-destructive">
+                    {errors[otherFieldName]?.message as string}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         );
