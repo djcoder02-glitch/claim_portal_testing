@@ -198,7 +198,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     { name: 'sum_insured', label: 'Sum Insured', type: 'number' as const, required: false },
     { name: 'date_of_loss', label: 'Date of Loss', type: 'date' as const, required: false },
     { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
-    { name: 'indemnity_period', label: 'Indemnity Period (months)', type: 'number' as const, required: true },
   ];
 
   return (
@@ -218,14 +217,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             </div>
             
             {/* Dynamic Policy Type Fields */}
-            {fields.length > 0 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold border-b pb-2">Additional Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {fields.map(renderField)}
-                </div>
-              </div>
-            )}
             
             <div className="pt-4 border-t">
               <Button 
