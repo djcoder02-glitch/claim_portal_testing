@@ -135,7 +135,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <Shuffle className="w-8 h-8 text-primary" />
+                            <Icon className="w-8 h-8 text-primary" />
                             <div>
                               <CardTitle className="text-lg">{mainType.name}</CardTitle>
                               <CardDescription className="mt-1">
