@@ -44,10 +44,12 @@ export const ClaimsDashboard = () => {
     }
   };
 
+  const filteredClaims = claims?.filter(claim => claim.status !== 'draft') || [];
+  
   const stats = {
-    total: claims?.length || 0,
-    submitted: claims?.filter(c => c.status === 'submitted').length || 0,
-    approved: claims?.filter(c => c.status === 'approved').length || 0,
+    total: filteredClaims.length,
+    submitted: filteredClaims.filter(c => c.status === 'submitted').length,
+    approved: filteredClaims.filter(c => c.status === 'approved').length,
   };
 
   if (isLoading) {
@@ -137,15 +139,13 @@ export const ClaimsDashboard = () => {
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Recent Claims</h2>
           
-          {claims && claims.filter(claim => claim.status !== 'draft').length > 0 ? (
+          {filteredClaims.length > 0 ? (
             <div className="grid gap-4">
-              {claims.filter(claim => claim.status !== 'draft').map((claim) => {
-                console.log('Rendering claim:', claim.status, 'StatusIcon:', statusIcons[claim.status]);
+              {filteredClaims.map((claim) => {
                 const StatusIcon = statusIcons[claim.status];
                 
                 // Skip rendering if we don't have a valid status icon
                 if (!StatusIcon) {
-                  console.warn('No status icon found for status:', claim.status);
                   return null;
                 }
                 
