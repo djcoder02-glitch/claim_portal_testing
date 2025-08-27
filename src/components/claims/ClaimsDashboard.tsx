@@ -1,19 +1,24 @@
 import { useState } from "react";
-import { Plus, FileText, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, FileText, DollarSign, Clock, CheckCircle, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useClaims } from "@/hooks/useClaims";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { NewClaimDialog } from "./NewClaimDialog";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const statusColors = {
-  draft: "bg-gray-500",
-  submitted: "bg-blue-500",
-  under_review: "bg-yellow-500",
-  approved: "bg-green-500",
-  rejected: "bg-red-500",
-  paid: "bg-purple-500",
+  draft: "hsl(var(--status-draft))",
+  submitted: "hsl(var(--status-submitted))", 
+  under_review: "hsl(var(--status-under-review))",
+  approved: "hsl(var(--status-approved))",
+  rejected: "hsl(var(--status-rejected))",
+  paid: "hsl(var(--status-paid))",
 };
 
 const statusIcons = {
@@ -28,6 +33,18 @@ const statusIcons = {
 export const ClaimsDashboard = () => {
   const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
   const { data: claims, isLoading } = useClaims();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Error signing out");
+    } else {
+      toast.success("Signed out successfully");
+      navigate("/auth");
+    }
+  };
 
   const stats = {
     total: claims?.length || 0,
@@ -64,10 +81,26 @@ export const ClaimsDashboard = () => {
               Manage and track your insurance claims
             </p>
           </div>
-          <Button onClick={() => setIsNewClaimOpen(true)} size="lg">
-            <Plus className="w-5 h-5 mr-2" />
-            New Claim
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button onClick={() => setIsNewClaimOpen(true)} size="lg">
+              <Plus className="w-5 h-5 mr-2" />
+              New Claim
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  {user?.email}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -122,37 +155,40 @@ export const ClaimsDashboard = () => {
               {claims.map((claim) => {
                 const StatusIcon = statusIcons[claim.status];
                 return (
-                  <Card key={claim.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{claim.title}</CardTitle>
-                          <CardDescription>
-                            Claim #{claim.claim_number} • {claim.policy_types?.name}
-                          </CardDescription>
+                  <Link key={claim.id} to={`/claims/${claim.id}`}>
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-accent/50">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <CardTitle className="text-lg">{claim.title}</CardTitle>
+                            <CardDescription>
+                              Claim #{claim.claim_number} • {claim.policy_types?.name}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge 
+                              variant="secondary" 
+                              className="text-white"
+                              style={{ backgroundColor: statusColors[claim.status] }}
+                            >
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {claim.status.replace('_', ' ').toUpperCase()}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant="secondary" 
-                            className={`${statusColors[claim.status]} text-white`}
-                          >
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {claim.status.replace('_', ' ').toUpperCase()}
-                          </Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                          <span>Created {format(new Date(claim.created_at), 'MMM dd, yyyy')}</span>
+                          {claim.claim_amount && (
+                            <span className="font-medium">
+                              ${claim.claim_amount.toLocaleString()}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Created {format(new Date(claim.created_at), 'MMM dd, yyyy')}</span>
-                        {claim.claim_amount && (
-                          <span className="font-medium">
-                            ${claim.claim_amount.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
