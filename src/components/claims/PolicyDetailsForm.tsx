@@ -142,11 +142,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         );
 
       case 'select':
-        const hasOtherOption = field.options?.includes('Other');
-        const isOtherSelected = fieldValue === 'Other';
-        const otherFieldName = `${field.name}_other`;
-        const otherFieldValue = watch(otherFieldName);
-        
         return (
           <div key={field.name} className="space-y-2">
             <Label htmlFor={field.name}>
@@ -154,13 +149,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             </Label>
             <Select
               value={fieldValue || ""}
-              onValueChange={(value) => {
-                setValue(field.name, value);
-                // Clear the other field when switching away from "Other"
-                if (value !== 'Other') {
-                  setValue(otherFieldName, '');
-                }
-              }}
+              onValueChange={(value) => setValue(field.name, value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
@@ -177,28 +166,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               <p className="text-sm text-destructive">
                 {errors[field.name]?.message as string}
               </p>
-            )}
-            
-            {/* Conditional "Other" text input */}
-            {hasOtherOption && isOtherSelected && (
-              <div className="space-y-2">
-                <Label htmlFor={otherFieldName}>
-                  Please specify {field.label.toLowerCase()}:
-                  <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id={otherFieldName}
-                  placeholder={`Enter ${field.label.toLowerCase()}`}
-                  {...register(otherFieldName, { 
-                    required: isOtherSelected ? `Please specify ${field.label.toLowerCase()}` : false 
-                  })}
-                />
-                {errors[otherFieldName] && (
-                  <p className="text-sm text-destructive">
-                    {errors[otherFieldName]?.message as string}
-                  </p>
-                )}
-              </div>
             )}
           </div>
         );
@@ -224,14 +191,14 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
   // Standard policy information fields
   const standardFields = [
-    { name: 'registration_id', label: 'Registration ID', type: 'text' as const, required: true },
+    { name: 'registration_number', label: 'Registration Number', type: 'text' as const, required: true },
     { name: 'insured_name', label: 'Insured Name', type: 'text' as const, required: true },
     { name: 'insurer', label: 'Insurer', type: 'select' as const, required: true, options: ['AIG', 'Allianz', 'AXA', 'Zurich', 'Liberty', 'Other'] },
-    { name: 'assigned_surveyor', label: 'Assigned Surveyor', type: 'select' as const, required: false, options: ['John Smith', 'Sarah Johnson', 'Mike Brown', 'Emma Davis', 'Other'] },
+    { name: 'assigned_agent', label: 'Assigned Agent', type: 'select' as const, required: false, options: ['John Smith', 'Sarah Johnson', 'Mike Brown', 'Emma Davis', 'Other'] },
     { name: 'policy_number', label: 'Policy Number', type: 'text' as const, required: false },
-    { name: 'sum_insured', label: 'Sum Insured', type: 'number' as const, required: false },
-    { name: 'date_of_loss', label: 'Date of Loss', type: 'date' as const, required: false },
-    { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
+    { name: 'amount', label: 'Sum Insured', type: 'number' as const, required: false },
+    { name: 'date', label: 'Date of Loss', type: 'date' as const, required: false },
+    { name: 'claim_description', label: 'Claim Description', type: 'textarea' as const, required: false },
   ];
 
 
