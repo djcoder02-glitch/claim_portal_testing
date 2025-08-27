@@ -137,10 +137,10 @@ export const ClaimsDashboard = () => {
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Recent Claims</h2>
           
-          {claims && claims.length > 0 ? (
+          {claims && claims.filter(claim => claim.status !== 'draft').length > 0 ? (
             <div className="grid gap-4">
-              {claims.map((claim) => {
-                const StatusIcon = statusIcons[claim.status];
+              {claims.filter(claim => claim.status !== 'draft').map((claim) => {
+                const StatusIcon = statusIcons[claim.status] || FileText;
                 return (
                   <Link key={claim.id} to={`/claims/${claim.id}`}>
                     <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-accent/50">
@@ -156,7 +156,7 @@ export const ClaimsDashboard = () => {
                             <Badge 
                               variant="secondary" 
                               className="text-white"
-                              style={{ backgroundColor: statusColors[claim.status] }}
+                              style={{ backgroundColor: statusColors[claim.status] || 'hsl(var(--muted))' }}
                             >
                               <StatusIcon className="w-3 h-3 mr-1" />
                               {claim.status.replace('_', ' ').toUpperCase()}
