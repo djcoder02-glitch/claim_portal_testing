@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FileText, Eye, Upload, Save } from "lucide-react";
+import { ArrowLeft, FileText, Info, Eye, Upload, Save } from "lucide-react";
 import { useClaimById, usePolicyTypes, useUpdateClaim } from "@/hooks/useClaims";
 import { PolicyDetailsForm } from "./PolicyDetailsForm";
+import { AdditionalInformationForm } from "./AdditionalInformationForm";
 import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
@@ -187,10 +188,14 @@ export const ClaimDetails = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="policy-details" className="flex items-center space-x-2">
               <FileText className="w-4 h-4" />
               <span>Policy Details</span>
+            </TabsTrigger>
+            <TabsTrigger value="additional-info" className="flex items-center space-x-2">
+              <Info className="w-4 h-4" />
+              <span>Additional Info</span>
             </TabsTrigger>
             <TabsTrigger value="report-preview" className="flex items-center space-x-2">
               <Eye className="w-4 h-4" />
@@ -204,6 +209,10 @@ export const ClaimDetails = () => {
 
           <TabsContent value="policy-details" className="space-y-6">
             <PolicyDetailsForm claim={claim} />
+          </TabsContent>
+
+          <TabsContent value="additional-info" className="space-y-6">
+            <AdditionalInformationForm claim={claim} />
           </TabsContent>
 
           <TabsContent value="report-preview" className="space-y-6">

@@ -201,86 +201,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
   ];
 
-  // Additional details fields based on policy type - CUSTOMIZABLE SECTION
-  // To add more fields in the future, simply add them to the appropriate section below
-  // Each field should have: name, label, type, required, and options (for select fields)
-  const getAdditionalDetailsFields = () => {
-    const policyTypeName = claim.policy_types?.name?.toLowerCase() || '';
-    
-    // Common fields for all policy types
-    const commonFields = [
-      // Section 1 - Basic Information
-      { name: 'consigner_name', label: 'Name of Consigner of Goods (Exporter)', type: 'text' as const, required: false },
-      { name: 'consignee_name', label: 'Name of Consignee of Goods (Importer)', type: 'text' as const, required: false },
-      { name: 'applicant_survey', label: 'Applicant of Survey', type: 'text' as const, required: false },
-      { name: 'underwriter_name', label: 'Name of Underwriter / Insurer', type: 'text' as const, required: false },
-      { name: 'cha_name', label: 'Name of CHA / Clearing Agent / Forwarder', type: 'text' as const, required: false },
-      { name: 'certificate_no', label: 'Certificate No (if Applicable)', type: 'text' as const, required: false },
-      { name: 'endorsement_no', label: 'Endorsement No (if Any)', type: 'text' as const, required: false },
-      
-      // Invoice Details
-      { name: 'invoice_no', label: 'Invoice Details Invoice No', type: 'text' as const, required: false },
-      { name: 'invoice_date', label: 'Invoice Details Invoice Date', type: 'date' as const, required: false },
-      { name: 'invoice_value', label: 'Invoice Details Invoice Value', type: 'number' as const, required: false },
-      { name: 'invoice_pkg_count', label: 'Invoice Details No of PKG', type: 'number' as const, required: false },
-      { name: 'invoice_gross_wt', label: 'Invoice Details Gross WT', type: 'text' as const, required: false },
-      { name: 'invoice_net_wt', label: 'Invoice Details Net WT', type: 'text' as const, required: false },
-      
-      // Section 2 - Survey Details
-      { name: 'goods_description', label: 'Description of Goods', type: 'textarea' as const, required: false },
-      { name: 'intimation_date', label: 'Date of Intimation of Survey', type: 'date' as const, required: false },
-      { name: 'survey_date_place', label: 'Date and Place of Survey', type: 'textarea' as const, required: false },
-      { name: 'external_condition_review', label: 'External Condition Upon Reviewing the Consignment as per Consignee', type: 'textarea' as const, required: false },
-      { name: 'packing_nature', label: 'Nature of Packing', type: 'textarea' as const, required: false },
-      { name: 'packing_condition', label: 'External Condition of Packing at the Time of Survey', type: 'textarea' as const, required: false },
-      { name: 'damage_description', label: 'Description of Loss / Damage', type: 'textarea' as const, required: false },
-      { name: 'loss_cause', label: 'Cause of Loss', type: 'textarea' as const, required: false },
-      { name: 'joint_survey', label: 'Was Any Joint Survey Held', type: 'textarea' as const, required: false },
-      { name: 'consignee_notice', label: 'Has Consignee Given Notice of Loss / Damage to or Made Claim Against Carriers?', type: 'textarea' as const, required: false },
-      
-      // Section 3 - Transportation Details
-      { name: 'transporter_name', label: 'Name of the Transporter', type: 'text' as const, required: false },
-      { name: 'vehicle_number', label: 'Vehicle Number', type: 'text' as const, required: false },
-      { name: 'lr_date_issuance', label: 'LR & Date of Issuance', type: 'text' as const, required: false },
-      { name: 'consignment_note', label: 'Consignment Note No / Docket No & Date', type: 'text' as const, required: false },
-      { name: 'delivery_challan', label: 'Delivery Challan No', type: 'text' as const, required: false },
-      { name: 'dispatch_condition', label: 'External Condition While Dispatching the Consignment from Port / CFS / Warehouse', type: 'textarea' as const, required: false },
-      
-      // Report Text Section
-      { name: 'survey_address', label: 'Address of Survey', type: 'textarea' as const, required: false },
-      { name: 'number_packages', label: 'Number of Packages', type: 'select' as const, required: false, options: ['BULK/RM', '1-10', '11-50', '51-100', '100+'] },
-      { name: 'packing_contents', label: 'Whats Inside Packing Consignment', type: 'textarea' as const, required: false },
-      { name: 'content_industry_use', label: 'Use of Content Industry it is Utilised in', type: 'select' as const, required: false, options: ['Manufacturing', 'Construction', 'Electronics', 'Textiles', 'Automotive', 'Food Processing', 'Other'] },
-      { name: 'arrival_details', label: 'How Did it Arrive to the Premises Spot of Survey Mention Container No and or Vehicle No if Applicable', type: 'select' as const, required: false, options: ['By Road Transport', 'By Sea Container', 'By Air Cargo', 'By Rail', 'Other'] },
-      { name: 'external_condition_tag', label: 'External Condition Tag', type: 'textarea' as const, required: false },
-    ];
-
-    // Policy-type specific fields can be added here
-    if (policyTypeName.includes('marine') || policyTypeName.includes('cargo')) {
-      // Add marine/cargo specific fields
-      return [
-        ...commonFields,
-        { name: 'vessel_name', label: 'Vessel Name', type: 'text' as const, required: false },
-        { name: 'port_loading', label: 'Port of Loading', type: 'text' as const, required: false },
-        { name: 'port_discharge', label: 'Port of Discharge', type: 'text' as const, required: false },
-        { name: 'bl_number', label: 'Bill of Lading Number', type: 'text' as const, required: false },
-      ];
-    }
-
-    if (policyTypeName.includes('fire') || policyTypeName.includes('property')) {
-      // Add fire/property specific fields
-      return [
-        ...commonFields,
-        { name: 'building_type', label: 'Building Type', type: 'select' as const, required: false, options: ['Residential', 'Commercial', 'Industrial', 'Warehouse'] },
-        { name: 'fire_brigade_called', label: 'Was Fire Brigade Called?', type: 'select' as const, required: false, options: ['Yes', 'No'] },
-        { name: 'sprinkler_system', label: 'Sprinkler System Present?', type: 'select' as const, required: false, options: ['Yes', 'No'] },
-      ];
-    }
-
-    return commonFields;
-  };
-
-  const additionalFields = getAdditionalDetailsFields();
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -298,44 +218,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               </div>
             </div>
             
-            {/* Additional Details Section - Based on Policy Type */}
-            {additionalFields.length > 0 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold border-b pb-2">Additional Details</h3>
-                
-                {/* Section 1 - Basic Information */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-muted-foreground">Section 1 - Basic Information</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {additionalFields.slice(0, 13).map(renderField)}
-                  </div>
-                </div>
-
-                {/* Section 2 - Survey & Loss Details */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-muted-foreground">Section 2 - Survey & Loss Details</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {additionalFields.slice(13, 23).map(renderField)}
-                  </div>
-                </div>
-
-                {/* Section 3 - Transportation Details */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-muted-foreground">Section 3 - Transportation Details</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {additionalFields.slice(23, 29).map(renderField)}
-                  </div>
-                </div>
-
-                {/* Report Text Section */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-muted-foreground">Report Text Section</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {additionalFields.slice(29).map(renderField)}
-                  </div>
-                </div>
-              </div>
-            )}
             
             <div className="pt-4 border-t">
               <Button 
