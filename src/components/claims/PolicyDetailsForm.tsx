@@ -217,17 +217,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               </div>
             </div>
             
-            {/* Dynamic Policy Type Fields */}
-            {fields.length > 0 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold border-b pb-2">
-                  {claim.policy_types?.name} Specific Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {fields.map(renderField)}
-                </div>
-              </div>
-            )}
+            {/* Dynamic Policy Type Fields - Removed as requested */}
             
             <div className="pt-4 border-t">
               <Button 
