@@ -188,16 +188,46 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     }
   };
 
+  // Standard policy information fields
+  const standardFields = [
+    { name: 'registration_id', label: 'Registration ID', type: 'text' as const, required: true },
+    { name: 'insured_name', label: 'Insured Name', type: 'text' as const, required: true },
+    { name: 'insurer', label: 'Insurer', type: 'select' as const, required: true, options: ['AIG', 'Allianz', 'AXA', 'Zurich', 'Liberty', 'Other'] },
+    { name: 'assigned_surveyor', label: 'Assigned Surveyor', type: 'select' as const, required: false, options: ['John Smith', 'Sarah Johnson', 'Mike Brown', 'Emma Davis', 'Other'] },
+    { name: 'policy_number', label: 'Policy Number', type: 'text' as const, required: false },
+    { name: 'sum_insured', label: 'Sum Insured', type: 'number' as const, required: false },
+    { name: 'date_of_loss', label: 'Date of Loss', type: 'date' as const, required: false },
+    { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
+    { name: 'business_name', label: 'Business Name', type: 'text' as const, required: true },
+    { name: 'annual_turnover', label: 'Annual Turnover', type: 'number' as const, required: true },
+    { name: 'indemnity_period', label: 'Indemnity Period (months)', type: 'number' as const, required: true },
+  ];
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Form Section */}
-      <Card className="lg:col-span-1">
+    <div className="max-w-4xl mx-auto">
+      <Card>
         <CardHeader>
           <CardTitle>Policy Information</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {fields.map(renderField)}
+            {/* Standard Policy Information Fields */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold border-b pb-2">Policy Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {standardFields.map(renderField)}
+              </div>
+            </div>
+            
+            {/* Dynamic Policy Type Fields */}
+            {fields.length > 0 && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold border-b pb-2">Additional Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {fields.map(renderField)}
+                </div>
+              </div>
+            )}
             
             <div className="pt-4 border-t">
               <Button 
@@ -209,38 +239,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
-
-      {/* Live Preview Section */}
-      <Card className="lg:col-span-1">
-        <CardHeader>
-          <CardTitle>Form Preview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <h3 className="font-medium mb-3">Current Form Data:</h3>
-              <div className="space-y-2 text-sm">
-                {fields.map((field) => {
-                  const value = watch(field.name);
-                  return (
-                    <div key={field.name} className="flex justify-between">
-                      <span className="text-muted-foreground">{field.label}:</span>
-                      <span className="font-medium">
-                        {value ? (typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)) : '-'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="text-xs text-muted-foreground">
-              <p>* Required fields must be completed</p>
-              <p>* Changes are saved automatically when you submit the form</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
