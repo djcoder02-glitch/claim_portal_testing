@@ -8,7 +8,9 @@ import {
   Settings, 
   Users, 
   Plus,
-  FileText 
+  FileText,
+  Flame,
+  Wrench
 } from "lucide-react";
 
 interface PolicyTypeGridProps {
@@ -16,27 +18,23 @@ interface PolicyTypeGridProps {
 }
 
 const policyTypeIcons = {
-  "Motor": Car,
-  "Property": Home, 
   "Marine": Anchor,
-  "Life": Heart,
-  "Engineering": Settings,
-  "Fire": FileText,
+  "Engineering": Wrench,
+  "Fire": Flame,
+  "Motor": Car,
   "Misc": Plus,
   "Client": Users,
-  "Value Added Services": Plus,
+  "Value Added": Settings,
 } as const;
 
 const policyTypeDescriptions = {
+  "Marine": "Marine cargo & shipping claims",
+  "Engineering": "Engineering project insurance",
+  "Fire": "Fire damage & related claims",
   "Motor": "Vehicle insurance claims",
-  "Property": "Home & property claims", 
-  "Marine": "Marine cargo claims",
-  "Life": "Life insurance claims",
-  "Engineering": "Engineering insurance claims",
-  "Fire": "Fire insurance claims", 
   "Misc": "Miscellaneous claims",
-  "Client": "Client-specific claims",
-  "Value Added Services": "Additional service claims",
+  "Client": "Client-specific policies",
+  "Value Added": "Value added services",
 } as const;
 
 export const PolicyTypeGrid = ({ onPolicyTypeSelect }: PolicyTypeGridProps) => {
