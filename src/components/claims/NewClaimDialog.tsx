@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { usePolicyTypes, useCreateClaim } from "@/hooks/useClaims";
-import { ChevronRight, FileText, Shield, Car, Heart, Home } from "lucide-react";
+import { ChevronRight, FileText, Car, Anchor, Wrench, Flame, Plus, Users, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface NewClaimDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  preselectedMainType?: string;
 }
 
 interface ClaimFormData {
@@ -29,13 +28,16 @@ interface ClaimFormData {
 }
 
 const policyIcons = {
-  "Auto Insurance": Car,
-  "Health Insurance": Heart,
-  "Property Insurance": Home,
-  "Life Insurance": Shield,
-};
+  "Marine": Anchor,
+  "Engineering": Wrench,
+  "Fire": Flame,
+  "Motor": Car,
+  "Misc": Plus,
+  "Client": Users,
+  "Value Added": Settings,
+} as const;
 
-export const NewClaimDialog = ({ open, onOpenChange, preselectedMainType }: NewClaimDialogProps) => {
+export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   const [step, setStep] = useState<'select-policy' | 'claim-details'>('select-policy');
   const [selectedMainType, setSelectedMainType] = useState<string>("");
   const [selectedPolicyType, setSelectedPolicyType] = useState<string>("");
@@ -82,14 +84,6 @@ export const NewClaimDialog = ({ open, onOpenChange, preselectedMainType }: NewC
     setSelectedPolicyType("");
     reset();
   };
-
-  // Effect to handle preselected main type
-  React.useEffect(() => {
-    if (preselectedMainType && open) {
-      setSelectedMainType(preselectedMainType);
-      setStep('select-policy');
-    }
-  }, [preselectedMainType, open]);
 
   if (isLoading) {
     return (
@@ -252,6 +246,7 @@ export const NewClaimDialog = ({ open, onOpenChange, preselectedMainType }: NewC
                 onClick={() => {
                   setStep('select-policy');
                   setSelectedPolicyType("");
+                  setSelectedMainType("");
                 }}
               >
                 Back

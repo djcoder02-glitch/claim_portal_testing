@@ -8,7 +8,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useClaims } from "@/hooks/useClaims";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { NewClaimDialog } from "./NewClaimDialog";
-import { PolicyTypeGrid } from "./PolicyTypeGrid";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,7 +32,6 @@ const statusIcons = {
 
 export const ClaimsDashboard = () => {
   const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
-  const [selectedMainPolicyType, setSelectedMainPolicyType] = useState<string>("");
   const { data: claims, isLoading } = useClaims();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -103,20 +101,6 @@ export const ClaimsDashboard = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
-
-        {/* Policy Types */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-semibold mb-2">Select Policy Type</h2>
-            <p className="text-muted-foreground">Choose the type of insurance claim you want to file</p>
-          </div>
-          <PolicyTypeGrid 
-            onPolicyTypeSelect={(policyTypeId) => {
-              setSelectedMainPolicyType(policyTypeId);
-              setIsNewClaimOpen(true);
-            }} 
-          />
         </div>
 
         {/* Stats Cards */}
@@ -228,11 +212,7 @@ export const ClaimsDashboard = () => {
         {/* New Claim Dialog */}
         <NewClaimDialog 
           open={isNewClaimOpen} 
-          onOpenChange={(open) => {
-            setIsNewClaimOpen(open);
-            if (!open) setSelectedMainPolicyType("");
-          }}
-          preselectedMainType={selectedMainPolicyType}
+          onOpenChange={setIsNewClaimOpen}
         />
       </div>
     </div>
