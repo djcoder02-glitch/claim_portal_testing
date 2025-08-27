@@ -1,9 +1,11 @@
 import { ClaimsDashboard } from "@/components/claims/ClaimsDashboard";
 import { PolicyTypesManager } from "@/components/admin/PolicyTypesManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const Index = () => {
-  // Direct access to dashboard with mock admin
+  const { isAdmin } = useAuth();
+  
   return (
     <div className="min-h-screen bg-background">
       <Tabs defaultValue="dashboard" className="w-full">
@@ -13,9 +15,11 @@ const Index = () => {
               <TabsTrigger value="dashboard" className="text-base">
                 Claims Dashboard
               </TabsTrigger>
-              <TabsTrigger value="admin" className="text-base">
-                Admin Settings
-              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="admin" className="text-base">
+                  Admin Settings
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
         </div>
@@ -23,9 +27,11 @@ const Index = () => {
           <TabsContent value="dashboard" className="mt-0">
             <ClaimsDashboard />
           </TabsContent>
-          <TabsContent value="admin" className="mt-0">
-            <PolicyTypesManager />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="admin" className="mt-0">
+              <PolicyTypesManager />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
     </div>
