@@ -17,14 +17,20 @@ interface PolicyType {
   name: string;
   description: string;
   fields: any[];
+  parent_id?: string;
 }
 
 export const PolicyTypesManager = () => {
   const { data: policyTypes, isLoading, refetch } = usePolicyTypes();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<PolicyType | null>(null);
-  const [newType, setNewType] = useState({ name: "", description: "" });
+  const [newType, setNewType] = useState({ name: "", description: "", parent_id: "" });
   const [loading, setLoading] = useState(false);
+
+  // Group policy types by parent
+  const mainPolicyTypes = policyTypes?.filter(pt => !pt.parent_id) || [];
+  const getSubtypes = (parentId: string) => 
+    policyTypes?.filter(pt => pt.parent_id === parentId) || [];
 
   const handleAddPolicyType = async () => {
     if (!newType.name.trim()) {
@@ -39,13 +45,14 @@ export const PolicyTypesManager = () => {
         .insert({
           name: newType.name,
           description: newType.description,
+          parent_id: newType.parent_id || null,
           fields: []
         });
 
       if (error) throw error;
 
       toast.success("Policy type added successfully");
-      setNewType({ name: "", description: "" });
+      setNewType({ name: "", description: "", parent_id: "" });
       setIsAddDialogOpen(false);
       refetch();
     } catch (error) {
@@ -87,7 +94,8 @@ export const PolicyTypesManager = () => {
         .from("policy_types")
         .update({
           name: editingType.name,
-          description: editingType.description
+          description: editingType.description,
+          parent_id: editingType.parent_id || null
         })
         .eq("id", editingType.id);
 
@@ -132,7 +140,7 @@ export const PolicyTypesManager = () => {
               Policy Types Management
             </CardTitle>
             <CardDescription>
-              Manage insurance policy types available for claims
+              Manage insurance policy types and their subtypes
             </CardDescription>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -146,7 +154,7 @@ export const PolicyTypesManager = () => {
               <DialogHeader>
                 <DialogTitle>Add New Policy Type</DialogTitle>
                 <DialogDescription>
-                  Create a new insurance policy type
+                  Create a new insurance policy type or subtype
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -156,7 +164,7 @@ export const PolicyTypesManager = () => {
                     id="name"
                     value={newType.name}
                     onChange={(e) => setNewType(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="e.g., Marine, Fire, Engineering"
+                    placeholder="e.g., Container, Property"
                   />
                 </div>
                 <div className="space-y-2">
@@ -167,6 +175,22 @@ export const PolicyTypesManager = () => {
                     onChange={(e) => setNewType(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Brief description of this policy type"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="parent">Parent Category</Label>
+                  <select
+                    id="parent"
+                    value={newType.parent_id}
+                    onChange={(e) => setNewType(prev => ({ ...prev, parent_id: e.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">None (Main Category)</option>
+                    {mainPolicyTypes.map((pt) => (
+                      <option key={pt.id} value={pt.id}>
+                        {pt.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button
@@ -187,40 +211,75 @@ export const PolicyTypesManager = () => {
       </CardHeader>
       <CardContent>
         {policyTypes && policyTypes.length > 0 ? (
-          <div className="space-y-4">
-            {policyTypes.map((type) => (
-              <div key={type.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{type.name}</h3>
-                    <Badge variant="secondary">
-                      {type.fields?.length || 0} fields
-                    </Badge>
+          <div className="space-y-6">
+            {mainPolicyTypes.map((mainType) => (
+              <Card key={mainType.id} className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-bold text-lg">{mainType.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {mainType.description}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingType(mainType)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePolicyType(mainType.id, mainType.name)}
+                        disabled={loading}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  {type.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {type.description}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingType(type)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeletePolicyType(type.id, type.name)}
-                    disabled={loading}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+                  
+                  {/* Subtypes */}
+                  <div className="ml-4 space-y-2">
+                    {getSubtypes(mainType.id).map((subtype) => (
+                      <Card key={subtype.id} className="border border-muted">
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium text-sm">{subtype.name}</h4>
+                              <p className="text-xs text-muted-foreground">
+                                {subtype.description}
+                              </p>
+                              <Badge variant="secondary" className="text-xs mt-1">
+                                {subtype.fields?.length || 0} fields
+                              </Badge>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingType(subtype)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeletePolicyType(subtype.id, subtype.name)}
+                                disabled={loading}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
@@ -257,6 +316,24 @@ export const PolicyTypesManager = () => {
                     value={editingType.description || ""}
                     onChange={(e) => setEditingType(prev => prev ? { ...prev, description: e.target.value } : null)}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-parent">Parent Category</Label>
+                  <select
+                    id="edit-parent"
+                    value={editingType.parent_id || ""}
+                    onChange={(e) => setEditingType(prev => prev ? { ...prev, parent_id: e.target.value || undefined } : null)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">None (Main Category)</option>
+                    {mainPolicyTypes
+                      .filter(pt => pt.id !== editingType?.id) // Don't allow self-reference
+                      .map((pt) => (
+                        <option key={pt.id} value={pt.id}>
+                          {pt.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button

@@ -112,6 +112,7 @@ export type Database = {
           fields: Json | null
           id: string
           name: string
+          parent_id: string | null
           updated_at: string
         }
         Insert: {
@@ -120,6 +121,7 @@ export type Database = {
           fields?: Json | null
           id?: string
           name: string
+          parent_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -128,9 +130,18 @@ export type Database = {
           fields?: Json | null
           id?: string
           name?: string
+          parent_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "policy_types_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "policy_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       report_sections: {
         Row: {
@@ -209,6 +220,7 @@ export type Database = {
           fields: Json | null
           id: string
           name: string
+          parent_id: string | null
           updated_at: string
         }[]
       }

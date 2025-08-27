@@ -115,8 +115,9 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
 
         {step === 'select-policy' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            {policyTypes?.map((policyType) => {
-              const Icon = policyIcons[policyType.name as keyof typeof policyIcons] || FileText;
+            {policyTypes?.filter(type => type.parent_id).map((policyType) => {
+              const parentType = policyTypes?.find(p => p.id === policyType.parent_id);
+              const Icon = policyIcons[parentType?.name as keyof typeof policyIcons] || FileText;
               
               return (
                 <Card 
@@ -129,7 +130,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                       <div className="flex items-center space-x-3">
                         <Icon className="w-8 h-8 text-primary" />
                         <div>
-                          <CardTitle className="text-lg">{policyType.name}</CardTitle>
+                          <CardTitle className="text-lg">{parentType?.name} - {policyType.name}</CardTitle>
                           <CardDescription className="mt-1">
                             {policyType.description}
                           </CardDescription>

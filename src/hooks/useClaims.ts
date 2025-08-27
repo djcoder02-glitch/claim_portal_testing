@@ -26,6 +26,7 @@ export interface PolicyType {
   name: string;
   description: string;
   fields: any[];
+  parent_id?: string;
   created_at: string;
   updated_at: string;
 }
