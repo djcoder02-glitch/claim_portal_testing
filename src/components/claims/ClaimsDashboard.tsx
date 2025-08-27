@@ -13,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const statusColors = {
-  draft: "hsl(var(--status-draft))",
   submitted: "hsl(var(--status-submitted))", 
   under_review: "hsl(var(--status-under-review))",
   approved: "hsl(var(--status-approved))",
@@ -22,7 +21,6 @@ const statusColors = {
 };
 
 const statusIcons = {
-  draft: FileText,
   submitted: Clock,
   under_review: Clock,
   approved: CheckCircle,
@@ -48,7 +46,6 @@ export const ClaimsDashboard = () => {
 
   const stats = {
     total: claims?.length || 0,
-    draft: claims?.filter(c => c.status === 'draft').length || 0,
     submitted: claims?.filter(c => c.status === 'submitted').length || 0,
     approved: claims?.filter(c => c.status === 'approved').length || 0,
   };
@@ -57,14 +54,14 @@ export const ClaimsDashboard = () => {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-muted rounded w-64"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-muted rounded"></div>
-              ))}
+            <div className="animate-pulse space-y-6">
+              <div className="h-8 bg-muted rounded w-64"></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-32 bg-muted rounded"></div>
+                ))}
+              </div>
             </div>
-          </div>
         </div>
       </div>
     );
@@ -104,7 +101,7 @@ export const ClaimsDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
@@ -112,16 +109,6 @@ export const ClaimsDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Draft Claims</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.draft}</div>
             </CardContent>
           </Card>
           

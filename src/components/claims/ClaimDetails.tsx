@@ -16,7 +16,6 @@ import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
 
 const statusColors = {
-  draft: "bg-gray-500",
   submitted: "bg-blue-500",
   under_review: "bg-yellow-500",
   approved: "bg-green-500",
@@ -161,7 +160,6 @@ export const ClaimDetails = () => {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="submitted">Submitted</SelectItem>
                     <SelectItem value="under_review">Under Review</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
