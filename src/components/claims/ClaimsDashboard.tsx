@@ -37,12 +37,13 @@ export const ClaimsDashboard = () => {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Error signing out");
-    } else {
+    try {
+      // Sign out and let AuthProvider handle the redirect via ProtectedRoute
+      await supabase.auth.signOut();
       toast.success("Signed out successfully");
-      navigate("/auth");
+    } catch (error) {
+      toast.error("Error signing out");
+      console.error("Error signing out:", error);
     }
   };
 
