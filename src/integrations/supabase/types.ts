@@ -14,13 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      claim_documents: {
+        Row: {
+          claim_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          uploaded_by: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          uploaded_by: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_documents_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claims: {
+        Row: {
+          claim_amount: number | null
+          claim_number: string
+          created_at: string
+          description: string | null
+          form_data: Json | null
+          id: string
+          policy_type_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          claim_amount?: number | null
+          claim_number: string
+          created_at?: string
+          description?: string | null
+          form_data?: Json | null
+          id?: string
+          policy_type_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          claim_amount?: number | null
+          claim_number?: string
+          created_at?: string
+          description?: string | null
+          form_data?: Json | null
+          id?: string
+          policy_type_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claims_policy_type_id_fkey"
+            columns: ["policy_type_id"]
+            isOneToOne: false
+            referencedRelation: "policy_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          fields: Json | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          fields?: Json | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          fields?: Json | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      report_sections: {
+        Row: {
+          claim_id: string
+          content: Json | null
+          created_at: string
+          id: string
+          is_visible: boolean | null
+          section_name: string
+          section_order: number
+          updated_at: string
+        }
+        Insert: {
+          claim_id: string
+          content?: Json | null
+          created_at?: string
+          id?: string
+          is_visible?: boolean | null
+          section_name: string
+          section_order?: number
+          updated_at?: string
+        }
+        Update: {
+          claim_id?: string
+          content?: Json | null
+          created_at?: string
+          id?: string
+          is_visible?: boolean | null
+          section_name?: string
+          section_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_sections_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_claim_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
