@@ -98,7 +98,7 @@ export const useCreateClaim = () => {
         .insert({
           ...claimData,
           user_id: user.id,
-          claim_number: "", // Auto-generation handled by DB function/trigger if configured
+          // Let the database trigger handle claim number generation
         } as any)
         .select()
         .single();
