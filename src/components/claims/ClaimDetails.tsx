@@ -30,11 +30,10 @@ export const ClaimDetails = () => {
   const updateClaimMutation = useUpdateClaim();
   const [activeTab, setActiveTab] = useState("policy-details");
   
-  // Editable overview fields
+  // Editable overview fields (policy type is read-only)
   const [editableData, setEditableData] = useState({
     status: "",
     claim_amount: "",
-    policy_type_id: "",
   });
   
   // Initialize editable data when claim loads
@@ -43,7 +42,6 @@ export const ClaimDetails = () => {
       setEditableData({
         status: claim.status,
         claim_amount: claim.claim_amount?.toString() || "",
-        policy_type_id: claim.policy_type_id,
       });
     }
   }, [claim]);
@@ -54,7 +52,6 @@ export const ClaimDetails = () => {
     const updates = {
       status: editableData.status as any,
       claim_amount: editableData.claim_amount ? parseFloat(editableData.claim_amount) : null,
-      policy_type_id: editableData.policy_type_id,
     };
 
     await updateClaimMutation.mutateAsync({
@@ -145,21 +142,12 @@ export const ClaimDetails = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="policy-type">Policy Type</Label>
-                <Select
-                  value={editableData.policy_type_id}
-                  onValueChange={(value) => setEditableData(prev => ({ ...prev, policy_type_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select policy type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {policyTypes?.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="px-3 py-2 border rounded-md bg-muted text-muted-foreground">
+                  {claim.policy_types?.name || "No policy type"}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Policy type cannot be changed as form fields depend on it
+                </p>
               </div>
               
               <div className="space-y-2">
