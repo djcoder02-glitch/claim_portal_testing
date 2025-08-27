@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Eye, Upload } from "lucide-react";
-import { useClaimById } from "@/hooks/useClaims";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, FileText, Eye, Upload, Save } from "lucide-react";
+import { useClaimById, usePolicyTypes, useUpdateClaim } from "@/hooks/useClaims";
 import { PolicyDetailsForm } from "./PolicyDetailsForm";
 import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
@@ -23,7 +26,42 @@ const statusColors = {
 export const ClaimDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { data: claim, isLoading } = useClaimById(id!);
+  const { data: policyTypes } = usePolicyTypes();
+  const updateClaimMutation = useUpdateClaim();
   const [activeTab, setActiveTab] = useState("policy-details");
+  
+  // Editable overview fields
+  const [editableData, setEditableData] = useState({
+    status: "",
+    claim_amount: "",
+    policy_type_id: "",
+  });
+  
+  // Initialize editable data when claim loads
+  useEffect(() => {
+    if (claim) {
+      setEditableData({
+        status: claim.status,
+        claim_amount: claim.claim_amount?.toString() || "",
+        policy_type_id: claim.policy_type_id,
+      });
+    }
+  }, [claim]);
+
+  const handleSaveOverview = async () => {
+    if (!claim) return;
+    
+    const updates = {
+      status: editableData.status as any,
+      claim_amount: editableData.claim_amount ? parseFloat(editableData.claim_amount) : null,
+      policy_type_id: editableData.policy_type_id,
+    };
+
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -88,24 +126,72 @@ export const ClaimDetails = () => {
         {/* Claim Overview */}
         <Card>
           <CardHeader>
-            <CardTitle>Claim Overview</CardTitle>
-            <CardDescription>{claim.description}</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Claim Overview</CardTitle>
+                <CardDescription>{claim.description}</CardDescription>
+              </div>
+              <Button 
+                onClick={handleSaveOverview}
+                disabled={updateClaimMutation.isPending}
+                size="sm"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {updateClaimMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Policy Type</p>
-                <p className="font-medium">{claim.policy_types?.name}</p>
+              <div className="space-y-2">
+                <Label htmlFor="policy-type">Policy Type</Label>
+                <Select
+                  value={editableData.policy_type_id}
+                  onValueChange={(value) => setEditableData(prev => ({ ...prev, policy_type_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select policy type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {policyTypes?.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <p className="font-medium">{claim.status.replace('_', ' ')}</p>
+              
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editableData.status}
+                  onValueChange={(value) => setEditableData(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                    <SelectItem value="under_review">Under Review</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Claim Amount</p>
-                <p className="font-medium">
-                  {claim.claim_amount ? `$${claim.claim_amount.toLocaleString()}` : 'Not specified'}
-                </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="claim-amount">Claim Amount ($)</Label>
+                <Input
+                  id="claim-amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={editableData.claim_amount}
+                  onChange={(e) => setEditableData(prev => ({ ...prev, claim_amount: e.target.value }))}
+                />
               </div>
             </div>
           </CardContent>
