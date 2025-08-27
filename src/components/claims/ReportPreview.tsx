@@ -92,7 +92,9 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
       case 'Policy Details':
         return (
           <div className="space-y-3">
-            {Object.entries(claim.form_data || {}).map(([key, value]) => (
+            {Object.entries(claim.form_data || {})
+              .filter(([key]) => !['indemnity_period', 'business_name', 'annual_turnover'].includes(key))
+              .map(([key, value]) => (
               <div key={key} className="flex justify-between">
                 <span className="text-muted-foreground capitalize">
                   {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:
