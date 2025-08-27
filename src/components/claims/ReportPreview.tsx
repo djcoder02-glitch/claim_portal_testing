@@ -90,10 +90,11 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         );
 
       case 'Policy Details':
+        const standardFields = ['registration_id', 'insured_name', 'insurer', 'assigned_surveyor', 'policy_number', 'sum_insured', 'date_of_loss', 'loss_description'];
         return (
           <div className="space-y-3">
             {Object.entries(claim.form_data || {})
-              .filter(([key]) => !['indemnity_period', 'business_name', 'annual_turnover'].includes(key))
+              .filter(([key]) => standardFields.includes(key))
               .map(([key, value]) => (
               <div key={key} className="flex justify-between">
                 <span className="text-muted-foreground capitalize">
@@ -104,6 +105,97 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
                 </span>
               </div>
             ))}
+          </div>
+        );
+
+      case 'Basic Information':
+        const basicInfoFields = ['consigner_name', 'consignee_name', 'applicant_survey', 'underwriter_name', 'cha_name', 'certificate_no', 'endorsement_no', 'invoice_no', 'invoice_date', 'invoice_value', 'invoice_pkg_count', 'invoice_gross_wt', 'invoice_net_wt'];
+        return (
+          <div className="space-y-3">
+            {Object.entries(claim.form_data || {})
+              .filter(([key]) => basicInfoFields.includes(key))
+              .map(([key, value]) => (
+              <div key={key} className="flex justify-between">
+                <span className="text-muted-foreground capitalize">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:
+                </span>
+                <span className="font-medium">
+                  {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value) || '-'}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+
+      case 'Survey & Loss Details':
+        const surveyFields = ['goods_description', 'intimation_date', 'survey_date_place', 'external_condition_review', 'packing_nature', 'packing_condition', 'damage_description', 'loss_cause', 'joint_survey', 'consignee_notice'];
+        return (
+          <div className="space-y-3">
+            {Object.entries(claim.form_data || {})
+              .filter(([key]) => surveyFields.includes(key))
+              .map(([key, value]) => {
+                const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value) || '-';
+                const isLongText = displayValue.length > 50;
+                
+                return (
+                  <div key={key} className={`${isLongText ? 'space-y-1' : 'flex justify-between'}`}>
+                    <span className="text-muted-foreground capitalize font-medium">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:
+                    </span>
+                    <span className={`${isLongText ? 'text-sm mt-1 block' : 'font-medium'}`}>
+                      {displayValue}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        );
+
+      case 'Transportation Details':
+        const transportFields = ['transporter_name', 'vehicle_number', 'lr_date_issuance', 'consignment_note', 'delivery_challan', 'dispatch_condition'];
+        return (
+          <div className="space-y-3">
+            {Object.entries(claim.form_data || {})
+              .filter(([key]) => transportFields.includes(key))
+              .map(([key, value]) => {
+                const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value) || '-';
+                const isLongText = displayValue.length > 50;
+                
+                return (
+                  <div key={key} className={`${isLongText ? 'space-y-1' : 'flex justify-between'}`}>
+                    <span className="text-muted-foreground capitalize font-medium">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:
+                    </span>
+                    <span className={`${isLongText ? 'text-sm mt-1 block' : 'font-medium'}`}>
+                      {displayValue}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        );
+
+      case 'Report Text Section':
+        const reportFields = ['survey_address', 'number_packages', 'packing_contents', 'content_industry_use', 'arrival_details', 'external_condition_tag'];
+        return (
+          <div className="space-y-3">
+            {Object.entries(claim.form_data || {})
+              .filter(([key]) => reportFields.includes(key))
+              .map(([key, value]) => {
+                const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value) || '-';
+                const isLongText = displayValue.length > 50;
+                
+                return (
+                  <div key={key} className={`${isLongText ? 'space-y-1' : 'flex justify-between'}`}>
+                    <span className="text-muted-foreground capitalize font-medium">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:
+                    </span>
+                    <span className={`${isLongText ? 'text-sm mt-1 block' : 'font-medium'}`}>
+                      {displayValue}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         );
 
@@ -266,18 +358,46 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       order: 2,
     },
     {
+      id: "basic-information",
+      name: "Basic Information",
+      content: {},
+      isVisible: true,
+      order: 3,
+    },
+    {
+      id: "survey-loss-details",
+      name: "Survey & Loss Details",
+      content: {},
+      isVisible: true,
+      order: 4,
+    },
+    {
+      id: "transportation-details",
+      name: "Transportation Details",
+      content: {},
+      isVisible: true,
+      order: 5,
+    },
+    {
+      id: "report-text-section",
+      name: "Report Text Section",
+      content: {},
+      isVisible: true,
+      order: 6,
+    },
+    {
       id: "financial",
       name: "Financial Summary",
       content: {},
       isVisible: true,
-      order: 3,
+      order: 7,
     },
     {
       id: "timeline",
       name: "Timeline",
       content: {},
       isVisible: true,
-      order: 4,
+      order: 8,
     },
   ]);
 
