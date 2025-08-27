@@ -34,20 +34,20 @@ export const useClaims = () => {
   return useQuery({
     queryKey: ["claims"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("claims")
-        .select(`
-          *,
-          policy_types:policy_type_id (
-            name,
-            description,
-            fields
-          )
-        `)
-        .order("created_at", { ascending: false });
-
+      // Use admin function to bypass RLS
+      const { data, error } = await supabase.rpc('get_all_claims_admin');
+      
       if (error) throw error;
-      return data as Claim[];
+      
+      // Transform the data to match expected format
+      return data.map((row: any) => ({
+        ...row,
+        policy_types: row.policy_type_name ? {
+          name: row.policy_type_name,
+          description: row.policy_type_description,
+          fields: row.policy_type_fields
+        } : null
+      })) as Claim[];
     },
   });
 };
@@ -56,11 +56,9 @@ export const usePolicyTypes = () => {
   return useQuery({
     queryKey: ["policy_types"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("policy_types")
-        .select("*")
-        .order("name");
-
+      // Use admin function to bypass RLS
+      const { data, error } = await supabase.rpc('get_all_policy_types_admin');
+      
       if (error) throw error;
       return data as PolicyType[];
     },

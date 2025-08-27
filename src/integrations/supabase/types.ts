@@ -182,6 +182,36 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_all_claims_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          claim_amount: number
+          claim_number: string
+          created_at: string
+          description: string
+          form_data: Json
+          id: string
+          policy_type_description: string
+          policy_type_fields: Json
+          policy_type_id: string
+          policy_type_name: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_all_policy_types_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          description: string | null
+          fields: Json | null
+          id: string
+          name: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
