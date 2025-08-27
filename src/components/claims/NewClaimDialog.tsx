@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { usePolicyTypes, useCreateClaim } from "@/hooks/useClaims";
-import { ChevronRight, FileText, Car, Anchor, Wrench, Flame, Plus, Users, Settings } from "lucide-react";
+import { ChevronRight, FileText, Car, Anchor, Wrench, Flame, Plus, Users, Settings, Shuffle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface NewClaimDialogProps {
@@ -32,7 +32,7 @@ const policyIcons = {
   "Engineering": Wrench,
   "Fire": Flame,
   "Motor": Car,
-  "Misc": Plus,
+  "Misc": Shuffle,
   "Client": Users,
   "Value Added": Settings,
 } as const;
