@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export interface Claim {
   id: string;
@@ -32,11 +33,20 @@ export interface PolicyType {
 }
 
 export const useClaims = () => {
+  const { isAdmin } = useAuth();
+  
   return useQuery({
-    queryKey: ["claims"],
+    queryKey: ["claims", isAdmin ? "admin" : "user"],
     queryFn: async () => {
-      // Use admin function to bypass RLS
-      const { data, error } = await supabase.rpc('get_all_claims_admin');
+      let data, error;
+      
+      if (isAdmin) {
+        // Admin can see all claims
+        ({ data, error } = await supabase.rpc('get_all_claims_admin'));
+      } else {
+        // Regular users see only their own claims
+        ({ data, error } = await supabase.rpc('get_user_claims'));
+      }
       
       if (error) throw error;
       
@@ -97,6 +107,7 @@ export const useCreateClaim = () => {
       return data;
     },
     onSuccess: () => {
+      // Invalidate both user and admin queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["claims"] });
       toast.success("Claim created successfully!");
     },
@@ -128,6 +139,7 @@ export const useUpdateClaim = () => {
       return data;
     },
     onSuccess: () => {
+      // Invalidate both user and admin queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["claims"] });
       toast.success("Claim updated successfully!");
     },

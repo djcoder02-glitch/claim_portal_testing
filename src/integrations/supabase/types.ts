@@ -248,6 +248,25 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_user_claims: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          claim_amount: number
+          claim_number: string
+          created_at: string
+          description: string
+          form_data: Json
+          id: string
+          policy_type_description: string
+          policy_type_fields: Json
+          policy_type_id: string
+          policy_type_name: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
