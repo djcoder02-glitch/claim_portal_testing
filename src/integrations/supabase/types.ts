@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           claim_id: string
           created_at: string
+          field_label: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           claim_id: string
           created_at?: string
+          field_label?: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           claim_id?: string
           created_at?: string
+          field_label?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
