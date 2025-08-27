@@ -14,55 +14,57 @@ import { AdditionalInformationForm } from "./AdditionalInformationForm";
 import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
-
 const statusColors = {
   submitted: "bg-blue-500",
   under_review: "bg-yellow-500",
   approved: "bg-green-500",
   rejected: "bg-red-500",
-  paid: "bg-purple-500",
+  paid: "bg-purple-500"
 };
-
 export const ClaimDetails = () => {
-  const { id } = useParams<{ id: string }>();
-  const { data: claim, isLoading } = useClaimById(id!);
-  const { data: policyTypes } = usePolicyTypes();
+  const {
+    id
+  } = useParams<{
+    id: string;
+  }>();
+  const {
+    data: claim,
+    isLoading
+  } = useClaimById(id!);
+  const {
+    data: policyTypes
+  } = usePolicyTypes();
   const updateClaimMutation = useUpdateClaim();
   const [activeTab, setActiveTab] = useState("policy-details");
-  
+
   // Editable overview fields (policy type is read-only)
   const [editableData, setEditableData] = useState({
     status: "",
-    claim_amount: "",
+    claim_amount: ""
   });
-  
+
   // Initialize editable data when claim loads
   useEffect(() => {
     if (claim) {
       setEditableData({
         status: claim.status,
-        claim_amount: claim.claim_amount?.toString() || "",
+        claim_amount: claim.claim_amount?.toString() || ""
       });
     }
   }, [claim]);
-
   const handleSaveOverview = async () => {
     if (!claim) return;
-    
     const updates = {
       status: editableData.status as any,
-      claim_amount: editableData.claim_amount ? parseFloat(editableData.claim_amount) : null,
+      claim_amount: editableData.claim_amount ? parseFloat(editableData.claim_amount) : null
     };
-
     await updateClaimMutation.mutateAsync({
       id: claim.id,
-      updates,
+      updates
     });
   };
-
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
+    return <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-muted rounded w-64"></div>
@@ -70,13 +72,10 @@ export const ClaimDetails = () => {
             <div className="h-96 bg-muted rounded"></div>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!claim) {
-    return (
-      <div className="min-h-screen bg-background p-6">
+    return <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto text-center py-12">
           <h1 className="text-2xl font-bold text-destructive">Claim not found</h1>
           <p className="text-muted-foreground mt-2">
@@ -89,12 +88,9 @@ export const ClaimDetails = () => {
             </Link>
           </Button>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background p-6">
+  return <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -112,12 +108,7 @@ export const ClaimDetails = () => {
               </p>
             </div>
           </div>
-          <Badge 
-            variant="secondary" 
-            className={`${statusColors[claim.status]} text-white`}
-          >
-            {claim.status.replace('_', ' ').toUpperCase()}
-          </Badge>
+          
         </div>
 
         {/* Claim Overview */}
@@ -128,11 +119,7 @@ export const ClaimDetails = () => {
                 <CardTitle>Claim Overview</CardTitle>
                 <CardDescription>{claim.description}</CardDescription>
               </div>
-              <Button 
-                onClick={handleSaveOverview}
-                disabled={updateClaimMutation.isPending}
-                size="sm"
-              >
+              <Button onClick={handleSaveOverview} disabled={updateClaimMutation.isPending} size="sm">
                 <Save className="w-4 h-4 mr-2" />
                 {updateClaimMutation.isPending ? "Saving..." : "Save"}
               </Button>
@@ -152,10 +139,10 @@ export const ClaimDetails = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select
-                  value={editableData.status}
-                  onValueChange={(value) => setEditableData(prev => ({ ...prev, status: value }))}
-                >
+                <Select value={editableData.status} onValueChange={value => setEditableData(prev => ({
+                ...prev,
+                status: value
+              }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -171,14 +158,10 @@ export const ClaimDetails = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="claim-amount">Claim Amount ($)</Label>
-                <Input
-                  id="claim-amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={editableData.claim_amount}
-                  onChange={(e) => setEditableData(prev => ({ ...prev, claim_amount: e.target.value }))}
-                />
+                <Input id="claim-amount" type="number" step="0.01" placeholder="0.00" value={editableData.claim_amount} onChange={e => setEditableData(prev => ({
+                ...prev,
+                claim_amount: e.target.value
+              }))} />
               </div>
             </div>
           </CardContent>
@@ -222,6 +205,5 @@ export const ClaimDetails = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 };
