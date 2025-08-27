@@ -23,9 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { GripVertical, Eye, EyeOff } from "lucide-react";
+import { GripVertical, Eye, EyeOff, FileText, Image, File } from "lucide-react";
 import { type Claim } from "@/hooks/useClaims";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ReportSection {
   id: string;
@@ -196,7 +198,56 @@ interface ReportPreviewProps {
   claim: Claim;
 }
 
+interface ClaimDocument {
+  id: string;
+  claim_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  uploaded_by: string;
+  created_at: string;
+  field_label?: string;
+}
+
+const getFileIcon = (fileType: string) => {
+  if (fileType.startsWith('image/')) return Image;
+  if (fileType.includes('pdf')) return FileText;
+  return File;
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 export const ReportPreview = ({ claim }: ReportPreviewProps) => {
+  // Fetch documents for this claim
+  const { data: documents } = useQuery({
+    queryKey: ["claim-documents", claim.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("claim_documents")
+        .select("*")
+        .eq("claim_id", claim.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as ClaimDocument[];
+    },
+  });
+
+  // Group documents by field_label
+  const groupedDocuments = documents?.reduce((acc, doc) => {
+    const label = doc.field_label || 'Uncategorized';
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(doc);
+    return acc;
+  }, {} as Record<string, ClaimDocument[]>) || {};
+
   const [sections, setSections] = useState<ReportSection[]>([
     {
       id: "overview",
@@ -365,11 +416,42 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
                     <p className="text-muted-foreground">
                       {section.name} content will appear here in the final report.
                     </p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </CardContent>
+                   </div>
+                 </div>
+               ))}
+           </div>
+           
+           {/* Supporting Documents Section */}
+           {documents && documents.length > 0 && (
+             <div className="space-y-4 mt-6 pt-4 border-t">
+               <h3 className="text-lg font-semibold">Supporting Documents</h3>
+               <div className="space-y-4">
+                 {Object.entries(groupedDocuments).map(([category, categoryDocs]) => (
+                   <div key={category} className="documents">
+                     <h4 className="font-medium text-base mb-2">{category}</h4>
+                     <div className="space-y-2 ml-4">
+                       {categoryDocs.map((document: ClaimDocument) => {
+                         const FileIcon = getFileIcon(document.file_type);
+                         return (
+                           <div key={document.id} className="flex items-center space-x-3 p-2 border rounded">
+                             <FileIcon className="w-5 h-5 text-muted-foreground" />
+                             <div className="flex-1">
+                               <p className="text-sm font-medium">{document.file_name}</p>
+                               <p className="text-xs text-muted-foreground">
+                                 {document.file_type} • {formatFileSize(document.file_size)} • 
+                                 Uploaded {format(new Date(document.created_at), 'MMM dd, yyyy')}
+                               </p>
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+           )}
+         </CardContent>
       </Card>
     </div>
   );

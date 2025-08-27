@@ -27,6 +27,7 @@ interface ClaimDocument {
   file_size: number;
   uploaded_by: string;
   created_at: string;
+  field_label?: string;
 }
 
 interface DocumentManagerProps {
@@ -50,6 +51,7 @@ const formatFileSize = (bytes: number) => {
 export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSections, setUploadSections] = useState([{ id: 1, label: 'Primary Documents' }]);
+  const [editingSection, setEditingSection] = useState<number | null>(null);
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   const queryClient = useQueryClient();
 
@@ -84,6 +86,10 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
 
       if (uploadError) throw uploadError;
 
+      // Find the section label
+      const section = uploadSections.find(s => s.id === sectionId);
+      const fieldLabel = section?.label || 'Document';
+
       // Save document record to database
       const { data, error } = await supabase
         .from("claim_documents")
@@ -94,6 +100,7 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
           file_type: file.type,
           file_size: file.size,
           uploaded_by: user.id,
+          field_label: fieldLabel,
         })
         .select()
         .single();
@@ -187,6 +194,21 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
     }
   };
 
+  const updateSectionLabel = (sectionId: number, newLabel: string) => {
+    setUploadSections(sections => 
+      sections.map(s => s.id === sectionId ? { ...s, label: newLabel } : s)
+    );
+    setEditingSection(null);
+  };
+
+  // Group documents by field_label
+  const groupedDocuments = documents?.reduce((acc, doc) => {
+    const label = doc.field_label || 'Uncategorized';
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(doc);
+    return acc;
+  }, {} as Record<string, ClaimDocument[]>) || {};
+
   if (isLoading) {
     return (
       <Card>
@@ -221,7 +243,28 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
           {uploadSections.map((section) => (
             <div key={section.id} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
-                <Label className="text-base font-medium">{section.label}</Label>
+                {editingSection === section.id ? (
+                  <Input
+                    defaultValue={section.label}
+                    onBlur={(e) => updateSectionLabel(section.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        updateSectionLabel(section.id, e.currentTarget.value);
+                      } else if (e.key === 'Escape') {
+                        setEditingSection(null);
+                      }
+                    }}
+                    className="text-base font-medium"
+                    autoFocus
+                  />
+                ) : (
+                  <Label 
+                    className="text-base font-medium cursor-pointer hover:text-primary"
+                    onClick={() => setEditingSection(section.id)}
+                  >
+                    {section.label}
+                  </Label>
+                )}
                 {uploadSections.length > 1 && (
                   <Button
                     variant="ghost"
@@ -260,59 +303,71 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
         </CardContent>
       </Card>
 
-      {/* Documents List */}
+      {/* Documents List - Grouped by Category */}
       <Card>
         <CardHeader>
           <CardTitle>Uploaded Documents ({documents?.length || 0})</CardTitle>
         </CardHeader>
         <CardContent>
           {documents && documents.length > 0 ? (
-            <div className="space-y-3">
-              {documents.map((document) => {
-                const FileIcon = getFileIcon(document.file_type);
-                return (
-                  <div
-                    key={document.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <FileIcon className="w-8 h-8 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{document.file_name}</p>
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Badge variant="outline" className="text-xs">
-                            {document.file_type}
-                          </Badge>
-                          <span>•</span>
-                          <span>{formatFileSize(document.file_size)}</span>
-                          <span>•</span>
-                          <span>
-                            Uploaded {format(new Date(document.created_at), 'MMM dd, yyyy')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownload(document)}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteDocumentMutation.mutate(document)}
-                        disabled={deleteDocumentMutation.isPending}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+            <div className="space-y-6">
+              {Object.entries(groupedDocuments).map(([category, categoryDocs]) => (
+                <div key={category} className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-semibold">{category}</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {categoryDocs.length} {categoryDocs.length === 1 ? 'file' : 'files'}
+                    </Badge>
                   </div>
-                );
-              })}
+                  <div className="space-y-2 ml-4">
+                    {categoryDocs.map((document) => {
+                      const FileIcon = getFileIcon(document.file_type);
+                      return (
+                        <div
+                          key={document.id}
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <FileIcon className="w-8 h-8 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{document.file_name}</p>
+                              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  {document.file_type}
+                                </Badge>
+                                <span>•</span>
+                                <span>{formatFileSize(document.file_size)}</span>
+                                <span>•</span>
+                                <span>
+                                  Uploaded {format(new Date(document.created_at), 'MMM dd, yyyy')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownload(document)}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteDocumentMutation.mutate(document)}
+                              disabled={deleteDocumentMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="text-center py-8">
