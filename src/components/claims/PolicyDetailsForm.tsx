@@ -198,8 +198,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     { name: 'sum_insured', label: 'Sum Insured', type: 'number' as const, required: false },
     { name: 'date_of_loss', label: 'Date of Loss', type: 'date' as const, required: false },
     { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
-    { name: 'business_name', label: 'Business Name', type: 'text' as const, required: true },
-    { name: 'annual_turnover', label: 'Annual Turnover', type: 'number' as const, required: true },
     { name: 'indemnity_period', label: 'Indemnity Period (months)', type: 'number' as const, required: true },
   ];
 
