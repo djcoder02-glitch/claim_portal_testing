@@ -77,8 +77,8 @@ export const useCreateClaim = () => {
       form_data?: Record<string, any>;
       claim_amount?: number;
     }) => {
-      // Use mock admin user ID since auth is disabled
-      const mockUserId = "admin-123";
+      // Use a proper UUID format for mock admin user
+      const mockUserId = "00000000-0000-0000-0000-000000000001";
 
       const { data, error } = await supabase
         .from("claims")
