@@ -140,7 +140,15 @@ export const ClaimsDashboard = () => {
           {claims && claims.filter(claim => claim.status !== 'draft').length > 0 ? (
             <div className="grid gap-4">
               {claims.filter(claim => claim.status !== 'draft').map((claim) => {
-                const StatusIcon = statusIcons[claim.status] || FileText;
+                console.log('Rendering claim:', claim.status, 'StatusIcon:', statusIcons[claim.status]);
+                const StatusIcon = statusIcons[claim.status];
+                
+                // Skip rendering if we don't have a valid status icon
+                if (!StatusIcon) {
+                  console.warn('No status icon found for status:', claim.status);
+                  return null;
+                }
+                
                 return (
                   <Link key={claim.id} to={`/claims/${claim.id}`}>
                     <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-accent/50">
@@ -158,7 +166,7 @@ export const ClaimsDashboard = () => {
                               className="text-white"
                               style={{ backgroundColor: statusColors[claim.status] || 'hsl(var(--muted))' }}
                             >
-                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {StatusIcon && <StatusIcon className="w-3 h-3 mr-1" />}
                               {claim.status.replace('_', ' ').toUpperCase()}
                             </Badge>
                           </div>
