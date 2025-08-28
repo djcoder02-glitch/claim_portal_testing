@@ -211,7 +211,7 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                   </div>
                 </TableHead>
                 <TableHead>Policy Type</TableHead>
-                <TableHead>Assigned To</TableHead>
+                <TableHead>Assigned surveyor</TableHead>
                 <TableHead>Insurer</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50"
