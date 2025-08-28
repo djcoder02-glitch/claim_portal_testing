@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useClaims } from "@/hooks/useClaims";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { NewClaimDialog } from "./NewClaimDialog";
+import { ClaimsTable } from "./ClaimsTable";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -137,56 +138,10 @@ export const ClaimsDashboard = () => {
 
         {/* Claims List */}
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Recent Claims</h2>
+          <h2 className="text-xl font-semibold">Claims</h2>
           
           {filteredClaims.length > 0 ? (
-            <div className="grid gap-4">
-              {filteredClaims.map((claim) => {
-                const StatusIcon = statusIcons[claim.status];
-                
-                // Skip rendering if we don't have a valid status icon
-                if (!StatusIcon) {
-                  return null;
-                }
-                
-                return (
-                  <Link key={claim.id} to={`/claims/${claim.id}`}>
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-accent/50">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg">{claim.title}</CardTitle>
-                            <CardDescription>
-                              Claim #{claim.claim_number} • {claim.policy_types?.name}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge 
-                              variant="secondary" 
-                              className="text-white"
-                              style={{ backgroundColor: statusColors[claim.status] || 'hsl(var(--muted))' }}
-                            >
-                              {StatusIcon && <StatusIcon className="w-3 h-3 mr-1" />}
-                              {claim.status.replace('_', ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>Created {format(new Date(claim.created_at), 'MMM dd, yyyy')}</span>
-                          {claim.claim_amount && (
-                            <span className="font-medium">
-                              ${claim.claim_amount.toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
-            </div>
+            <ClaimsTable claims={filteredClaims} />
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
