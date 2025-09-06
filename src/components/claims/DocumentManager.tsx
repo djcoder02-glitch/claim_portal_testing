@@ -86,9 +86,14 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
 
       if (uploadError) throw uploadError;
 
-      // Find the section label
-      const section = uploadSections.find(s => s.id === sectionId);
-      const fieldLabel = section?.label || 'Document';
+      // Determine the field label based on section
+      let fieldLabel = 'Document';
+      if (sectionId === 0) {
+        fieldLabel = 'Bill of Entry';
+      } else {
+        const section = uploadSections.find(s => s.id === sectionId);
+        fieldLabel = section?.label || 'Document';
+      }
 
       // Save document record to database
       const { data, error } = await supabase
@@ -228,11 +233,49 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Bill of Entry Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <FileText className="w-5 h-5" />
+            <span>Bill of Entry</span>
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Upload your Bill of Entry document (PDF format required for analysis)
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-4">
+            <div className="flex items-center justify-center space-x-4">
+              <Input
+                ref={(el) => { fileInputRefs.current[0] = el; }}
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={(e) => handleFileUpload(e.target.files, 0)}
+                disabled={isUploading}
+                className="flex-1 max-w-md"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRefs.current[0]?.click()}
+                disabled={isUploading}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {isUploading ? "Uploading..." : "Browse PDF"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only PDF files are accepted (Max 10MB)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Upload Sections */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Upload Documents</CardTitle>
+            <CardTitle>Other Documents</CardTitle>
             <Button variant="outline" size="sm" onClick={addUploadSection}>
               <Plus className="w-4 h-4 mr-2" />
               Add Section
