@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type UserRole = 'admin' | 'user';
+type UserRole = 'ADMIN' | 'ADJUSTER' | 'INSURED';
 
 interface AuthContextType {
   user: User | null;
@@ -39,38 +39,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   const fetchUserRole = async (userId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle(); // Use maybeSingle() instead of single()
-    
-    if (error) {
-      console.error('Error fetching user role:', error);
-      setUserRole('user');
-    } else {
-      // If no role found, create one and default to 'user'
-      if (!data) {
-        console.log('No role found, creating default role');
-        try {
-          await supabase
-            .from('user_roles')
-            .insert({ user_id: userId, role: 'user' });
-          setUserRole('user');
-        } catch (insertError) {
-          console.error('Failed to create default role:', insertError);
-          setUserRole('user');
-        }
+    try {
+      const { data, error } = await supabase.rpc('get_user_role', { _user_id: userId });
+      if (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole('user'); // Default to user role
       } else {
-        setUserRole((data.role as UserRole) || 'user');
+        setUserRole(data as UserRole);
       }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      setUserRole('user'); // Default to user role
     }
-  } catch (error) {
-    console.error('Error fetching user role:', error);
-    setUserRole('user');
-  }
-};
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -109,7 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'ADMIN';
 
   return (
     <AuthContext.Provider value={{ user, session, loading, userRole, isAdmin }}>
