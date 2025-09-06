@@ -41,8 +41,9 @@ const Auth = () => {
         toast.success("Signed in successfully!");
         // Navigate will happen automatically via AuthProvider
       }
-    } catch (error: any) {
-      toast.error("Sign in failed: " + error.message);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+        toast.error("Sign in failed: " + errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -81,8 +82,9 @@ const Auth = () => {
           toast.success("Account created! Please check your email to confirm your account.");
         }
       }
-    } catch (error: any) {
-      toast.error("Sign up failed: " + error.message);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      toast.error("Sign up failed: " + errorMessage);
     } finally {
       setIsSubmitting(false);
     }
