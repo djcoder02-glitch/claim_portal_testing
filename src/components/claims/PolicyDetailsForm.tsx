@@ -33,6 +33,8 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
   const fields = (claim.policy_types?.fields || []) as FormField[];
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
+  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
+  const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
 
   // Autosave functionality - memoized to prevent infinite loops
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
@@ -55,6 +57,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     // Reset form with current claim data, merging both standard and dynamic fields
     const allFormData = { ...claim.form_data };
     reset(allFormData);
+    setFieldLabels((claim.form_data?.field_labels || {}) as Record<string, string>);
   }, [claim.form_data, reset]);
 
   const onSubmit = async (data: Record<string, any>) => {
@@ -62,7 +65,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: data,
+          form_data: { ...data, field_labels: fieldLabels },
         },
       });
       toast.success("Policy details updated successfully!");
@@ -79,6 +82,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
       const dataToSave = {
         ...existingData,
         [fieldName]: fieldValue,
+        field_labels: fieldLabels,
       } as Record<string, any>;
 
       await updateClaimSilent.mutateAsync({
@@ -110,9 +114,23 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         return (
           <div key={field.name} className="relative space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor={field.name}>
-                {field.label} {field.required && <span className="text-destructive">*</span>}
-              </Label>
+              {editingLabels.has(field.name) ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? field.label}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {(fieldLabels[field.name] ?? field.label)} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
               {pendingSaves.has(field.name) && (
                 <Button
                   type="button"
@@ -128,9 +146,9 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             </div>
             <Input
               id={field.name}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
+              placeholder={`Enter ${(fieldLabels[field.name] ?? field.label).toLowerCase()}`}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
+                required: field.required ? `${(fieldLabels[field.name] ?? field.label)} is required` : false,
                 onChange: (e) => {
                   if (e.target.value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
@@ -155,9 +173,23 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         return (
           <div key={field.name} className="relative space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor={field.name}>
-                {field.label} {field.required && <span className="text-destructive">*</span>}
-              </Label>
+              {editingLabels.has(field.name) ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? field.label}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {(fieldLabels[field.name] ?? field.label)} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
               {pendingSaves.has(field.name) && (
                 <Button
                   type="button"
@@ -174,9 +206,9 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             <Input
               id={field.name}
               type="number"
-              placeholder={`Enter ${field.label.toLowerCase()}`}
+              placeholder={`Enter ${(fieldLabels[field.name] ?? field.label).toLowerCase()}`}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
+                required: field.required ? `${(fieldLabels[field.name] ?? field.label)} is required` : false,
                 valueAsNumber: true,
                 onChange: (e) => {
                   const newValue = (e.target as HTMLInputElement).value;
@@ -203,9 +235,23 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         return (
           <div key={field.name} className="relative space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor={field.name}>
-                {field.label} {field.required && <span className="text-destructive">*</span>}
-              </Label>
+              {editingLabels.has(field.name) ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? field.label}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {(fieldLabels[field.name] ?? field.label)} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
               {pendingSaves.has(field.name) && (
                 <Button
                   type="button"
@@ -223,7 +269,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               id={field.name}
               type="date"
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
+                required: field.required ? `${(fieldLabels[field.name] ?? field.label)} is required` : false,
                 onChange: (e) => {
                   if ((e.target as HTMLInputElement).value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
@@ -248,9 +294,23 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         return (
           <div key={field.name} className="relative space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor={field.name}>
-                {field.label} {field.required && <span className="text-destructive">*</span>}
-              </Label>
+              {editingLabels.has(field.name) ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? field.label}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {(fieldLabels[field.name] ?? field.label)} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
               {pendingSaves.has(field.name) && (
                 <Button
                   type="button"
@@ -266,10 +326,10 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             </div>
             <Textarea
               id={field.name}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
+              placeholder={`Enter ${(fieldLabels[field.name] ?? field.label).toLowerCase()}`}
               rows={4}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
+                required: field.required ? `${(fieldLabels[field.name] ?? field.label)} is required` : false,
                 onChange: (e) => {
                   if ((e.target as HTMLTextAreaElement).value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
@@ -299,9 +359,23 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         return (
           <div key={field.name} className="relative space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor={field.name}>
-                {field.label} {field.required && <span className="text-destructive">*</span>}
-              </Label>
+              {editingLabels.has(field.name) ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? field.label}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {(fieldLabels[field.name] ?? field.label)} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
               {pendingSaves.has(field.name) && (
                 <Button
                   type="button"
@@ -386,40 +460,54 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
       case 'checkbox':
         return (
-          <div key={field.name} className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id={field.name}
-                checked={fieldValue || false}
-                onCheckedChange={(checked) => {
-                  setValue(field.name, !!checked);
-                  if (checked !== (claim.form_data?.[field.name] || false)) {
-                    setPendingSaves(prev => new Set([...prev, field.name]));
-                    setTimeout(() => {
-                      if (pendingSaves.has(field.name)) {
-                        saveField(field.name);
-                      }
-                    }, 500);
-                  }
-                }}
-              />
-              <Label htmlFor={field.name} className="text-sm font-normal">
-                {field.label}
-              </Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id={field.name}
+                  checked={fieldValue || false}
+                  onCheckedChange={(checked) => {
+                    setValue(field.name, !!checked);
+                    if (checked !== (claim.form_data?.[field.name] || false)) {
+                      setPendingSaves(prev => new Set([...prev, field.name]));
+                      setTimeout(() => {
+                        if (pendingSaves.has(field.name)) {
+                          saveField(field.name);
+                        }
+                      }, 500);
+                    }
+                  }}
+                />
+                {editingLabels.has(field.name) ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fieldLabels[field.name] ?? field.label}
+                      onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                      onBlur={() => saveLabel(field.name)}
+                      className="text-sm font-normal w-auto max-w-xs"
+                    />
+                    <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Label htmlFor={field.name} className="text-sm font-normal cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                    {fieldLabels[field.name] ?? field.label}
+                  </Label>
+                )}
+              </div>
+              {pendingSaves.has(field.name) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => saveField(field.name)}
+                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title="Save field"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              )}
             </div>
-            {pendingSaves.has(field.name) && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => saveField(field.name)}
-                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                title="Save field"
-              >
-                <Check className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
         );
 
       default:
@@ -439,6 +527,21 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
   ];
 
+  const saveLabel = async (fieldName: string) => {
+    try {
+      const existingData = claim.form_data || {};
+      const updatedLabels = { ...(existingData.field_labels || {}), ...fieldLabels };
+      await updateClaimSilent.mutateAsync({
+        id: claim.id,
+        updates: { form_data: { ...existingData, field_labels: updatedLabels } },
+      });
+      setEditingLabels(prev => { const next = new Set(prev); next.delete(fieldName); return next; });
+      toast.success("Label updated", { duration: 1500 });
+    } catch (e) {
+      console.error("Failed to save label", e);
+      toast.error("Failed to save label", { duration: 1500 });
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">

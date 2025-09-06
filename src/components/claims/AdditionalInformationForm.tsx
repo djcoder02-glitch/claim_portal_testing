@@ -24,6 +24,7 @@ interface FormField {
   required: boolean;
   options?: string[];
   isCustom?: boolean;
+  section?: 'section1' | 'section2' | 'section3' | 'section4';
 }
 
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
@@ -44,16 +45,27 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
+  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
+  const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
 
   // Load custom fields from form_data on mount
   useEffect(() => {
-    const savedCustomFields = claim.form_data?.custom_fields_metadata || [];
+    const savedCustomFields = (claim.form_data?.custom_fields_metadata || []) as FormField[];
     const savedHiddenFields = claim.form_data?.hidden_fields || [];
-    setCustomFields(savedCustomFields);
+    const savedFieldLabels = (claim.form_data?.field_labels || {}) as Record<string, string>;
+
+    // Backward-compatible: assign section if missing using prior index-based distribution
+    const withSection = savedCustomFields.map((field, index) => ({
+      ...field,
+      section: field.section || (['section1','section2','section3','section4'][index % 4] as FormField['section']),
+    }));
+
+    setCustomFields(withSection);
     setHiddenFields(new Set(savedHiddenFields));
+    setFieldLabels(savedFieldLabels);
     
     // Also set the form values for custom fields
-    savedCustomFields.forEach((field: FormField) => {
+    withSection.forEach((field) => {
       if (claim.form_data?.[field.name] !== undefined) {
         setValue(field.name, claim.form_data[field.name]);
       }
@@ -67,22 +79,23 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
     );
 
-    const existingCustomEntries = Object.fromEntries(
-      Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
-    );
+  const existingCustomEntries = Object.fromEntries(
+    Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
+  );
 
-    await updateClaimMutation.mutateAsync({
-      id: claim.id,
-      updates: {
-        form_data: {
-          ...standardData,
-          ...existingCustomEntries,
-          // Preserve existing custom fields metadata and hidden fields
-          custom_fields_metadata: claim.form_data?.custom_fields_metadata || [],
-          hidden_fields: claim.form_data?.hidden_fields || [],
-        },
+  await updateClaimMutation.mutateAsync({
+    id: claim.id,
+    updates: {
+      form_data: {
+        ...standardData,
+        ...existingCustomEntries,
+        // Preserve existing custom fields metadata and hidden fields
+        custom_fields_metadata: claim.form_data?.custom_fields_metadata || [],
+        hidden_fields: claim.form_data?.hidden_fields || [],
+        field_labels: claim.form_data?.field_labels || {},
       },
-    });
+    },
+  });
   }, [claim.id, updateClaimMutation, claim.form_data]);
 
   useAutosave({
@@ -127,6 +140,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         ...existingCustomEntries,
         custom_fields_metadata: customFields,
         hidden_fields: Array.from(hiddenFields),
+        field_labels: fieldLabels,
       };
       
       await updateClaimMutation.mutateAsync({
@@ -149,6 +163,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       type: 'text',
       required: false,
       isCustom: true,
+      section: sectionKey as FormField['section'],
     };
     setCustomFields(prev => [...prev, newField]);
     setPendingSaves(prev => new Set([...prev, newField.name]));
@@ -163,6 +178,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         [fieldName]: fieldValue,
         custom_fields_metadata: customFields,
         hidden_fields: Array.from(hiddenFields),
+        field_labels: fieldLabels,
       };
       
       await updateClaimMutation.mutateAsync({
@@ -187,6 +203,33 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       toast.error("Failed to save field", {
         duration: 2000,
       });
+    }
+  };
+  
+  const saveFieldLabel = async (fieldName: string) => {
+    try {
+      const existingData = claim.form_data || {};
+      const updatedLabels = { ...(existingData.field_labels || {}), ...fieldLabels };
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: {
+            ...existingData,
+            field_labels: updatedLabels,
+            custom_fields_metadata: customFields,
+            hidden_fields: Array.from(hiddenFields),
+          },
+        },
+      });
+      setEditingLabels(prev => {
+        const next = new Set(prev);
+        next.delete(fieldName);
+        return next;
+      });
+      toast.success("Label updated", { duration: 1500 });
+    } catch (err) {
+      console.error("Failed to save label", err);
+      toast.error("Failed to save label", { duration: 1500 });
     }
   };
 
@@ -235,6 +278,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const renderField = (field: FormField, showActions = true) => {
     const fieldValue = watch(field.name);
+    const displayedLabel = fieldLabels[field.name] ?? field.label;
+    const isEditingLabel = editingLabels.has(field.name);
 
     if (hiddenFields.has(field.name)) {
       return null;
@@ -252,9 +297,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   className="text-sm font-medium w-auto max-w-xs"
                   placeholder="Field label"
                 />
+              ) : isEditingLabel ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? displayedLabel}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveFieldLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveFieldLabel(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save label"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
-                <Label htmlFor={field.name}>
-                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
               {showActions && (
@@ -319,9 +384,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   className="text-sm font-medium w-auto max-w-xs"
                   placeholder="Field label"
                 />
+              ) : isEditingLabel ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? displayedLabel}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveFieldLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveFieldLabel(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save label"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
-                <Label htmlFor={field.name}>
-                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
               {showActions && (
@@ -389,9 +474,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   className="text-sm font-medium w-auto max-w-xs"
                   placeholder="Field label"
                 />
+              ) : isEditingLabel ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? displayedLabel}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveFieldLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveFieldLabel(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save label"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
-                <Label htmlFor={field.name}>
-                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
               {showActions && (
@@ -456,9 +561,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   className="text-sm font-medium w-auto max-w-xs"
                   placeholder="Field label"
                 />
+              ) : isEditingLabel ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? displayedLabel}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveFieldLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveFieldLabel(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save label"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
-                <Label htmlFor={field.name}>
-                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
               {showActions && (
@@ -524,9 +649,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   className="text-sm font-medium w-auto max-w-xs"
                   placeholder="Field label"
                 />
+              ) : isEditingLabel ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? displayedLabel}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveFieldLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveFieldLabel(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save label"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
-                <Label htmlFor={field.name}>
-                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
               {showActions && (
@@ -784,10 +929,10 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const section3Fields = additionalFields.slice(23, 29);
   const section4Fields = additionalFields.slice(29);
 
-  const section1Custom = customFields.filter((_, index) => index % 4 === 0);
-  const section2Custom = customFields.filter((_, index) => index % 4 === 1);
-  const section3Custom = customFields.filter((_, index) => index % 4 === 2);
-  const section4Custom = customFields.filter((_, index) => index % 4 === 3);
+  const section1Custom = customFields.filter((f) => f.section === 'section1');
+  const section2Custom = customFields.filter((f) => f.section === 'section2');
+  const section3Custom = customFields.filter((f) => f.section === 'section3');
+  const section4Custom = customFields.filter((f) => f.section === 'section4');
 
   return (
     <div className="max-w-4xl mx-auto">
