@@ -19,8 +19,9 @@ export const useAutosave = ({ control, onSave, delay = 2000, enabled = true }: U
 
     const currentDataString = JSON.stringify(watchedData);
     
-    // Don't save if data hasn't changed
-    if (currentDataString === lastSavedDataRef.current) {
+    // Don't save if data hasn't changed or is initial load
+    if (currentDataString === lastSavedDataRef.current || !lastSavedDataRef.current) {
+      lastSavedDataRef.current = currentDataString;
       return;
     }
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,15 +32,15 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
   const fields = (claim.policy_types?.fields || []) as FormField[];
 
-  // Autosave functionality
-  const handleAutosave = async (data: Record<string, any>) => {
+  // Autosave functionality - memoized to prevent infinite loops
+  const handleAutosave = useCallback(async (data: Record<string, any>) => {
     await updateClaimMutation.mutateAsync({
       id: claim.id,
       updates: {
         form_data: data,
       },
     });
-  };
+  }, [claim.id, updateClaimMutation]);
 
   useAutosave({
     control,

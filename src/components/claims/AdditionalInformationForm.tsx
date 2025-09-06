@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,15 +44,15 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
 
-  // Autosave functionality
-  const handleAutosave = async (data: Record<string, any>) => {
+  // Autosave functionality - memoized to prevent infinite loops
+  const handleAutosave = useCallback(async (data: Record<string, any>) => {
     await updateClaimMutation.mutateAsync({
       id: claim.id,
       updates: {
         form_data: data,
       },
     });
-  };
+  }, [claim.id, updateClaimMutation]);
 
   useAutosave({
     control,
