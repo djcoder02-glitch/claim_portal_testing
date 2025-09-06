@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useUpdateClaim, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Plus, X, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X, Info, Check } from "lucide-react";
 
 interface AdditionalInformationFormProps {
   claim: Claim;
@@ -43,6 +43,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   // State for managing custom fields and hidden fields
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
+  const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
 
   // Load custom fields from form_data on mount
   useEffect(() => {
@@ -50,24 +51,30 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     const savedHiddenFields = claim.form_data?.hidden_fields || [];
     setCustomFields(savedCustomFields);
     setHiddenFields(new Set(savedHiddenFields));
-  }, [claim.form_data]);
+    
+    // Also set the form values for custom fields
+    savedCustomFields.forEach((field: FormField) => {
+      if (claim.form_data?.[field.name] !== undefined) {
+        setValue(field.name, claim.form_data[field.name]);
+      }
+    });
+  }, [claim.form_data, setValue]);
 
   // Autosave functionality - memoized to prevent infinite loops
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
-    // Include custom fields metadata and hidden fields in the save
-    const dataWithMetadata = {
-      ...data,
-      custom_fields_metadata: customFields,
-      hidden_fields: Array.from(hiddenFields),
-    };
-    
+    // Only include standard form data in autosave, not custom field operations
     await updateClaimMutation.mutateAsync({
       id: claim.id,
       updates: {
-        form_data: dataWithMetadata,
+        form_data: {
+          ...data,
+          // Preserve existing custom fields metadata and hidden fields
+          custom_fields_metadata: claim.form_data?.custom_fields_metadata || [],
+          hidden_fields: claim.form_data?.hidden_fields || [],
+        },
       },
     });
-  }, [claim.id, updateClaimMutation, customFields, hiddenFields]);
+  }, [claim.id, updateClaimMutation, claim.form_data]);
 
   useAutosave({
     control,
@@ -89,6 +96,14 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const onSubmit = async (data: Record<string, any>) => {
     try {
+      // Save any pending custom fields first
+      const pendingFieldNames = Array.from(pendingSaves);
+      if (pendingFieldNames.length > 0) {
+        for (const fieldName of pendingFieldNames) {
+          await saveCustomField(fieldName);
+        }
+      }
+
       const dataWithMetadata = {
         ...data,
         custom_fields_metadata: customFields,
@@ -108,7 +123,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
   };
 
-  const addCustomField = async (sectionKey: string) => {
+  const addCustomField = (sectionKey: string) => {
     const newField: FormField = {
       name: `custom_${Date.now()}`,
       label: 'New Field',
@@ -116,15 +131,16 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       required: false,
       isCustom: true,
     };
-    const updatedCustomFields = [...customFields, newField];
-    setCustomFields(updatedCustomFields);
-    
-    // Save immediately to database
+    setCustomFields(prev => [...prev, newField]);
+    setPendingSaves(prev => new Set([...prev, newField.name]));
+  };
+
+  const saveCustomField = async (fieldName: string) => {
     try {
       const currentFormData = watch();
       const dataWithMetadata = {
         ...currentFormData,
-        custom_fields_metadata: updatedCustomFields,
+        custom_fields_metadata: customFields,
         hidden_fields: Array.from(hiddenFields),
       };
       
@@ -135,10 +151,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         },
       });
       
-      toast.success('Custom field added successfully');
+      setPendingSaves(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldName);
+        return newSet;
+      });
     } catch (error) {
       console.error('Failed to save custom field:', error);
-      toast.error('Failed to add custom field');
     }
   };
 
@@ -146,7 +165,6 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     const updatedHiddenFields = new Set([...hiddenFields, fieldName]);
     setHiddenFields(updatedHiddenFields);
     
-    // Save immediately to database
     try {
       const currentFormData = watch();
       const dataWithMetadata = {
@@ -166,61 +184,21 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
   };
 
-  const removeCustomField = async (fieldName: string) => {
-    const updatedCustomFields = customFields.filter(field => field.name !== fieldName);
-    setCustomFields(updatedCustomFields);
-    
-    // Also remove the field value from form data
+  const removeCustomField = (fieldName: string) => {
+    setCustomFields(prev => prev.filter(field => field.name !== fieldName));
     setValue(fieldName, undefined);
-    
-    // Save immediately to database
-    try {
-      const currentFormData = watch();
-      const dataWithMetadata = {
-        ...currentFormData,
-        [fieldName]: undefined, // Remove the field value
-        custom_fields_metadata: updatedCustomFields,
-        hidden_fields: Array.from(hiddenFields),
-      };
-      
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: dataWithMetadata,
-        },
-      });
-      
-      toast.success('Custom field removed successfully');
-    } catch (error) {
-      console.error('Failed to remove custom field:', error);
-      toast.error('Failed to remove custom field');
-    }
+    setPendingSaves(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(fieldName);
+      return newSet;
+    });
   };
 
-  const updateCustomField = async (fieldName: string, updates: Partial<FormField>) => {
-    const updatedCustomFields = customFields.map(field => 
+  const updateCustomField = (fieldName: string, updates: Partial<FormField>) => {
+    setCustomFields(prev => prev.map(field => 
       field.name === fieldName ? { ...field, ...updates } : field
-    );
-    setCustomFields(updatedCustomFields);
-    
-    // Save immediately to database
-    try {
-      const currentFormData = watch();
-      const dataWithMetadata = {
-        ...currentFormData,
-        custom_fields_metadata: updatedCustomFields,
-        hidden_fields: Array.from(hiddenFields),
-      };
-      
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: dataWithMetadata,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to update custom field:', error);
-    }
+    ));
+    setPendingSaves(prev => new Set([...prev, fieldName]));
   };
 
   const renderField = (field: FormField, showActions = true) => {
@@ -248,15 +226,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 </Label>
               )}
               {showActions && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {field.isCustom && pendingSaves.has(field.name) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => saveCustomField(field.name)}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Save field"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
             <Input
@@ -291,15 +283,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 </Label>
               )}
               {showActions && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {field.isCustom && pendingSaves.has(field.name) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => saveCustomField(field.name)}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Save field"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
             <Input
@@ -336,15 +342,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 </Label>
               )}
               {showActions && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {field.isCustom && pendingSaves.has(field.name) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => saveCustomField(field.name)}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Save field"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
             <Input
@@ -379,15 +399,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 </Label>
               )}
               {showActions && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {field.isCustom && pendingSaves.has(field.name) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => saveCustomField(field.name)}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Save field"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
             <Textarea
@@ -423,15 +457,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 </Label>
               )}
               {showActions && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {field.isCustom && pendingSaves.has(field.name) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => saveCustomField(field.name)}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Save field"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
             <Select
@@ -478,15 +526,29 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               </Label>
             )}
             {showActions && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-              >
-                <X className="h-3 w-3" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {field.isCustom && pendingSaves.has(field.name) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveCustomField(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save field"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             )}
           </div>
         );
