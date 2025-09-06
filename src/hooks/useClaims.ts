@@ -141,10 +141,41 @@ export const useUpdateClaim = () => {
     onSuccess: () => {
       // Invalidate both user and admin queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["claims"] });
+      // Also refresh individual claim pages
+      queryClient.invalidateQueries({ queryKey: ["claim"] });
       toast.success("Claim updated successfully!");
     },
     onError: (error) => {
       toast.error("Failed to update claim: " + error.message);
+    },
+  });
+};
+
+export const useUpdateClaimSilent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Claim>;
+    }) => {
+      const { data, error } = await supabase
+        .from("claims")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      // Invalidate caches silently (no toast)
+      queryClient.invalidateQueries({ queryKey: ["claims"] });
+      queryClient.invalidateQueries({ queryKey: ["claim"] });
     },
   });
 };

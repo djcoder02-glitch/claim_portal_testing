@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useUpdateClaim, type Claim } from "@/hooks/useClaims";
+import { useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Plus, X, Info, Check } from "lucide-react";
@@ -27,7 +27,7 @@ interface FormField {
 }
 
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
-  const updateClaimMutation = useUpdateClaim();
+  const updateClaimMutation = useUpdateClaimSilent();
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
   });
@@ -62,12 +62,21 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   // Autosave functionality - memoized to prevent infinite loops
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
-    // Only include standard form data in autosave, not custom field operations
+    // Exclude custom field values from autosave; only save standard fields
+    const standardData = Object.fromEntries(
+      Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
+    );
+
+    const existingCustomEntries = Object.fromEntries(
+      Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
+    );
+
     await updateClaimMutation.mutateAsync({
       id: claim.id,
       updates: {
         form_data: {
-          ...data,
+          ...standardData,
+          ...existingCustomEntries,
           // Preserve existing custom fields metadata and hidden fields
           custom_fields_metadata: claim.form_data?.custom_fields_metadata || [],
           hidden_fields: claim.form_data?.hidden_fields || [],
@@ -104,8 +113,17 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         }
       }
 
+      // Only persist standard fields; custom fields are saved via tick
+      const standardData = Object.fromEntries(
+        Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
+      );
+      const existingCustomEntries = Object.fromEntries(
+        Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
+      );
+
       const dataWithMetadata = {
-        ...data,
+        ...standardData,
+        ...existingCustomEntries,
         custom_fields_metadata: customFields,
         hidden_fields: Array.from(hiddenFields),
       };
@@ -116,7 +134,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
           form_data: dataWithMetadata,
         },
       });
-      toast.success("Additional information updated successfully!");
+      // Success toast only on tick mark saves
     } catch (error) {
       console.error("Failed to update claim:", error);
       toast.error("Failed to update additional information");
@@ -137,9 +155,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const saveCustomField = async (fieldName: string) => {
     try {
-      const currentFormData = watch();
+      const fieldValue = watch(fieldName);
+      const existingData = claim.form_data || {};
       const dataWithMetadata = {
-        ...currentFormData,
+        ...existingData,
+        [fieldName]: fieldValue,
         custom_fields_metadata: customFields,
         hidden_fields: Array.from(hiddenFields),
       };

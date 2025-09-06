@@ -77,6 +77,19 @@ const labelize = (k: string) =>
     .replace(/^./, (s) => s.toUpperCase())
     .replace(/_/g, " ");
 
+const getCustomLabel = (k: string, claim: Claim) => {
+  const meta = (claim.form_data?.custom_fields_metadata as Array<{ name: string; label: string }>) || [];
+  const found = meta.find((m) => m?.name === k);
+  return found?.label || labelize(k);
+};
+
+const isReservedCustomKey = (k: string) => k === "custom_fields_metadata" || k === "hidden_fields";
+
+const isHiddenCustomKey = (k: string, claim: Claim) => {
+  const hidden = (claim.form_data?.hidden_fields as string[]) || [];
+  return hidden.includes(k);
+};
+
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -154,9 +167,9 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         // Get both standard and custom fields for this section
         const allEntries = Object.entries(claim.form_data || {})
           .filter(([key, value]) => {
-            // Include standard fields or custom fields
+            // Include standard fields or custom fields (excluding reserved/hidden)
             const isStandardField = standardFields.includes(key);
-            const isCustomField = key.startsWith('custom_');
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim);
             const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
             
             return (isStandardField || isCustomField) && hasValue;
@@ -167,7 +180,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
             {allEntries.map(([key, value]) => (
               <div key={key} className="flex justify-between">
                 <span className="text-muted-foreground capitalize">
-                  {labelize(key)}:
+                  {getCustomLabel(key, claim)}:
                 </span>
                 <span className="font-medium">
                   {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
@@ -202,7 +215,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         const allEntries = Object.entries(claim.form_data || {})
           .filter(([key, value]) => {
             const isStandardField = basicInfoFields.includes(key);
-            const isCustomField = key.startsWith('custom_') && !key.includes('survey') && !key.includes('transport') && !key.includes('report');
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && !key.includes('survey') && !key.includes('transport') && !key.includes('report');
             const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
             
             return (isStandardField || isCustomField) && hasValue;
@@ -213,7 +226,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
             {allEntries.map(([key, value]) => (
               <div key={key} className="flex justify-between">
                 <span className="text-muted-foreground capitalize">
-                  {labelize(key)}:
+                  {getCustomLabel(key, claim)}:
                 </span>
                 <span className="font-medium">
                   {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
@@ -245,7 +258,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         const allEntries = Object.entries(claim.form_data || {})
           .filter(([key, value]) => {
             const isStandardField = surveyFields.includes(key);
-            const isCustomField = key.startsWith('custom_') && (key.includes('survey') || key.includes('loss') || key.includes('damage'));
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && (key.includes('survey') || key.includes('loss') || key.includes('damage'));
             const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
             
             return (isStandardField || isCustomField) && hasValue;
@@ -260,7 +273,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
               return (
                 <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
                   <span className="text-muted-foreground capitalize font-medium">
-                    {labelize(key)}:
+                    {getCustomLabel(key, claim)}:
                   </span>
                   <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
                 </div>
@@ -287,7 +300,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         const allEntries = Object.entries(claim.form_data || {})
           .filter(([key, value]) => {
             const isStandardField = transportFields.includes(key);
-            const isCustomField = key.startsWith('custom_') && (key.includes('transport') || key.includes('vehicle') || key.includes('dispatch'));
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && (key.includes('transport') || key.includes('vehicle') || key.includes('dispatch'));
             const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
             
             return (isStandardField || isCustomField) && hasValue;
@@ -329,7 +342,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         const allEntries = Object.entries(claim.form_data || {})
           .filter(([key, value]) => {
             const isStandardField = reportFields.includes(key);
-            const isCustomField = key.startsWith('custom_') && (key.includes('report') || key.includes('text') || key.includes('address') || key.includes('content'));
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && (key.includes('report') || key.includes('text') || key.includes('address') || key.includes('content'));
             const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
             
             return (isStandardField || isCustomField) && hasValue;
@@ -344,7 +357,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
               return (
                 <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
                   <span className="text-muted-foreground capitalize font-medium">
-                    {labelize(key)}:
+                    {getCustomLabel(key, claim)}:
                   </span>
                   <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
                 </div>
@@ -361,7 +374,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         // Get custom fields that haven't been categorized in other sections
         const customEntries = Object.entries(claim.form_data || {})
           .filter(([key, value]) => {
-            const isCustomField = key.startsWith('custom_');
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim);
             const isAlreadyCategorized = key.includes('survey') || key.includes('loss') || 
               key.includes('damage') || key.includes('transport') || key.includes('vehicle') || 
               key.includes('dispatch') || key.includes('report') || key.includes('text') || 
@@ -384,7 +397,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
               return (
                 <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
                   <span className="text-muted-foreground capitalize font-medium">
-                    {labelize(key)}:
+                    {getCustomLabel(key, claim)}:
                   </span>
                   <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
                 </div>
