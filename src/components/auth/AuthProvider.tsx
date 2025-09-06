@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type UserRole = 'admin' | 'user';
+type UserRole = 'ADMIN' | 'ADJUSTER' | 'INSURED';
 
 interface AuthContextType {
   user: User | null;
@@ -43,13 +43,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { data, error } = await supabase.rpc('get_user_role', { _user_id: userId });
       if (error) {
         console.error('Error fetching user role:', error);
-        setUserRole('user'); // Default to user role
+        setUserRole('INSURED'); // Default to insured role
       } else {
         setUserRole(data as UserRole);
       }
     } catch (error) {
       console.error('Error fetching user role:', error);
-      setUserRole('user'); // Default to user role
+      setUserRole('INSURED'); // Default to insured role
     }
   };
 
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'ADMIN';
 
   return (
     <AuthContext.Provider value={{ user, session, loading, userRole, isAdmin }}>
