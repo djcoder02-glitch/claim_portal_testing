@@ -465,6 +465,127 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
 };
 
 /* =========================
+   Data Checking Helpers
+========================= */
+
+const sectionHasData = (sectionName: string, claim: Claim): boolean => {
+  const formData = claim.form_data || {};
+  
+  switch (sectionName) {
+    case "Claim Overview":
+      // Always show overview since it contains basic claim info
+      return true;
+      
+    case "Policy Details": {
+      const standardFields = [
+        "registration_id", "insured_name", "insurer", "assigned_surveyor",
+        "policy_number", "sum_insured", "date_of_loss", "loss_description",
+      ];
+      
+      return Object.entries(formData).some(([key, value]) => {
+        const isStandardField = standardFields.includes(key);
+        const isCustomField = key.startsWith('custom_');
+        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+        return (isStandardField || isCustomField) && hasValue;
+      });
+    }
+    
+    case "Basic Information": {
+      const basicInfoFields = [
+        "consigner_name", "consignee_name", "applicant_survey", "underwriter_name",
+        "cha_name", "certificate_no", "endorsement_no", "invoice_no", "invoice_date",
+        "invoice_value", "invoice_pkg_count", "invoice_gross_wt", "invoice_net_wt",
+      ];
+      
+      return Object.entries(formData).some(([key, value]) => {
+        const isStandardField = basicInfoFields.includes(key);
+        const isCustomField = key.startsWith('custom_') && !key.includes('survey') && !key.includes('transport') && !key.includes('report');
+        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+        return (isStandardField || isCustomField) && hasValue;
+      });
+    }
+    
+    case "Survey & Loss Details": {
+      const surveyFields = [
+        "goods_description", "intimation_date", "survey_date_place", "external_condition_review",
+        "packing_nature", "packing_condition", "damage_description", "loss_cause",
+        "joint_survey", "consignee_notice",
+      ];
+      
+      return Object.entries(formData).some(([key, value]) => {
+        const isStandardField = surveyFields.includes(key);
+        const isCustomField = key.startsWith('custom_') && (key.includes('survey') || key.includes('loss') || key.includes('damage'));
+        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+        return (isStandardField || isCustomField) && hasValue;
+      });
+    }
+    
+    case "Transportation Details": {
+      const transportFields = [
+        "transporter_name", "vehicle_number", "lr_date_issuance", "consignment_note",
+        "delivery_challan", "dispatch_condition",
+      ];
+      
+      return Object.entries(formData).some(([key, value]) => {
+        const isStandardField = transportFields.includes(key);
+        const isCustomField = key.startsWith('custom_') && (key.includes('transport') || key.includes('vehicle') || key.includes('dispatch'));
+        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+        return (isStandardField || isCustomField) && hasValue;
+      });
+    }
+    
+    case "Report Text Section": {
+      const reportFields = [
+        "survey_address", "number_packages", "packing_contents", "content_industry_use",
+        "arrival_details", "external_condition_tag",
+      ];
+      
+      return Object.entries(formData).some(([key, value]) => {
+        const isStandardField = reportFields.includes(key);
+        const isCustomField = key.startsWith('custom_') && (key.includes('report') || key.includes('text') || key.includes('address') || key.includes('content'));
+        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+        return (isStandardField || isCustomField) && hasValue;
+      });
+    }
+    
+    case "Custom Fields": {
+      return Object.entries(formData).some(([key, value]) => {
+        const isCustomField = key.startsWith('custom_');
+        const isAlreadyCategorized = key.includes('survey') || key.includes('loss') || 
+          key.includes('damage') || key.includes('transport') || key.includes('vehicle') || 
+          key.includes('dispatch') || key.includes('report') || key.includes('text') || 
+          key.includes('address') || key.includes('content');
+        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+        return isCustomField && !isAlreadyCategorized && hasValue;
+      });
+    }
+    
+    case "Financial Summary":
+      // Show if there's a claim amount or always show for financial summary
+      return claim.claim_amount !== null && claim.claim_amount !== undefined;
+      
+    case "Timeline":
+      // Always show timeline since it contains creation/update info
+      return true;
+      
+    default:
+      return false;
+  }
+};
+
+const getInitialSections = (claim: Claim): ReportSection[] => [
+  { id: "overview", name: "Claim Overview", content: {}, isVisible: sectionHasData("Claim Overview", claim), order: 1 },
+  { id: "policy-details", name: "Policy Details", content: {}, isVisible: sectionHasData("Policy Details", claim), order: 2 },
+  { id: "basic-information", name: "Basic Information", content: {}, isVisible: sectionHasData("Basic Information", claim), order: 3 },
+  { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: sectionHasData("Survey & Loss Details", claim), order: 4 },
+  { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: sectionHasData("Transportation Details", claim), order: 5 },
+  { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: sectionHasData("Report Text Section", claim), order: 6 },
+  { id: "custom-fields", name: "Custom Fields", content: {}, isVisible: sectionHasData("Custom Fields", claim), order: 7 },
+  { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 8 },
+  { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 9 },
+];
+
+/* =========================
    Default Sections
 ========================= */
 
@@ -774,8 +895,8 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       return acc;
     }, {} as Record<string, ClaimDocument[]>) || {};
 
-  // Sections state
-  const [sections, setSections] = useState<ReportSection[]>(defaultSections);
+  // Sections state - initialize with data-based visibility
+  const [sections, setSections] = useState<ReportSection[]>(() => getInitialSections(claim));
 
   // DnD sensors
   const sensors = useSensors(
