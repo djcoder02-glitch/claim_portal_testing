@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileText, Info, Eye, Upload, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { useClaimById } from "@/hooks/useClaims";
 import { PolicyDetailsForm } from "./PolicyDetailsForm";
@@ -12,6 +14,7 @@ import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 const statusConfig = {
   submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
   under_review: { color: "bg-amber-600", icon: AlertCircle, label: "Under Review" },
@@ -24,6 +27,9 @@ export const ClaimDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { data: claim, isLoading } = useClaimById(id!);
   const [activeTab, setActiveTab] = useState("policy-details");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const queryClient = useQueryClient();
 
   const handleTabChange = (value: string) => {
     // Show toast when switching tabs to indicate data is saved
@@ -42,6 +48,63 @@ export const ClaimDetails = () => {
     }
     
     setActiveTab(value);
+  };
+
+  // Upload Bill of Entry mutation
+  const uploadBillOfEntryMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Upload file to storage
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `${user.id}/${id}/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("claim-documents")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Save document record to database
+      const { data, error } = await supabase
+        .from("claim_documents")
+        .insert({
+          claim_id: id!,
+          file_name: file.name,
+          file_path: filePath,
+          file_type: file.type,
+          file_size: file.size,
+          uploaded_by: user.id,
+          field_label: 'Bill of Entry',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claim-documents", id] });
+      toast.success("Bill of Entry uploaded successfully!");
+    },
+    onError: (error) => {
+      toast.error("Failed to upload Bill of Entry: " + error.message);
+    },
+  });
+
+  const handleBillOfEntryUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      await uploadBillOfEntryMutation.mutateAsync(files[0]);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
   if (isLoading) {
     return (
@@ -116,57 +179,121 @@ export const ClaimDetails = () => {
           </CardHeader>
         </Card>
 
-        {/* Enhanced Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-100 h-14">
-              <TabsTrigger 
-                value="policy-details" 
-                className="flex items-center space-x-2 data-[state=active]:bg-slate-700 data-[state=active]:text-white transition-all duration-200"
-              >
-                <FileText className="w-4 h-4" />
-                <span>Policy Details</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="additional-info" 
-                className="flex items-center space-x-2 data-[state=active]:bg-slate-600 data-[state=active]:text-white transition-all duration-200"
-              >
-                <Info className="w-4 h-4" />
-                <span>Additional Info</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="report-preview" 
-                className="flex items-center space-x-2 data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all duration-200"
-              >
-                <Eye className="w-4 h-4" />
-                <span>View Report</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="documents" 
-                className="flex items-center space-x-2 data-[state=active]:bg-slate-500 data-[state=active]:text-white transition-all duration-200"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Documents</span>
-              </TabsTrigger>
-            </TabsList>
-          </Card>
+        {/* Main Content Layout with Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Fixed Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Claim Overview */}
+            <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Claim Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm">
+                  <p className="text-muted-foreground">Amount</p>
+                  <p className="font-semibold">
+                    {claim.claim_amount ? `$${Number(claim.claim_amount).toLocaleString()}` : 'Not specified'}
+                  </p>
+                </div>
+                <div className="text-sm">
+                  <p className="text-muted-foreground">Description</p>
+                  <p className="text-sm">{claim.description || 'No description provided'}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-          <TabsContent value="policy-details" className="space-y-6">
-            <PolicyDetailsForm claim={claim} />
-          </TabsContent>
+            {/* Bill of Entry Upload */}
+            <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-lg">
+                  <FileText className="w-5 h-5" />
+                  <span>Bill of Entry</span>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Upload your Bill of Entry document (PDF format required for analysis)
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="border-2 border-dashed rounded-lg p-4 text-center space-y-3">
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={(e) => handleBillOfEntryUpload(e.target.files)}
+                    disabled={isUploading}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {isUploading ? "Uploading..." : "Browse PDF"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Only PDF files are accepted (Max 10MB)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-          <TabsContent value="additional-info" className="space-y-6">
-            <AdditionalInformationForm claim={claim} />
-          </TabsContent>
+          {/* Main Content Area */}
+          <div className="lg:col-span-3">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+              <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
+                <TabsList className="grid w-full grid-cols-4 bg-slate-100 h-14">
+                  <TabsTrigger 
+                    value="policy-details" 
+                    className="flex items-center space-x-2 data-[state=active]:bg-slate-700 data-[state=active]:text-white transition-all duration-200"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Policy Details</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="additional-info" 
+                    className="flex items-center space-x-2 data-[state=active]:bg-slate-600 data-[state=active]:text-white transition-all duration-200"
+                  >
+                    <Info className="w-4 h-4" />
+                    <span>Additional Info</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="report-preview" 
+                    className="flex items-center space-x-2 data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all duration-200"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>View Report</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="documents" 
+                    className="flex items-center space-x-2 data-[state=active]:bg-slate-500 data-[state=active]:text-white transition-all duration-200"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Documents</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Card>
 
-          <TabsContent value="report-preview" className="space-y-6">
-            <ReportPreview claim={claim} />
-          </TabsContent>
+              <TabsContent value="policy-details" className="space-y-6">
+                <PolicyDetailsForm claim={claim} />
+              </TabsContent>
 
-          <TabsContent value="documents" className="space-y-6">
-            <DocumentManager claimId={claim.id} />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="additional-info" className="space-y-6">
+                <AdditionalInformationForm claim={claim} />
+              </TabsContent>
+
+              <TabsContent value="report-preview" className="space-y-6">
+                <ReportPreview claim={claim} />
+              </TabsContent>
+
+              <TabsContent value="documents" className="space-y-6">
+                <DocumentManager claimId={claim.id} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   );
