@@ -13,15 +13,27 @@ export const useAutosave = ({ control, onSave, delay = 2000, enabled = true }: U
   const watchedData = useWatch({ control });
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedDataRef = useRef<string>();
+  const savingRef = useRef(false);
+  const onSaveRef = useRef(onSave);
+
+  // Keep latest onSave without retriggering effect
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
   useEffect(() => {
     if (!enabled) return;
 
     const currentDataString = JSON.stringify(watchedData);
-    
-    // Don't save if data hasn't changed or is initial load
-    if (currentDataString === lastSavedDataRef.current || !lastSavedDataRef.current) {
+
+    // Initial mount: record snapshot and skip save
+    if (!lastSavedDataRef.current) {
       lastSavedDataRef.current = currentDataString;
+      return;
+    }
+
+    // Skip if unchanged or a save is already in-flight
+    if (currentDataString === lastSavedDataRef.current || savingRef.current) {
       return;
     }
 
@@ -33,17 +45,19 @@ export const useAutosave = ({ control, onSave, delay = 2000, enabled = true }: U
     // Set new timeout for autosave
     timeoutRef.current = setTimeout(async () => {
       try {
-        await onSave(watchedData);
+        savingRef.current = true;
+        await onSaveRef.current?.(watchedData);
         lastSavedDataRef.current = currentDataString;
         toast.success('Changes saved automatically', {
-          duration: 2000,
-          className: 'bg-green-50 border-green-200 text-green-800',
+          duration: 1500,
         });
       } catch (error) {
         console.error('Autosave failed:', error);
         toast.error('Failed to save changes automatically', {
-          duration: 3000,
+          duration: 2500,
         });
+      } finally {
+        savingRef.current = false;
       }
     }, delay);
 
@@ -52,19 +66,18 @@ export const useAutosave = ({ control, onSave, delay = 2000, enabled = true }: U
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [watchedData, onSave, delay, enabled]);
+  }, [watchedData, delay, enabled]);
 
-  // Save on component unmount
+  // Save on component unmount if there are unsaved changes
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
-        // Perform final save if there's unsaved data
-        const currentDataString = JSON.stringify(watchedData);
-        if (currentDataString !== lastSavedDataRef.current) {
-          onSave(watchedData).catch(console.error);
-        }
+      }
+      const currentDataString = JSON.stringify(watchedData);
+      if (enabled && currentDataString !== lastSavedDataRef.current && !savingRef.current) {
+        onSaveRef.current?.(watchedData).catch(console.error);
       }
     };
-  }, [watchedData, onSave]);
+  }, [watchedData, enabled]);
 };
