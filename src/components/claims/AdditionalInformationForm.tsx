@@ -9,8 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useUpdateClaim, type Claim } from "@/hooks/useClaims";
+import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X, Info } from "lucide-react";
 
 interface AdditionalInformationFormProps {
   claim: Claim;
@@ -27,7 +28,7 @@ interface FormField {
 
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
   const updateClaimMutation = useUpdateClaim();
-  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
   });
 
@@ -42,6 +43,22 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   // State for managing custom fields and hidden fields
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
+
+  // Autosave functionality
+  const handleAutosave = async (data: Record<string, any>) => {
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates: {
+        form_data: data,
+      },
+    });
+  };
+
+  useAutosave({
+    control,
+    onSave: handleAutosave,
+    delay: 2000,
+  });
 
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections(prev => ({
@@ -450,39 +467,45 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     sectionKey: keyof typeof openSections, 
     title: string, 
     fields: FormField[], 
-    customFieldsForSection: FormField[]
+    customFieldsForSection: FormField[],
+    colorClass: string
   ) => {
     const allFields = [...fields, ...customFieldsForSection];
     const isOpen = openSections[sectionKey];
 
     return (
       <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-4 h-auto text-left hover:bg-muted/50"
-          >
-            <h4 className="text-md font-medium text-muted-foreground">{title}</h4>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-            {allFields.map(field => renderField(field))}
-          </div>
-          <div className="px-4 pb-4">
+        <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg overflow-hidden">
+          <CollapsibleTrigger asChild>
             <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => addCustomField(sectionKey)}
-              className="flex items-center gap-2"
+              variant="ghost"
+              className={`w-full justify-between p-6 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-300`}
             >
-              <Plus className="h-3 w-3" />
-              Add Field
+              <h4 className="text-lg font-semibold flex items-center gap-2">
+                <Info className="w-5 h-5" />
+                {title}
+              </h4>
+              {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
             </Button>
-          </div>
-        </CollapsibleContent>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4 animate-accordion-down">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+              {allFields.map(field => renderField(field))}
+            </div>
+            <div className="px-6 pb-6">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addCustomField(sectionKey)}
+                className="flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <Plus className="h-3 w-3" />
+                Add Field
+              </Button>
+            </div>
+          </CollapsibleContent>
+        </Card>
       </Collapsible>
     );
   };
@@ -499,29 +522,32 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Additional Information</CardTitle>
+      <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
+        <CardHeader className="bg-gradient-accent text-white rounded-t-lg">
+          <CardTitle className="flex items-center gap-2">
+            <Info className="w-5 h-5" />
+            Additional Information
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
+        <CardContent className="p-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Section 1 - Basic Information */}
-            {renderSection('section1', 'Section 1 - Basic Information', section1Fields, section1Custom)}
+            {renderSection('section1', 'Section 1 - Basic Information', section1Fields, section1Custom, 'bg-gradient-primary')}
 
             {/* Section 2 - Survey & Loss Details */}
-            {renderSection('section2', 'Section 2 - Survey & Loss Details', section2Fields, section2Custom)}
+            {renderSection('section2', 'Section 2 - Survey & Loss Details', section2Fields, section2Custom, 'bg-warning')}
 
             {/* Section 3 - Transportation Details */}
-            {renderSection('section3', 'Section 3 - Transportation Details', section3Fields, section3Custom)}
+            {renderSection('section3', 'Section 3 - Transportation Details', section3Fields, section3Custom, 'bg-success')}
 
             {/* Report Text Section */}
-            {renderSection('section4', 'Report Text Section', section4Fields, section4Custom)}
+            {renderSection('section4', 'Report Text Section', section4Fields, section4Custom, 'bg-info')}
             
-            <div className="pt-4 border-t">
+            <div className="pt-6 border-t border-border/50">
               <Button 
                 type="submit" 
                 disabled={updateClaimMutation.isPending}
-                className="w-full"
+                className="w-full bg-gradient-accent hover:opacity-90 shadow-accent transition-all duration-300"
               >
                 {updateClaimMutation.isPending ? "Saving..." : "Save Additional Information"}
               </Button>

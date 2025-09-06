@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdateClaim, type Claim } from "@/hooks/useClaims";
+import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
+import { Save } from "lucide-react";
 
 interface PolicyDetailsFormProps {
   claim: Claim;
@@ -24,11 +26,27 @@ interface FormField {
 
 export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   const updateClaimMutation = useUpdateClaim();
-  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
   });
 
   const fields = (claim.policy_types?.fields || []) as FormField[];
+
+  // Autosave functionality
+  const handleAutosave = async (data: Record<string, any>) => {
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates: {
+        form_data: data,
+      },
+    });
+  };
+
+  useAutosave({
+    control,
+    onSave: handleAutosave,
+    delay: 2000,
+  });
 
   useEffect(() => {
     // Reset form with current claim data, merging both standard and dynamic fields
@@ -237,26 +255,33 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Policy Information</CardTitle>
+      <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
+        <CardHeader className="bg-gradient-primary text-white rounded-t-lg">
+          <CardTitle className="flex items-center gap-2">
+            <Save className="w-5 h-5" />
+            Policy Information
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Standard Policy Information Fields */}
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold border-b pb-2">Policy Details</h3>
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-6 bg-gradient-primary rounded-full"></div>
+                <h3 className="text-lg font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Policy Details
+                </h3>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {standardFields.map(renderField)}
               </div>
             </div>
             
-            
-            <div className="pt-4 border-t">
+            <div className="pt-4 border-t border-border/50">
               <Button 
                 type="submit" 
                 disabled={updateClaimMutation.isPending}
-                className="w-full"
+                className="w-full bg-gradient-primary hover:opacity-90 shadow-primary transition-all duration-300"
               >
                 {updateClaimMutation.isPending ? "Saving..." : "Save Policy Details"}
               </Button>

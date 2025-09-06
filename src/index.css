@@ -8,7 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    /* Enhanced gradient background */
+    --background: 220 50% 98%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -17,26 +18,31 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
+    /* Vibrant primary colors */
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 217.2 91.2% 70%;
 
-    --secondary: 210 40% 96.1%;
+    /* Enhanced secondary with gradient support */
+    --secondary: 240 100% 98%;
     --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary-accent: 240 60% 95%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 240 30% 97%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 267 57% 78%;
+    --accent-foreground: 0 0% 100%;
+    --accent-glow: 267 57% 88%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 220 30% 93%;
+    --input: 220 30% 97%;
     --ring: 217.2 91.2% 59.8%;
 
-    /* Status colors */
+    /* Enhanced status colors with glows */
     --status-draft: 220 14.3% 45.9%;
     --status-submitted: 217.2 91.2% 59.8%;
     --status-under-review: 45 93.4% 47.5%;
@@ -44,7 +50,32 @@ All colors MUST be HSL.
     --status-rejected: 0 84.2% 60.2%;
     --status-paid: 258.3 89.5% 66.3%;
 
-    --radius: 0.5rem;
+    /* Success and warning colors */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 0 0% 100%;
+    --success-glow: 142.1 76.2% 50%;
+    
+    --warning: 45 93.4% 47.5%;
+    --warning-foreground: 0 0% 100%;
+    --warning-glow: 45 93.4% 60%;
+
+    /* Info colors */
+    --info: 200 100% 50%;
+    --info-foreground: 0 0% 100%;
+    --info-glow: 200 100% 65%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-accent)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-glow)));
+    --gradient-background: linear-gradient(135deg, hsl(var(--background)), hsl(240 50% 99%));
+
+    /* Shadows with colors */
+    --shadow-primary: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+    --shadow-accent: 0 10px 30px -10px hsl(var(--accent) / 0.3);
+    --shadow-success: 0 10px 30px -10px hsl(var(--success) / 0.3);
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -75,18 +106,33 @@ All colors MUST be HSL.
 
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 217.2 91.2% 70%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
+    --secondary-accent: 217.2 32.6% 25%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 267 57% 50%;
     --accent-foreground: 210 40% 98%;
+    --accent-glow: 267 57% 60%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 210 40% 98%;
+    --success-glow: 142.1 76.2% 50%;
+    
+    --warning: 45 93.4% 47.5%;
+    --warning-foreground: 210 40% 98%;
+    --warning-glow: 45 93.4% 60%;
+
+    --info: 200 100% 50%;
+    --info-foreground: 210 40% 98%;
+    --info-glow: 200 100% 65%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
@@ -116,6 +162,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background: var(--gradient-background);
     margin: 0;
     padding: 0;
     min-height: 100vh;

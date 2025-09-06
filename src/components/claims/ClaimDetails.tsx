@@ -1,192 +1,135 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FileText, Info, Eye, Upload, Save } from "lucide-react";
-import { useClaimById, usePolicyTypes, useUpdateClaim } from "@/hooks/useClaims";
+import { ArrowLeft, FileText, Info, Eye, Upload, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { useClaimById } from "@/hooks/useClaims";
 import { PolicyDetailsForm } from "./PolicyDetailsForm";
 import { AdditionalInformationForm } from "./AdditionalInformationForm";
 import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
-const statusColors = {
-  submitted: "bg-blue-500",
-  under_review: "bg-yellow-500",
-  approved: "bg-green-500",
-  rejected: "bg-red-500",
-  paid: "bg-purple-500"
+const statusConfig = {
+  submitted: { color: "bg-gradient-primary", icon: Clock, label: "Submitted" },
+  under_review: { color: "bg-warning", icon: AlertCircle, label: "Under Review" },
+  approved: { color: "bg-success", icon: CheckCircle2, label: "Approved" },
+  rejected: { color: "bg-destructive", icon: AlertCircle, label: "Rejected" },
+  paid: { color: "bg-gradient-accent", icon: CheckCircle2, label: "Paid" }
 };
+
 export const ClaimDetails = () => {
-  const {
-    id
-  } = useParams<{
-    id: string;
-  }>();
-  const {
-    data: claim,
-    isLoading
-  } = useClaimById(id!);
-  const {
-    data: policyTypes
-  } = usePolicyTypes();
-  const updateClaimMutation = useUpdateClaim();
+  const { id } = useParams<{ id: string }>();
+  const { data: claim, isLoading } = useClaimById(id!);
   const [activeTab, setActiveTab] = useState("policy-details");
-
-  // Editable overview fields (policy type is read-only)
-  const [editableData, setEditableData] = useState({
-    status: "",
-    claim_amount: ""
-  });
-
-  // Initialize editable data when claim loads
-  useEffect(() => {
-    if (claim) {
-      setEditableData({
-        status: claim.status,
-        claim_amount: claim.claim_amount?.toString() || ""
-      });
-    }
-  }, [claim]);
-  const handleSaveOverview = async () => {
-    if (!claim) return;
-    const updates = {
-      status: editableData.status as any,
-      claim_amount: editableData.claim_amount ? parseFloat(editableData.claim_amount) : null
-    };
-    await updateClaimMutation.mutateAsync({
-      id: claim.id,
-      updates
-    });
-  };
   if (isLoading) {
-    return <div className="min-h-screen bg-background p-6">
+    return (
+      <div className="min-h-screen p-6 bg-gradient-background">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-muted rounded w-64"></div>
-            <div className="h-32 bg-muted rounded"></div>
-            <div className="h-96 bg-muted rounded"></div>
+            <div className="h-8 bg-gradient-to-r from-primary/20 to-accent/20 rounded-lg w-64"></div>
+            <div className="h-32 bg-gradient-to-r from-secondary/30 to-muted/30 rounded-lg"></div>
+            <div className="h-96 bg-gradient-to-r from-muted/20 to-secondary/20 rounded-lg"></div>
           </div>
         </div>
-      </div>;
+      </div>
+    );
   }
+
   if (!claim) {
-    return <div className="min-h-screen bg-background p-6">
+    return (
+      <div className="min-h-screen p-6 bg-gradient-background">
         <div className="max-w-7xl mx-auto text-center py-12">
-          <h1 className="text-2xl font-bold text-destructive">Claim not found</h1>
-          <p className="text-muted-foreground mt-2">
-            The claim you're looking for doesn't exist or you don't have access to it.
-          </p>
-          <Button asChild className="mt-4">
-            <Link to="/">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
-        </div>
-      </div>;
-  }
-  return <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" asChild>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20">
+            <h1 className="text-2xl font-bold text-destructive">Claim not found</h1>
+            <p className="text-muted-foreground mt-2">
+              The claim you're looking for doesn't exist or you don't have access to it.
+            </p>
+            <Button asChild className="mt-4 bg-gradient-primary shadow-primary">
               <Link to="/">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Link>
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">{claim.title}</h1>
-              <p className="text-muted-foreground">
-                Claim #{claim.claim_number} • {claim.policy_types?.name}
-              </p>
-            </div>
           </div>
-          
         </div>
+      </div>
+    );
+  }
 
-        {/* Claim Overview */}
-        <Card>
+  const currentStatus = statusConfig[claim.status as keyof typeof statusConfig];
+  const StatusIcon = currentStatus?.icon || Clock;
+
+  return (
+    <div className="min-h-screen p-6 bg-gradient-background">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Enhanced Header */}
+        <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Claim Overview</CardTitle>
-                <CardDescription>{claim.description}</CardDescription>
+              <div className="flex items-center space-x-4">
+                <Button variant="ghost" size="sm" asChild className="hover:bg-primary/10">
+                  <Link to="/">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Dashboard
+                  </Link>
+                </Button>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      {claim.title}
+                    </h1>
+                    <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-lg`}>
+                      <StatusIcon className="w-3 h-3" />
+                      {currentStatus?.label}
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground flex items-center gap-2 mt-1">
+                    <span className="font-medium">Claim #{claim.claim_number}</span>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 bg-secondary rounded-full text-xs">{claim.policy_types?.name}</span>
+                  </p>
+                </div>
               </div>
-              <Button onClick={handleSaveOverview} disabled={updateClaimMutation.isPending} size="sm">
-                <Save className="w-4 h-4 mr-2" />
-                {updateClaimMutation.isPending ? "Saving..." : "Save"}
-              </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="policy-type">Policy Type</Label>
-                <div className="px-3 py-2 border rounded-md bg-muted text-muted-foreground">
-                  {claim.policy_types?.name || "No policy type"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Policy type cannot be changed as form fields depend on it
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={editableData.status} onValueChange={value => setEditableData(prev => ({
-                ...prev,
-                status: value
-              }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="under_review">Under Review</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="claim-amount">Claim Amount ($)</Label>
-                <Input id="claim-amount" type="number" step="0.01" placeholder="0.00" value={editableData.claim_amount} onChange={e => setEditableData(prev => ({
-                ...prev,
-                claim_amount: e.target.value
-              }))} />
-              </div>
-            </div>
-          </CardContent>
         </Card>
 
-        {/* Main Content Tabs */}
+        {/* Enhanced Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="policy-details" className="flex items-center space-x-2">
-              <FileText className="w-4 h-4" />
-              <span>Policy Details</span>
-            </TabsTrigger>
-            <TabsTrigger value="additional-info" className="flex items-center space-x-2">
-              <Info className="w-4 h-4" />
-              <span>Additional Info</span>
-            </TabsTrigger>
-            <TabsTrigger value="report-preview" className="flex items-center space-x-2">
-              <Eye className="w-4 h-4" />
-              <span>View Report</span>
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center space-x-2">
-              <Upload className="w-4 h-4" />
-              <span>Documents</span>
-            </TabsTrigger>
-          </TabsList>
+          <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg p-2">
+            <TabsList className="grid w-full grid-cols-4 bg-gradient-secondary h-14">
+              <TabsTrigger 
+                value="policy-details" 
+                className="flex items-center space-x-2 data-[state=active]:bg-gradient-primary data-[state=active]:text-white data-[state=active]:shadow-primary transition-all duration-300"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Policy Details</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="additional-info" 
+                className="flex items-center space-x-2 data-[state=active]:bg-gradient-accent data-[state=active]:text-white data-[state=active]:shadow-accent transition-all duration-300"
+              >
+                <Info className="w-4 h-4" />
+                <span>Additional Info</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="report-preview" 
+                className="flex items-center space-x-2 data-[state=active]:bg-success data-[state=active]:text-white data-[state=active]:shadow-success transition-all duration-300"
+              >
+                <Eye className="w-4 h-4" />
+                <span>View Report</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="documents" 
+                className="flex items-center space-x-2 data-[state=active]:bg-info data-[state=active]:text-white transition-all duration-300"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Documents</span>
+              </TabsTrigger>
+            </TabsList>
+          </Card>
 
           <TabsContent value="policy-details" className="space-y-6">
             <PolicyDetailsForm claim={claim} />
@@ -205,5 +148,6 @@ export const ClaimDetails = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>;
+    </div>
+  );
 };
