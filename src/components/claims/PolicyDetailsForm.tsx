@@ -7,10 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useUpdateClaim, type Claim } from "@/hooks/useClaims";
+import { useUpdateClaim, useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { Save, Check } from "lucide-react";
 
 interface PolicyDetailsFormProps {
   claim: Claim;
@@ -26,11 +26,13 @@ interface FormField {
 
 export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   const updateClaimMutation = useUpdateClaim();
+  const updateClaimSilent = useUpdateClaimSilent();
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
   });
 
   const fields = (claim.policy_types?.fields || []) as FormField[];
+  const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
 
   // Autosave functionality - memoized to prevent infinite loops
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
@@ -46,6 +48,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     control,
     onSave: handleAutosave,
     delay: 2000,
+    enabled: false,
   });
 
   useEffect(() => {
@@ -69,21 +72,75 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     }
   };
 
+  const saveField = async (fieldName: string) => {
+    try {
+      const fieldValue = watch(fieldName);
+      const existingData = claim.form_data || {};
+      const dataToSave = {
+        ...existingData,
+        [fieldName]: fieldValue,
+      } as Record<string, any>;
+
+      await updateClaimSilent.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: dataToSave,
+        },
+      });
+
+      setPendingSaves(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldName);
+        return newSet;
+      });
+
+      // Show success toast when explicitly saved via tick or blur
+      toast.success("Policy detail saved", { duration: 1800 });
+    } catch (error) {
+      console.error("Failed to save field:", error);
+      toast.error("Failed to save field", { duration: 1800 });
+    }
+  };
+
   const renderField = (field: FormField) => {
     const fieldValue = watch(field.name);
 
     switch (field.type) {
       case 'text':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor={field.name}>
+                {field.label} {field.required && <span className="text-destructive">*</span>}
+              </Label>
+              {pendingSaves.has(field.name) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => saveField(field.name)}
+                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title="Save field"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Input
               id={field.name}
               placeholder={`Enter ${field.label.toLowerCase()}`}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false 
+                required: field.required ? `${field.label} is required` : false,
+                onChange: (e) => {
+                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                },
+                onBlur: () => {
+                  if (pendingSaves.has(field.name)) {
+                    saveField(field.name);
+                  }
+                }
               })}
             />
             {errors[field.name] && (
@@ -96,17 +153,42 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
       case 'number':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor={field.name}>
+                {field.label} {field.required && <span className="text-destructive">*</span>}
+              </Label>
+              {pendingSaves.has(field.name) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => saveField(field.name)}
+                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title="Save field"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Input
               id={field.name}
               type="number"
               placeholder={`Enter ${field.label.toLowerCase()}`}
               {...register(field.name, { 
                 required: field.required ? `${field.label} is required` : false,
-                valueAsNumber: true
+                valueAsNumber: true,
+                onChange: (e) => {
+                  const newValue = (e.target as HTMLInputElement).value;
+                  if (newValue !== String(claim.form_data?.[field.name] ?? '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                },
+                onBlur: () => {
+                  if (pendingSaves.has(field.name)) {
+                    saveField(field.name);
+                  }
+                }
               })}
             />
             {errors[field.name] && (
@@ -119,15 +201,39 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
       case 'date':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor={field.name}>
+                {field.label} {field.required && <span className="text-destructive">*</span>}
+              </Label>
+              {pendingSaves.has(field.name) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => saveField(field.name)}
+                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title="Save field"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Input
               id={field.name}
               type="date"
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false 
+                required: field.required ? `${field.label} is required` : false,
+                onChange: (e) => {
+                  if ((e.target as HTMLInputElement).value !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                },
+                onBlur: () => {
+                  if (pendingSaves.has(field.name)) {
+                    saveField(field.name);
+                  }
+                }
               })}
             />
             {errors[field.name] && (
@@ -140,16 +246,40 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
       case 'textarea':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor={field.name}>
+                {field.label} {field.required && <span className="text-destructive">*</span>}
+              </Label>
+              {pendingSaves.has(field.name) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => saveField(field.name)}
+                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title="Save field"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Textarea
               id={field.name}
               placeholder={`Enter ${field.label.toLowerCase()}`}
               rows={4}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false 
+                required: field.required ? `${field.label} is required` : false,
+                onChange: (e) => {
+                  if ((e.target as HTMLTextAreaElement).value !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                },
+                onBlur: () => {
+                  if (pendingSaves.has(field.name)) {
+                    saveField(field.name);
+                  }
+                }
               })}
             />
             {errors[field.name] && (
@@ -167,10 +297,24 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
         const otherFieldValue = watch(otherFieldName);
         
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor={field.name}>
+                {field.label} {field.required && <span className="text-destructive">*</span>}
+              </Label>
+              {pendingSaves.has(field.name) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => saveField(field.name)}
+                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  title="Save field"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Select
               value={fieldValue || ""}
               onValueChange={(value) => {
@@ -178,6 +322,14 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
                 // Clear the other field when switching away from "Other"
                 if (value !== 'Other') {
                   setValue(otherFieldName, '');
+                }
+                if (value !== (claim.form_data?.[field.name] || '')) {
+                  setPendingSaves(prev => new Set([...prev, field.name]));
+                }
+              }}
+              onOpenChange={(open) => {
+                if (!open && pendingSaves.has(field.name)) {
+                  setTimeout(() => saveField(field.name), 100);
                 }
               }}
             >
@@ -209,7 +361,17 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
                   id={otherFieldName}
                   placeholder={`Enter ${field.label.toLowerCase()}`}
                   {...register(otherFieldName, { 
-                    required: isOtherSelected ? `Please specify ${field.label.toLowerCase()}` : false 
+                    required: isOtherSelected ? `Please specify ${field.label.toLowerCase()}` : false,
+                    onChange: (e) => {
+                      if ((e.target as HTMLInputElement).value !== (claim.form_data?.[otherFieldName] || '')) {
+                        setPendingSaves(prev => new Set([...prev, otherFieldName]));
+                      }
+                    },
+                    onBlur: () => {
+                      if (pendingSaves.has(otherFieldName)) {
+                        saveField(otherFieldName);
+                      }
+                    }
                   })}
                 />
                 {errors[otherFieldName] && (
@@ -224,15 +386,39 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
       case 'checkbox':
         return (
-          <div key={field.name} className="flex items-center space-x-2">
-            <Checkbox
-              id={field.name}
-              checked={fieldValue || false}
-              onCheckedChange={(checked) => setValue(field.name, checked)}
-            />
-            <Label htmlFor={field.name} className="text-sm font-normal">
-              {field.label}
-            </Label>
+          <div key={field.name} className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id={field.name}
+                checked={fieldValue || false}
+                onCheckedChange={(checked) => {
+                  setValue(field.name, !!checked);
+                  if (checked !== (claim.form_data?.[field.name] || false)) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                    setTimeout(() => {
+                      if (pendingSaves.has(field.name)) {
+                        saveField(field.name);
+                      }
+                    }, 500);
+                  }
+                }}
+              />
+              <Label htmlFor={field.name} className="text-sm font-normal">
+                {field.label}
+              </Label>
+            </div>
+            {pendingSaves.has(field.name) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => saveField(field.name)}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                title="Save field"
+              >
+                <Check className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         );
 
