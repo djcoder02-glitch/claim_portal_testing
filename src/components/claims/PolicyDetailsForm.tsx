@@ -65,6 +65,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
       toast.success("Policy details updated successfully!");
     } catch (error) {
       console.error("Failed to update claim:", error);
+      toast.error("Failed to update policy details");
     }
   };
 

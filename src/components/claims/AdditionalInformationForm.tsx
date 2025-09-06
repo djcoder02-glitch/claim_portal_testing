@@ -44,15 +44,30 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
 
+  // Load custom fields from form_data on mount
+  useEffect(() => {
+    const savedCustomFields = claim.form_data?.custom_fields_metadata || [];
+    const savedHiddenFields = claim.form_data?.hidden_fields || [];
+    setCustomFields(savedCustomFields);
+    setHiddenFields(new Set(savedHiddenFields));
+  }, [claim.form_data]);
+
   // Autosave functionality - memoized to prevent infinite loops
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
+    // Include custom fields metadata and hidden fields in the save
+    const dataWithMetadata = {
+      ...data,
+      custom_fields_metadata: customFields,
+      hidden_fields: Array.from(hiddenFields),
+    };
+    
     await updateClaimMutation.mutateAsync({
       id: claim.id,
       updates: {
-        form_data: data,
+        form_data: dataWithMetadata,
       },
     });
-  }, [claim.id, updateClaimMutation]);
+  }, [claim.id, updateClaimMutation, customFields, hiddenFields]);
 
   useAutosave({
     control,
@@ -74,19 +89,26 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const onSubmit = async (data: Record<string, any>) => {
     try {
+      const dataWithMetadata = {
+        ...data,
+        custom_fields_metadata: customFields,
+        hidden_fields: Array.from(hiddenFields),
+      };
+      
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: data,
+          form_data: dataWithMetadata,
         },
       });
       toast.success("Additional information updated successfully!");
     } catch (error) {
       console.error("Failed to update claim:", error);
+      toast.error("Failed to update additional information");
     }
   };
 
-  const addCustomField = (sectionKey: string) => {
+  const addCustomField = async (sectionKey: string) => {
     const newField: FormField = {
       name: `custom_${Date.now()}`,
       label: 'New Field',
@@ -94,21 +116,111 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       required: false,
       isCustom: true,
     };
-    setCustomFields(prev => [...prev, newField]);
+    const updatedCustomFields = [...customFields, newField];
+    setCustomFields(updatedCustomFields);
+    
+    // Save immediately to database
+    try {
+      const currentFormData = watch();
+      const dataWithMetadata = {
+        ...currentFormData,
+        custom_fields_metadata: updatedCustomFields,
+        hidden_fields: Array.from(hiddenFields),
+      };
+      
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: dataWithMetadata,
+        },
+      });
+      
+      toast.success('Custom field added successfully');
+    } catch (error) {
+      console.error('Failed to save custom field:', error);
+      toast.error('Failed to add custom field');
+    }
   };
 
-  const removeField = (fieldName: string) => {
-    setHiddenFields(prev => new Set([...prev, fieldName]));
+  const removeField = async (fieldName: string) => {
+    const updatedHiddenFields = new Set([...hiddenFields, fieldName]);
+    setHiddenFields(updatedHiddenFields);
+    
+    // Save immediately to database
+    try {
+      const currentFormData = watch();
+      const dataWithMetadata = {
+        ...currentFormData,
+        custom_fields_metadata: customFields,
+        hidden_fields: Array.from(updatedHiddenFields),
+      };
+      
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: dataWithMetadata,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to save field removal:', error);
+    }
   };
 
-  const removeCustomField = (fieldName: string) => {
-    setCustomFields(prev => prev.filter(field => field.name !== fieldName));
+  const removeCustomField = async (fieldName: string) => {
+    const updatedCustomFields = customFields.filter(field => field.name !== fieldName);
+    setCustomFields(updatedCustomFields);
+    
+    // Also remove the field value from form data
+    setValue(fieldName, undefined);
+    
+    // Save immediately to database
+    try {
+      const currentFormData = watch();
+      const dataWithMetadata = {
+        ...currentFormData,
+        [fieldName]: undefined, // Remove the field value
+        custom_fields_metadata: updatedCustomFields,
+        hidden_fields: Array.from(hiddenFields),
+      };
+      
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: dataWithMetadata,
+        },
+      });
+      
+      toast.success('Custom field removed successfully');
+    } catch (error) {
+      console.error('Failed to remove custom field:', error);
+      toast.error('Failed to remove custom field');
+    }
   };
 
-  const updateCustomField = (fieldName: string, updates: Partial<FormField>) => {
-    setCustomFields(prev => prev.map(field => 
+  const updateCustomField = async (fieldName: string, updates: Partial<FormField>) => {
+    const updatedCustomFields = customFields.map(field => 
       field.name === fieldName ? { ...field, ...updates } : field
-    ));
+    );
+    setCustomFields(updatedCustomFields);
+    
+    // Save immediately to database
+    try {
+      const currentFormData = watch();
+      const dataWithMetadata = {
+        ...currentFormData,
+        custom_fields_metadata: updatedCustomFields,
+        hidden_fields: Array.from(hiddenFields),
+      };
+      
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: dataWithMetadata,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to update custom field:', error);
+    }
   };
 
   const renderField = (field: FormField, showActions = true) => {

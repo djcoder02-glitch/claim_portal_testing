@@ -11,6 +11,7 @@ import { AdditionalInformationForm } from "./AdditionalInformationForm";
 import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 const statusConfig = {
   submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
   under_review: { color: "bg-amber-600", icon: AlertCircle, label: "Under Review" },
@@ -23,6 +24,25 @@ export const ClaimDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { data: claim, isLoading } = useClaimById(id!);
   const [activeTab, setActiveTab] = useState("policy-details");
+
+  const handleTabChange = (value: string) => {
+    // Show toast when switching tabs to indicate data is saved
+    const sectionNames = {
+      "policy-details": "Policy Details",
+      "additional-info": "Additional Information", 
+      "report-preview": "View Report",
+      "documents": "Documents"
+    };
+    
+    if (activeTab !== value) {
+      const currentSectionName = sectionNames[activeTab as keyof typeof sectionNames];
+      if (currentSectionName && (activeTab === "policy-details" || activeTab === "additional-info")) {
+        toast.success(`${currentSectionName} saved successfully`);
+      }
+    }
+    
+    setActiveTab(value);
+  };
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 bg-gradient-background">
@@ -97,7 +117,7 @@ export const ClaimDetails = () => {
         </Card>
 
         {/* Enhanced Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
             <TabsList className="grid w-full grid-cols-4 bg-slate-100 h-14">
               <TabsTrigger 

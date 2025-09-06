@@ -48,9 +48,7 @@ export const useAutosave = ({ control, onSave, delay = 2000, enabled = true }: U
         savingRef.current = true;
         await onSaveRef.current?.(watchedData);
         lastSavedDataRef.current = currentDataString;
-        toast.success('Changes saved automatically', {
-          duration: 1500,
-        });
+        // Toast removed - will be shown manually when appropriate
       } catch (error) {
         console.error('Autosave failed:', error);
         toast.error('Failed to save changes automatically', {
