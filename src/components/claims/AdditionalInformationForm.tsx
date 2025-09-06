@@ -226,7 +226,10 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setCustomFields(prev => prev.map(field => 
       field.name === fieldName ? { ...field, ...updates } : field
     ));
-    setPendingSaves(prev => new Set([...prev, fieldName]));
+    // Only mark as pending if this is a field value change, not label change
+    if (updates.label === undefined) {
+      setPendingSaves(prev => new Set([...prev, fieldName]));
+    }
   };
 
   const renderField = (field: FormField, showActions = true) => {
@@ -283,7 +286,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               id={field.name}
               placeholder={`Enter ${field.label.toLowerCase()}`}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false 
+                required: field.required ? `${field.label} is required` : false,
+                onChange: field.isCustom ? (e) => {
+                  // Mark custom field as pending when value changes
+                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                } : undefined
               })}
             />
             {errors[field.name] && (
@@ -342,7 +351,14 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               placeholder={`Enter ${field.label.toLowerCase()}`}
               {...register(field.name, { 
                 required: field.required ? `${field.label} is required` : false,
-                valueAsNumber: true
+                valueAsNumber: true,
+                onChange: field.isCustom ? (e) => {
+                  // Mark custom field as pending when value changes
+                  const newValue = e.target.valueAsNumber || e.target.value;
+                  if (newValue !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                } : undefined
               })}
             />
             {errors[field.name] && (
@@ -457,7 +473,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               placeholder={`Enter ${field.label.toLowerCase()}`}
               rows={4}
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false 
+                required: field.required ? `${field.label} is required` : false,
+                onChange: field.isCustom ? (e) => {
+                  // Mark custom field as pending when value changes
+                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                } : undefined
               })}
             />
             {errors[field.name] && (
@@ -512,7 +534,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
             </div>
             <Select
               value={fieldValue || ""}
-              onValueChange={(value) => setValue(field.name, value)}
+              onValueChange={(value) => {
+                setValue(field.name, value);
+                // Mark custom field as pending when value changes
+                if (field.isCustom && value !== (claim.form_data?.[field.name] || '')) {
+                  setPendingSaves(prev => new Set([...prev, field.name]));
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
@@ -539,7 +567,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
             <Checkbox
               id={field.name}
               checked={fieldValue || false}
-              onCheckedChange={(checked) => setValue(field.name, checked)}
+              onCheckedChange={(checked) => {
+                setValue(field.name, checked);
+                // Mark custom field as pending when value changes
+                if (field.isCustom && checked !== (claim.form_data?.[field.name] || false)) {
+                  setPendingSaves(prev => new Set([...prev, field.name]));
+                }
+              }}
             />
             {field.isCustom ? (
               <Input
