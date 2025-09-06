@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useUpdateClaim, type Claim } from "@/hooks/useClaims";
 import { toast } from "sonner";
+import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 
 interface AdditionalInformationFormProps {
   claim: Claim;
@@ -20,6 +22,7 @@ interface FormField {
   type: 'text' | 'number' | 'date' | 'textarea' | 'select' | 'checkbox';
   required: boolean;
   options?: string[];
+  isCustom?: boolean;
 }
 
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
@@ -27,6 +30,25 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
     defaultValues: claim.form_data || {}
   });
+
+  // State for collapsible sections
+  const [openSections, setOpenSections] = useState({
+    section1: true,
+    section2: false,
+    section3: false,
+    section4: false,
+  });
+
+  // State for managing custom fields and hidden fields
+  const [customFields, setCustomFields] = useState<FormField[]>([]);
+  const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   useEffect(() => {
     // Reset form with current claim data
@@ -47,16 +69,67 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
   };
 
-  const renderField = (field: FormField) => {
+  const addCustomField = (sectionKey: string) => {
+    const newField: FormField = {
+      name: `custom_${Date.now()}`,
+      label: 'New Field',
+      type: 'text',
+      required: false,
+      isCustom: true,
+    };
+    setCustomFields(prev => [...prev, newField]);
+  };
+
+  const removeField = (fieldName: string) => {
+    setHiddenFields(prev => new Set([...prev, fieldName]));
+  };
+
+  const removeCustomField = (fieldName: string) => {
+    setCustomFields(prev => prev.filter(field => field.name !== fieldName));
+  };
+
+  const updateCustomField = (fieldName: string, updates: Partial<FormField>) => {
+    setCustomFields(prev => prev.map(field => 
+      field.name === fieldName ? { ...field, ...updates } : field
+    ));
+  };
+
+  const renderField = (field: FormField, showActions = true) => {
     const fieldValue = watch(field.name);
+
+    if (hiddenFields.has(field.name)) {
+      return null;
+    }
 
     switch (field.type) {
       case 'text':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              {field.isCustom ? (
+                <Input
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                  className="text-sm font-medium w-auto max-w-xs"
+                  placeholder="Field label"
+                />
+              ) : (
+                <Label htmlFor={field.name}>
+                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
+              {showActions && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Input
               id={field.name}
               placeholder={`Enter ${field.label.toLowerCase()}`}
@@ -74,10 +147,32 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
       case 'number':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              {field.isCustom ? (
+                <Input
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                  className="text-sm font-medium w-auto max-w-xs"
+                  placeholder="Field label"
+                />
+              ) : (
+                <Label htmlFor={field.name}>
+                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
+              {showActions && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Input
               id={field.name}
               type="number"
@@ -97,10 +192,32 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
       case 'date':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              {field.isCustom ? (
+                <Input
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                  className="text-sm font-medium w-auto max-w-xs"
+                  placeholder="Field label"
+                />
+              ) : (
+                <Label htmlFor={field.name}>
+                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
+              {showActions && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Input
               id={field.name}
               type="date"
@@ -118,10 +235,32 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
       case 'textarea':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              {field.isCustom ? (
+                <Input
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                  className="text-sm font-medium w-auto max-w-xs"
+                  placeholder="Field label"
+                />
+              ) : (
+                <Label htmlFor={field.name}>
+                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
+              {showActions && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Textarea
               id={field.name}
               placeholder={`Enter ${field.label.toLowerCase()}`}
@@ -140,10 +279,32 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
       case 'select':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && <span className="text-destructive">*</span>}
-            </Label>
+          <div key={field.name} className="relative space-y-2">
+            <div className="flex items-center justify-between">
+              {field.isCustom ? (
+                <Input
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                  className="text-sm font-medium w-auto max-w-xs"
+                  placeholder="Field label"
+                />
+              ) : (
+                <Label htmlFor={field.name}>
+                  {field.label} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
+              {showActions && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <Select
               value={fieldValue || ""}
               onValueChange={(value) => setValue(field.name, value)}
@@ -169,15 +330,35 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
       case 'checkbox':
         return (
-          <div key={field.name} className="flex items-center space-x-2">
+          <div key={field.name} className="relative flex items-center space-x-2">
             <Checkbox
               id={field.name}
               checked={fieldValue || false}
               onCheckedChange={(checked) => setValue(field.name, checked)}
             />
-            <Label htmlFor={field.name} className="text-sm font-normal">
-              {field.label}
-            </Label>
+            {field.isCustom ? (
+              <Input
+                value={field.label}
+                onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                className="text-sm font-normal w-auto max-w-xs"
+                placeholder="Field label"
+              />
+            ) : (
+              <Label htmlFor={field.name} className="text-sm font-normal">
+                {field.label}
+              </Label>
+            )}
+            {showActions && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         );
 
@@ -265,6 +446,57 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const additionalFields = getAdditionalDetailsFields();
 
+  const renderSection = (
+    sectionKey: keyof typeof openSections, 
+    title: string, 
+    fields: FormField[], 
+    customFieldsForSection: FormField[]
+  ) => {
+    const allFields = [...fields, ...customFieldsForSection];
+    const isOpen = openSections[sectionKey];
+
+    return (
+      <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-between p-4 h-auto text-left hover:bg-muted/50"
+          >
+            <h4 className="text-md font-medium text-muted-foreground">{title}</h4>
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+            {allFields.map(field => renderField(field))}
+          </div>
+          <div className="px-4 pb-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => addCustomField(sectionKey)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-3 w-3" />
+              Add Field
+            </Button>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
+  const section1Fields = additionalFields.slice(0, 13);
+  const section2Fields = additionalFields.slice(13, 23);
+  const section3Fields = additionalFields.slice(23, 29);
+  const section4Fields = additionalFields.slice(29);
+
+  const section1Custom = customFields.filter((_, index) => index % 4 === 0);
+  const section2Custom = customFields.filter((_, index) => index % 4 === 1);
+  const section3Custom = customFields.filter((_, index) => index % 4 === 2);
+  const section4Custom = customFields.filter((_, index) => index % 4 === 3);
+
   return (
     <div className="max-w-4xl mx-auto">
       <Card>
@@ -272,38 +504,18 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
           <CardTitle>Additional Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
             {/* Section 1 - Basic Information */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-muted-foreground">Section 1 - Basic Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {additionalFields.slice(0, 13).map(renderField)}
-              </div>
-            </div>
+            {renderSection('section1', 'Section 1 - Basic Information', section1Fields, section1Custom)}
 
             {/* Section 2 - Survey & Loss Details */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-muted-foreground">Section 2 - Survey & Loss Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {additionalFields.slice(13, 23).map(renderField)}
-              </div>
-            </div>
+            {renderSection('section2', 'Section 2 - Survey & Loss Details', section2Fields, section2Custom)}
 
             {/* Section 3 - Transportation Details */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-muted-foreground">Section 3 - Transportation Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {additionalFields.slice(23, 29).map(renderField)}
-              </div>
-            </div>
+            {renderSection('section3', 'Section 3 - Transportation Details', section3Fields, section3Custom)}
 
             {/* Report Text Section */}
-            <div className="space-y-4">
-              <h4 className="text-md font-medium text-muted-foreground">Report Text Section</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {additionalFields.slice(29).map(renderField)}
-              </div>
-            </div>
+            {renderSection('section4', 'Report Text Section', section4Fields, section4Custom)}
             
             <div className="pt-4 border-t">
               <Button 
