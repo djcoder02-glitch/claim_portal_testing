@@ -156,8 +156,16 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         newSet.delete(fieldName);
         return newSet;
       });
+      
+      // Show success toast only when explicitly saving via tick mark
+      toast.success("Claim updated successfully!", {
+        duration: 2000,
+      });
     } catch (error) {
       console.error('Failed to save custom field:', error);
+      toast.error("Failed to save field", {
+        duration: 2000,
+      });
     }
   };
 
