@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Enhanced gradient background */
-    --background: 220 50% 98%;
+    /* Professional color scheme */
+    --background: 240 10% 98%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -18,64 +18,64 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Vibrant primary colors */
-    --primary: 217.2 91.2% 59.8%;
+    /* Professional primary colors - Navy blue */
+    --primary: 220 100% 25%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 217.2 91.2% 70%;
+    --primary-glow: 220 100% 35%;
 
-    /* Enhanced secondary with gradient support */
-    --secondary: 240 100% 98%;
+    /* Neutral secondary colors */
+    --secondary: 220 15% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --secondary-accent: 240 60% 95%;
+    --secondary-accent: 220 15% 92%;
 
-    --muted: 240 30% 97%;
+    --muted: 220 15% 97%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 267 57% 78%;
+    /* Professional accent - Slate blue */
+    --accent: 215 25% 27%;
     --accent-foreground: 0 0% 100%;
-    --accent-glow: 267 57% 88%;
+    --accent-glow: 215 25% 37%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 30% 93%;
-    --input: 220 30% 97%;
-    --ring: 217.2 91.2% 59.8%;
+    --border: 220 15% 90%;
+    --input: 220 15% 96%;
+    --ring: 220 100% 25%;
 
-    /* Enhanced status colors with glows */
+    /* Professional status colors */
     --status-draft: 220 14.3% 45.9%;
-    --status-submitted: 217.2 91.2% 59.8%;
-    --status-under-review: 45 93.4% 47.5%;
-    --status-approved: 142.1 76.2% 36.3%;
+    --status-submitted: 220 100% 25%;
+    --status-under-review: 38 92% 40%;
+    --status-approved: 142.1 71% 30%;
     --status-rejected: 0 84.2% 60.2%;
-    --status-paid: 258.3 89.5% 66.3%;
+    --status-paid: 142.1 71% 30%;
 
-    /* Success and warning colors */
-    --success: 142.1 76.2% 36.3%;
+    /* Professional utility colors */
+    --success: 142.1 71% 30%;
     --success-foreground: 0 0% 100%;
-    --success-glow: 142.1 76.2% 50%;
+    --success-glow: 142.1 71% 40%;
     
-    --warning: 45 93.4% 47.5%;
+    --warning: 38 92% 40%;
     --warning-foreground: 0 0% 100%;
-    --warning-glow: 45 93.4% 60%;
+    --warning-glow: 38 92% 50%;
 
-    /* Info colors */
-    --info: 200 100% 50%;
+    --info: 215 100% 30%;
     --info-foreground: 0 0% 100%;
-    --info-glow: 200 100% 65%;
+    --info-glow: 215 100% 40%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    /* Subtle professional gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(220 100% 30%));
     --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-accent)));
     --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-glow)));
-    --gradient-background: linear-gradient(135deg, hsl(var(--background)), hsl(240 50% 99%));
+    --gradient-background: linear-gradient(135deg, hsl(240 10% 98%), hsl(240 15% 99%));
 
-    /* Shadows with colors */
-    --shadow-primary: 0 10px 30px -10px hsl(var(--primary) / 0.3);
-    --shadow-accent: 0 10px 30px -10px hsl(var(--accent) / 0.3);
-    --shadow-success: 0 10px 30px -10px hsl(var(--success) / 0.3);
+    /* Professional shadows */
+    --shadow-primary: 0 4px 20px -4px hsl(var(--primary) / 0.15);
+    --shadow-accent: 0 4px 20px -4px hsl(var(--accent) / 0.15);
+    --shadow-success: 0 4px 20px -4px hsl(var(--success) / 0.15);
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -104,9 +104,9 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217.2 91.2% 59.8%;
+    --primary: 220 100% 35%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 217.2 91.2% 70%;
+    --primary-glow: 220 100% 45%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -115,24 +115,24 @@ All colors MUST be HSL.
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 267 57% 50%;
+    --accent: 215 25% 40%;
     --accent-foreground: 210 40% 98%;
-    --accent-glow: 267 57% 60%;
+    --accent-glow: 215 25% 50%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --success: 142.1 76.2% 36.3%;
+    --success: 142.1 71% 40%;
     --success-foreground: 210 40% 98%;
-    --success-glow: 142.1 76.2% 50%;
+    --success-glow: 142.1 71% 50%;
     
-    --warning: 45 93.4% 47.5%;
+    --warning: 38 92% 50%;
     --warning-foreground: 210 40% 98%;
-    --warning-glow: 45 93.4% 60%;
+    --warning-glow: 38 92% 60%;
 
-    --info: 200 100% 50%;
+    --info: 215 100% 40%;
     --info-foreground: 210 40% 98%;
-    --info-glow: 200 100% 65%;
+    --info-glow: 215 100% 50%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;

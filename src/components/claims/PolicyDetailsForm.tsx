@@ -256,7 +256,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
-        <CardHeader className="bg-gradient-primary text-white rounded-t-lg">
+        <CardHeader className="bg-slate-700 text-white rounded-t-lg">
           <CardTitle className="flex items-center gap-2">
             <Save className="w-5 h-5" />
             Policy Information
@@ -281,7 +281,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               <Button 
                 type="submit" 
                 disabled={updateClaimMutation.isPending}
-                className="w-full bg-gradient-primary hover:opacity-90 shadow-primary transition-all duration-300"
+                className="w-full bg-slate-700 hover:bg-slate-800 text-white shadow-sm transition-all duration-200"
               >
                 {updateClaimMutation.isPending ? "Saving..." : "Save Policy Details"}
               </Button>

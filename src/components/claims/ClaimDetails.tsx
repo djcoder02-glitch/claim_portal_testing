@@ -12,11 +12,11 @@ import { ReportPreview } from "./ReportPreview";
 import { DocumentManager } from "./DocumentManager";
 import { Link } from "react-router-dom";
 const statusConfig = {
-  submitted: { color: "bg-gradient-primary", icon: Clock, label: "Submitted" },
-  under_review: { color: "bg-warning", icon: AlertCircle, label: "Under Review" },
-  approved: { color: "bg-success", icon: CheckCircle2, label: "Approved" },
-  rejected: { color: "bg-destructive", icon: AlertCircle, label: "Rejected" },
-  paid: { color: "bg-gradient-accent", icon: CheckCircle2, label: "Paid" }
+  submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
+  under_review: { color: "bg-amber-600", icon: AlertCircle, label: "Under Review" },
+  approved: { color: "bg-green-700", icon: CheckCircle2, label: "Approved" },
+  rejected: { color: "bg-red-600", icon: AlertCircle, label: "Rejected" },
+  paid: { color: "bg-green-800", icon: CheckCircle2, label: "Paid" }
 };
 
 export const ClaimDetails = () => {
@@ -46,7 +46,7 @@ export const ClaimDetails = () => {
             <p className="text-muted-foreground mt-2">
               The claim you're looking for doesn't exist or you don't have access to it.
             </p>
-            <Button asChild className="mt-4 bg-gradient-primary shadow-primary">
+            <Button asChild className="w-full bg-slate-600 hover:bg-slate-700 text-white shadow-sm transition-all duration-200">
               <Link to="/">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -65,11 +65,11 @@ export const ClaimDetails = () => {
     <div className="min-h-screen p-6 bg-gradient-background">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Enhanced Header */}
-        <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
+        <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" asChild className="hover:bg-primary/10">
+                <Button variant="ghost" size="sm" asChild className="hover:bg-slate-100">
                   <Link to="/">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Dashboard
@@ -77,10 +77,10 @@ export const ClaimDetails = () => {
                 </Button>
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    <h1 className="text-2xl font-bold text-slate-800">
                       {claim.title}
                     </h1>
-                    <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-lg`}>
+                    <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-sm`}>
                       <StatusIcon className="w-3 h-3" />
                       {currentStatus?.label}
                     </Badge>
@@ -88,7 +88,7 @@ export const ClaimDetails = () => {
                   <p className="text-muted-foreground flex items-center gap-2 mt-1">
                     <span className="font-medium">Claim #{claim.claim_number}</span>
                     <span>•</span>
-                    <span className="px-2 py-0.5 bg-secondary rounded-full text-xs">{claim.policy_types?.name}</span>
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-xs">{claim.policy_types?.name}</span>
                   </p>
                 </div>
               </div>
@@ -98,32 +98,32 @@ export const ClaimDetails = () => {
 
         {/* Enhanced Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg p-2">
-            <TabsList className="grid w-full grid-cols-4 bg-gradient-secondary h-14">
+        <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
+            <TabsList className="grid w-full grid-cols-4 bg-slate-100 h-14">
               <TabsTrigger 
                 value="policy-details" 
-                className="flex items-center space-x-2 data-[state=active]:bg-gradient-primary data-[state=active]:text-white data-[state=active]:shadow-primary transition-all duration-300"
+                className="flex items-center space-x-2 data-[state=active]:bg-slate-700 data-[state=active]:text-white transition-all duration-200"
               >
                 <FileText className="w-4 h-4" />
                 <span>Policy Details</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="additional-info" 
-                className="flex items-center space-x-2 data-[state=active]:bg-gradient-accent data-[state=active]:text-white data-[state=active]:shadow-accent transition-all duration-300"
+                className="flex items-center space-x-2 data-[state=active]:bg-slate-600 data-[state=active]:text-white transition-all duration-200"
               >
                 <Info className="w-4 h-4" />
                 <span>Additional Info</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="report-preview" 
-                className="flex items-center space-x-2 data-[state=active]:bg-success data-[state=active]:text-white data-[state=active]:shadow-success transition-all duration-300"
+                className="flex items-center space-x-2 data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all duration-200"
               >
                 <Eye className="w-4 h-4" />
                 <span>View Report</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="documents" 
-                className="flex items-center space-x-2 data-[state=active]:bg-info data-[state=active]:text-white transition-all duration-300"
+                className="flex items-center space-x-2 data-[state=active]:bg-slate-500 data-[state=active]:text-white transition-all duration-200"
               >
                 <Upload className="w-4 h-4" />
                 <span>Documents</span>

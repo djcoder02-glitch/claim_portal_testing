@@ -150,20 +150,33 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
           "date_of_loss",
           "loss_description",
         ];
+        
+        // Get both standard and custom fields for this section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            // Include standard fields or custom fields
+            const isStandardField = standardFields.includes(key);
+            const isCustomField = key.startsWith('custom_');
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
         return (
           <div className="space-y-3">
-            {Object.entries(claim.form_data || {})
-              .filter(([key]) => standardFields.includes(key))
-              .map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="text-muted-foreground capitalize">
-                    {labelize(key)}:
-                  </span>
-                  <span className="font-medium">
-                    {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value) || "-"}
-                  </span>
-                </div>
-              ))}
+            {allEntries.map(([key, value]) => (
+              <div key={key} className="flex justify-between">
+                <span className="text-muted-foreground capitalize">
+                  {labelize(key)}:
+                </span>
+                <span className="font-medium">
+                  {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
+                </span>
+              </div>
+            ))}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No policy details available</p>
+            )}
           </div>
         );
       }
@@ -184,20 +197,32 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
           "invoice_gross_wt",
           "invoice_net_wt",
         ];
+        
+        // Get both standard and custom fields for basic info section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = basicInfoFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && !key.includes('survey') && !key.includes('transport') && !key.includes('report');
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
         return (
           <div className="space-y-3">
-            {Object.entries(claim.form_data || {})
-              .filter(([key]) => basicInfoFields.includes(key))
-              .map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="text-muted-foreground capitalize">
-                    {labelize(key)}:
-                  </span>
-                  <span className="font-medium">
-                    {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value) || "-"}
-                  </span>
-                </div>
-              ))}
+            {allEntries.map(([key, value]) => (
+              <div key={key} className="flex justify-between">
+                <span className="text-muted-foreground capitalize">
+                  {labelize(key)}:
+                </span>
+                <span className="font-medium">
+                  {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
+                </span>
+              </div>
+            ))}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No basic information available</p>
+            )}
           </div>
         );
       }
@@ -215,23 +240,35 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
           "joint_survey",
           "consignee_notice",
         ];
+        
+        // Get both standard and custom fields for survey section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = surveyFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && (key.includes('survey') || key.includes('loss') || key.includes('damage'));
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
         return (
           <div className="space-y-3">
-            {Object.entries(claim.form_data || {})
-              .filter(([key]) => surveyFields.includes(key))
-              .map(([key, value]) => {
-                const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value) || "-";
-                const isLongText = displayValue.length > 50;
+            {allEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
 
-                return (
-                  <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
-                    <span className="text-muted-foreground capitalize font-medium">
-                      {labelize(key)}:
-                    </span>
-                    <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
-                  </div>
-                );
-              })}
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {labelize(key)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No survey details available</p>
+            )}
           </div>
         );
       }
@@ -245,23 +282,35 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
           "delivery_challan",
           "dispatch_condition",
         ];
+        
+        // Get both standard and custom fields for transportation section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = transportFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && (key.includes('transport') || key.includes('vehicle') || key.includes('dispatch'));
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
         return (
           <div className="space-y-3">
-            {Object.entries(claim.form_data || {})
-              .filter(([key]) => transportFields.includes(key))
-              .map(([key, value]) => {
-                const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value) || "-";
-                const isLongText = displayValue.length > 50;
+            {allEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
 
-                return (
-                  <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
-                    <span className="text-muted-foreground capitalize font-medium">
-                      {labelize(key)}:
-                    </span>
-                    <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
-                  </div>
-                );
-              })}
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {labelize(key)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No transportation details available</p>
+            )}
           </div>
         );
       }
@@ -275,23 +324,72 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
           "arrival_details",
           "external_condition_tag",
         ];
+        
+        // Get both standard and custom fields for report section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = reportFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && (key.includes('report') || key.includes('text') || key.includes('address') || key.includes('content'));
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
         return (
           <div className="space-y-3">
-            {Object.entries(claim.form_data || {})
-              .filter(([key]) => reportFields.includes(key))
-              .map(([key, value]) => {
-                const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value) || "-";
-                const isLongText = displayValue.length > 50;
+            {allEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
 
-                return (
-                  <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
-                    <span className="text-muted-foreground capitalize font-medium">
-                      {labelize(key)}:
-                    </span>
-                    <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
-                  </div>
-                );
-              })}
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {labelize(key)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No report text available</p>
+            )}
+          </div>
+        );
+      }
+
+      case "Custom Fields": {
+        // Get custom fields that haven't been categorized in other sections
+        const customEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isCustomField = key.startsWith('custom_');
+            const isAlreadyCategorized = key.includes('survey') || key.includes('loss') || 
+              key.includes('damage') || key.includes('transport') || key.includes('vehicle') || 
+              key.includes('dispatch') || key.includes('report') || key.includes('text') || 
+              key.includes('address') || key.includes('content');
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return isCustomField && !isAlreadyCategorized && hasValue;
+          });
+
+        if (customEntries.length === 0) {
+          return <p className="text-muted-foreground italic">No additional custom fields available</p>;
+        }
+
+        return (
+          <div className="space-y-3">
+            {customEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
+
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {labelize(key)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
           </div>
         );
       }
@@ -377,8 +475,9 @@ const defaultSections: ReportSection[] = [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: true, order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: true, order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: true, order: 6 },
-  { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 7 },
-  { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 8 },
+  { id: "custom-fields", name: "Custom Fields", content: {}, isVisible: true, order: 7 },
+  { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 8 },
+  { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 9 },
 ];
 
 /* =========================

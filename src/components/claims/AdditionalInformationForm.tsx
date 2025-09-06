@@ -475,11 +475,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
     return (
       <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
-        <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg overflow-hidden">
+        <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className={`w-full justify-between p-6 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-300`}
+              className={`w-full justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-t-lg`}
             >
               <h4 className="text-lg font-semibold flex items-center gap-2">
                 <Info className="w-5 h-5" />
@@ -488,17 +488,17 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4 animate-accordion-down">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+          <CollapsibleContent className="animate-accordion-down">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
               {allFields.map(field => renderField(field))}
             </div>
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-6 bg-slate-50/50">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => addCustomField(sectionKey)}
-                className="flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
               >
                 <Plus className="h-3 w-3" />
                 Add Field
@@ -523,7 +523,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
-        <CardHeader className="bg-gradient-accent text-white rounded-t-lg">
+        <CardHeader className="bg-slate-700 text-white rounded-t-lg">
           <CardTitle className="flex items-center gap-2">
             <Info className="w-5 h-5" />
             Additional Information
@@ -547,7 +547,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               <Button 
                 type="submit" 
                 disabled={updateClaimMutation.isPending}
-                className="w-full bg-gradient-accent hover:opacity-90 shadow-accent transition-all duration-300"
+                className="w-full bg-slate-700 hover:bg-slate-800 text-white shadow-sm transition-all duration-200"
               >
                 {updateClaimMutation.isPending ? "Saving..." : "Save Additional Information"}
               </Button>
