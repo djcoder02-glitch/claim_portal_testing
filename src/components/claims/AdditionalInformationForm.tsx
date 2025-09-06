@@ -89,6 +89,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     control,
     onSave: handleAutosave,
     delay: 2000,
+    enabled: false,
   });
 
   const toggleSection = (section: keyof typeof openSections) => {
@@ -258,7 +259,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               )}
               {showActions && (
                 <div className="flex items-center gap-1">
-                  {field.isCustom && pendingSaves.has(field.name) && (
+                  {pendingSaves.has(field.name) && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -287,12 +288,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               placeholder={`Enter ${field.label.toLowerCase()}`}
               {...register(field.name, { 
                 required: field.required ? `${field.label} is required` : false,
-                onChange: field.isCustom ? (e) => {
-                  // Mark custom field as pending when value changes
+                onChange: (e) => {
                   if (e.target.value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
                   }
-                } : undefined
+                }
               })}
             />
             {errors[field.name] && (
@@ -321,7 +321,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               )}
               {showActions && (
                 <div className="flex items-center gap-1">
-                  {field.isCustom && pendingSaves.has(field.name) && (
+                  {pendingSaves.has(field.name) && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -352,13 +352,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               {...register(field.name, { 
                 required: field.required ? `${field.label} is required` : false,
                 valueAsNumber: true,
-                onChange: field.isCustom ? (e) => {
-                  // Mark custom field as pending when value changes
+                onChange: (e) => {
                   const newValue = e.target.valueAsNumber || e.target.value;
                   if (newValue !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
                   }
-                } : undefined
+                }
               })}
             />
             {errors[field.name] && (
@@ -387,7 +386,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               )}
               {showActions && (
                 <div className="flex items-center gap-1">
-                  {field.isCustom && pendingSaves.has(field.name) && (
+                  {pendingSaves.has(field.name) && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -415,7 +414,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               id={field.name}
               type="date"
               {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false 
+                required: field.required ? `${field.label} is required` : false,
+                onChange: (e) => {
+                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                    setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                }
               })}
             />
             {errors[field.name] && (
@@ -444,7 +448,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               )}
               {showActions && (
                 <div className="flex items-center gap-1">
-                  {field.isCustom && pendingSaves.has(field.name) && (
+                  {pendingSaves.has(field.name) && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -474,12 +478,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               rows={4}
               {...register(field.name, { 
                 required: field.required ? `${field.label} is required` : false,
-                onChange: field.isCustom ? (e) => {
-                  // Mark custom field as pending when value changes
+                onChange: (e) => {
                   if (e.target.value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
                   }
-                } : undefined
+                }
               })}
             />
             {errors[field.name] && (
@@ -508,7 +511,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               )}
               {showActions && (
                 <div className="flex items-center gap-1">
-                  {field.isCustom && pendingSaves.has(field.name) && (
+                  {pendingSaves.has(field.name) && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -536,8 +539,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               value={fieldValue || ""}
               onValueChange={(value) => {
                 setValue(field.name, value);
-                // Mark custom field as pending when value changes
-                if (field.isCustom && value !== (claim.form_data?.[field.name] || '')) {
+                if (value !== (claim.form_data?.[field.name] || '')) {
                   setPendingSaves(prev => new Set([...prev, field.name]));
                 }
               }}
@@ -569,8 +571,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
               checked={fieldValue || false}
               onCheckedChange={(checked) => {
                 setValue(field.name, checked);
-                // Mark custom field as pending when value changes
-                if (field.isCustom && checked !== (claim.form_data?.[field.name] || false)) {
+                if (checked !== (claim.form_data?.[field.name] || false)) {
                   setPendingSaves(prev => new Set([...prev, field.name]));
                 }
               }}
@@ -589,7 +590,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
             )}
             {showActions && (
               <div className="flex items-center gap-1">
-                {field.isCustom && pendingSaves.has(field.name) && (
+                {pendingSaves.has(field.name) && (
                   <Button
                     type="button"
                     variant="ghost"
