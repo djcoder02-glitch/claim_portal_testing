@@ -39,19 +39,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_user_role', { _user_id: userId });
-      if (error) {
-        console.error('Error fetching user role:', error);
-        setUserRole('user'); // Default to user role
-      } else {
-        setUserRole(data as UserRole);
-      }
-    } catch (error) {
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle(); // Use maybeSingle() instead of single()
+    
+    if (error) {
       console.error('Error fetching user role:', error);
-      setUserRole('user'); // Default to user role
+      setUserRole('user');
+    } else {
+      // If no role found, create one and default to 'user'
+      if (!data) {
+        console.log('No role found, creating default role');
+        try {
+          await supabase
+            .from('user_roles')
+            .insert({ user_id: userId, role: 'user' });
+          setUserRole('user');
+        } catch (insertError) {
+          console.error('Failed to create default role:', insertError);
+          setUserRole('user');
+        }
+      } else {
+        setUserRole((data.role as UserRole) || 'user');
+      }
     }
-  };
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    setUserRole('user');
+  }
+};
 
   useEffect(() => {
     // Set up auth state listener FIRST

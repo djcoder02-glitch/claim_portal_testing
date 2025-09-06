@@ -50,46 +50,65 @@ const Auth = () => {
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+  e.preventDefault();
+  if (!email || !password) {
+    toast.error("Please fill in all fields");
+    return;
+  }
 
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
-      return;
-    }
+  if (password.length < 6) {
+    toast.error("Password must be at least 6 characters long");
+    return;
+  }
 
-    setIsSubmitting(true);
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
-
-      if (error) throw error;
-      
-      if (data.user) {
-        if (data.user.email_confirmed_at) {
-          toast.success("Account created and signed in successfully!");
-        } else {
-          toast.success("Account created! Please check your email to confirm your account.");
-        }
+  setIsSubmitting(true);
+  try {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    // Step 1: Create the user account
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl
       }
-    } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      toast.error("Sign up failed: " + errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    });
 
+    if (error) throw error;
+    
+    if (data.user) {
+      // Step 2: Manually create user role (since trigger is disabled)
+      try {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({ 
+            user_id: data.user.id, 
+            role: 'user' 
+          });
+        
+        if (roleError) {
+          console.error('Role creation error:', roleError);
+          // Continue anyway - role can be created later
+        }
+      } catch (roleError) {
+        console.error('Failed to create user role:', roleError);
+        // Continue anyway - role can be created later
+      }
+
+      // Step 3: Show success message
+      if (data.user.email_confirmed_at) {
+        toast.success("Account created and signed in successfully!");
+      } else {
+        toast.success("Account created! Please check your email to confirm your account.");
+      }
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    toast.error("Sign up failed: " + errorMessage);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
