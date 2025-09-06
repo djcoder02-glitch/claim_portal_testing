@@ -292,6 +292,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   if (e.target.value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
                   }
+                },
+                onBlur: (e) => {
+                  if (pendingSaves.has(field.name)) {
+                    saveCustomField(field.name);
+                  }
                 }
               })}
             />
@@ -357,6 +362,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   if (newValue !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
                   }
+                },
+                onBlur: (e) => {
+                  if (pendingSaves.has(field.name)) {
+                    saveCustomField(field.name);
+                  }
                 }
               })}
             />
@@ -418,6 +428,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 onChange: (e) => {
                   if (e.target.value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
+                  }
+                },
+                onBlur: (e) => {
+                  if (pendingSaves.has(field.name)) {
+                    saveCustomField(field.name);
                   }
                 }
               })}
@@ -482,6 +497,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   if (e.target.value !== (claim.form_data?.[field.name] || '')) {
                     setPendingSaves(prev => new Set([...prev, field.name]));
                   }
+                },
+                onBlur: (e) => {
+                  if (pendingSaves.has(field.name)) {
+                    saveCustomField(field.name);
+                  }
                 }
               })}
             />
@@ -543,6 +563,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   setPendingSaves(prev => new Set([...prev, field.name]));
                 }
               }}
+              onOpenChange={(open) => {
+                // Save when select closes (blur equivalent)
+                if (!open && pendingSaves.has(field.name)) {
+                  setTimeout(() => saveCustomField(field.name), 100);
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
@@ -573,6 +599,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                 setValue(field.name, checked);
                 if (checked !== (claim.form_data?.[field.name] || false)) {
                   setPendingSaves(prev => new Set([...prev, field.name]));
+                  // For checkboxes, auto-save after a short delay since it's a discrete action
+                  setTimeout(() => {
+                    if (pendingSaves.has(field.name)) {
+                      saveCustomField(field.name);
+                    }
+                  }, 500);
                 }
               }}
             />
