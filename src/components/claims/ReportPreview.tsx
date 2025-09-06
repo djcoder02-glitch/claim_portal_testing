@@ -370,42 +370,6 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         );
       }
 
-      case "Custom Fields": {
-        // Get custom fields that haven't been categorized in other sections
-        const customEntries = Object.entries(claim.form_data || {})
-          .filter(([key, value]) => {
-            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim);
-            const isAlreadyCategorized = key.includes('survey') || key.includes('loss') || 
-              key.includes('damage') || key.includes('transport') || key.includes('vehicle') || 
-              key.includes('dispatch') || key.includes('report') || key.includes('text') || 
-              key.includes('address') || key.includes('content');
-            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
-            
-            return isCustomField && !isAlreadyCategorized && hasValue;
-          });
-
-        if (customEntries.length === 0) {
-          return <p className="text-muted-foreground italic">No additional custom fields available</p>;
-        }
-
-        return (
-          <div className="space-y-3">
-            {customEntries.map(([key, value]) => {
-              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
-              const isLongText = displayValue.length > 50;
-
-              return (
-                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
-                  <span className="text-muted-foreground capitalize font-medium">
-                    {getCustomLabel(key, claim)}:
-                  </span>
-                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
 
       case "Financial Summary":
         return (
@@ -561,18 +525,6 @@ const sectionHasData = (sectionName: string, claim: Claim): boolean => {
       });
     }
     
-    case "Custom Fields": {
-      return Object.entries(formData).some(([key, value]) => {
-        const isCustomField = key.startsWith('custom_');
-        const isAlreadyCategorized = key.includes('survey') || key.includes('loss') || 
-          key.includes('damage') || key.includes('transport') || key.includes('vehicle') || 
-          key.includes('dispatch') || key.includes('report') || key.includes('text') || 
-          key.includes('address') || key.includes('content');
-        const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
-        return isCustomField && !isAlreadyCategorized && hasValue;
-      });
-    }
-    
     case "Financial Summary":
       // Show if there's a claim amount or always show for financial summary
       return claim.claim_amount !== null && claim.claim_amount !== undefined;
@@ -593,9 +545,8 @@ const getInitialSections = (claim: Claim): ReportSection[] => [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: sectionHasData("Survey & Loss Details", claim), order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: sectionHasData("Transportation Details", claim), order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: sectionHasData("Report Text Section", claim), order: 6 },
-  { id: "custom-fields", name: "Custom Fields", content: {}, isVisible: sectionHasData("Custom Fields", claim), order: 7 },
-  { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 8 },
-  { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 9 },
+  { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 7 },
+  { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 8 },
 ];
 
 /* =========================
@@ -609,9 +560,8 @@ const defaultSections: ReportSection[] = [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: true, order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: true, order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: true, order: 6 },
-  { id: "custom-fields", name: "Custom Fields", content: {}, isVisible: true, order: 7 },
-  { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 8 },
-  { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 9 },
+  { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 7 },
+  { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 8 },
 ];
 
 /* =========================
