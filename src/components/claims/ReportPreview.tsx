@@ -65,8 +65,8 @@ interface ClaimDocument {
    Config
 ========================= */
 
-const API_BASE = "https://reports-backend-d80q.onrender.com";
-// const API_BASE = "http://localhost:5000";
+// const API_BASE = "https://reports-backend-d80q.onrender.com";
+const API_BASE = "http://localhost:5000";
 
 /* =========================
    Utilities
@@ -813,18 +813,23 @@ function buildReportJson(
       muted: "#6B7280",
       border: "#E5E7EB",
     },
-    "assets": {
-  "logo": "https://dummyimage.com/120x60/2563eb/ffffff.png&text=LOGO",
-  "headerImage": "https://dummyimage.com/600x80/0f172a/ffffff.png&text=Header",
-  "footerImage": "https://dummyimage.com/600x40/2563eb/ffffff.png&text=Footer"
-},
+    assets: {
+      "headerImage": "https://dummyimage.com/1200x90/0f172a/ffffff.png&text=Claim+Report+Header",
+      "footerImage": "https://dummyimage.com/600x40/2563eb/ffffff.png&text=FOOTER",
+      "backgroundImage": "https://img.freepik.com/free-vector/corporate-blank-orange-background-vector-business_53876-166890.jpg?semt=ais_hybrid&w=740&q=80",
+   },
     configs: {
       page: { size: "A4", orientation: "portrait", margin: "18mm" },
-      font: { family: "Inter, ui-sans-serif", base: "text-[11pt]", leading: "leading-relaxed" },
+      font: { family: "Arial", base: "text-[11pt]", leading: "leading-relaxed" },
       header: { visible: true, align: "center", repeat: "all" },
       footer: { visible: true, align: "center", text: "Page {{page}} of {{pages}}" },
       date: { align: "right", format: "DD MMM YYYY" },
-      table: { border: "border border-slate-700", striped: true, compact: true },
+      table: {
+        border: "border border-slate-700",
+        striped: true,
+        compact: true,
+        headerBg: "bg-[#007181] text-white"   /* teal header row */
+      },
     },
     components,
   };
