@@ -45,27 +45,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .maybeSingle(); // Use maybeSingle() instead of single()
+      .limit(1)  // Only get one row
+      .single();  // Now we can use single() safely
     
-    if (error) {
+    if (error && error.code === 'PGRST116') {
+      // No role found, create one
+      console.log('No role found, creating default role');
+      try {
+        await supabase
+          .from('user_roles')
+          .insert({ user_id: userId, role: 'user' })
+          .select()
+          .single();
+        setUserRole('user');
+      } catch (insertError) {
+        console.error('Failed to create default role:', insertError);
+        setUserRole('user');
+      }
+    } else if (error) {
       console.error('Error fetching user role:', error);
       setUserRole('user');
     } else {
-      // If no role found, create one and default to 'user'
-      if (!data) {
-        console.log('No role found, creating default role');
-        try {
-          await supabase
-            .from('user_roles')
-            .insert({ user_id: userId, role: 'user' });
-          setUserRole('user');
-        } catch (insertError) {
-          console.error('Failed to create default role:', insertError);
-          setUserRole('user');
-        }
-      } else {
-        setUserRole((data.role as UserRole) || 'user');
-      }
+      setUserRole((data.role as UserRole) || 'user');
     }
   } catch (error) {
     console.error('Error fetching user role:', error);
