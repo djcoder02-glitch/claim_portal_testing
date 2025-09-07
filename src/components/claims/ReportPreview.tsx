@@ -703,6 +703,32 @@ function buildReportJson(
     )
   );
 
+  /* ---------- Intro / Hero banner ---------- */
+  components.push({
+    // full-width light-blue bar with big title
+    type: "header",
+    style: {
+      wrapper: "px-0 py-2",          // bleed to edges
+      title:   "text-3xl font-extrabold tracking-wide text-black center"
+    },
+    props: { text: "SURVEY REPORT" }
+  });
+  components.push({
+    // disclaimer right under the title, same bar colour
+    type: "para",
+    style: {
+      wrapper: "pb-2",          // inner left/right padding only
+      text:    "text-[11pt] text-black leading-snug"
+    },
+    props: {
+      text:
+        "This report is issued without prejudice, as a proof of the nature, " +
+        "extent and assessment of the damage and the settlement of same depends, " +
+        "upon the terms and condition of the contract of insurance but does not " +
+        "necessarily imply that loss is recoverable from insurers."
+    }
+  });
+
   for (const s of visibleSections) {
     switch (s.name) {
       case "Claim Overview": {
