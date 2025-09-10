@@ -45,7 +45,7 @@ export const ClaimsDashboard = () => {
     }
   };
 
-  const filteredClaims = claims?.filter(claim => claim.status !== 'draft') || [];
+  const filteredClaims = claims || [];
   
   const stats = {
     total: filteredClaims.length,

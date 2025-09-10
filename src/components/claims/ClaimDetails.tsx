@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { Json } from "@/integrations/supabase/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileText, Info, Eye, Upload, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import { useClaimById } from "@/hooks/useClaims";
+import { useClaimById, useUpdateClaim, useUpdateClaimSilent } from "@/hooks/useClaims";
 import { PolicyDetailsForm } from "./PolicyDetailsForm";
 import { AdditionalInformationForm } from "./AdditionalInformationForm";
 import { ReportPreview } from "./ReportPreview";
@@ -16,6 +17,9 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { useAuth } from '../auth/AuthProvider';
+
 
 const statusConfig = {
   submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
@@ -25,10 +29,9 @@ const statusConfig = {
   paid: { color: "bg-green-800", icon: CheckCircle2, label: "Paid" }
 };
 
-// FIX 1: Proper type definition with export for reusability
 type ClaimDocumentRow = Tables<'claim_documents'>;
+type ClaimStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected" | "paid";
 
-// FIX 2: Define extracted data type for better type safety
 interface ExtractedBillData {
   consignee_name?: string;
   consignee_importer?: string;
@@ -45,6 +48,7 @@ interface ExtractedBillData {
   invoice_net_wt?: string;
 }
 
+
 export const ClaimDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { data: claim, isLoading } = useClaimById(id!);
@@ -54,8 +58,44 @@ export const ClaimDetails = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadedBillOfEntry, setUploadedBillOfEntry] = useState<ClaimDocumentRow | null>(null);
   const queryClient = useQueryClient();
+  const {isAdmin, user} = useAuth();
 
-  // FIX 3: Add proper typing for section names
+  console.log('[ClaimDetails] User:', user?.id);
+  console.log('[ClaimDetails] isAdmin:', isAdmin);
+  console.log('[ClaimDetails] Claim user_id:', claim?.user_id);
+  console.log('[ClaimDetails] Claim exists:', !!claim);
+
+  useEffect(() => {
+    const loadExistingDocuments = async () => {
+      if (!id) return;
+      
+      try {
+        const { data: documents, error } = await supabase
+          .from('claim_documents')
+          .select('*')
+          .eq('claim_id', id)
+          .eq('field_label', 'Bill of Entry')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('Error loading documents:', error);
+          return;
+        }
+
+        if (documents && documents.length > 0) {
+          setUploadedBillOfEntry(documents[0]);
+        }
+      } catch (error) {
+        console.error('Failed to load existing documents:', error);
+      }
+    };
+
+    loadExistingDocuments();
+  }, [id]);
+
+  
+
   const handleTabChange = (value: string) => {
     const sectionNames: Record<string, string> = {
       "policy-details": "Policy Details",
@@ -73,53 +113,105 @@ export const ClaimDetails = () => {
     
     setActiveTab(value);
   };
+  
 
-  const populateFormFields = (extractedData: ExtractedBillData) => {
-  console.log('populateFormFields called with:', extractedData);
-  
-  // Map extracted keys to your actual form input placeholders
-  const fieldMapping: Record<keyof ExtractedBillData, string> = {
-  'consignee_name': 'enter name of consigner of goods (exporter)',
-  'consignee_importer': 'enter name of consignee of goods (importer)', 
-  'applicant_survey': 'enter applicant of survey',
-  'underwriter_name': 'enter name of underwriter / insurer',
-  'cha_name': 'enter name of cha / clearing agent / forwarder',
-  'certificate_no': 'enter certificate no (if applicable)',
-  'endorsement_no': 'enter endorsement no (if any)',
-  'invoice_no': 'enter invoice details invoice no',
-  'invoice_date': 'dd-mm-yyyy',
-  'invoice_value': 'enter invoice details invoice value',
-  'invoice_pcs': 'enter invoice details no of pkg',
-  'invoice_gross_wt': 'enter invoice details gross wt',
-  'invoice_net_wt': 'enter invoice details net wt'
-};
-  let populatedCount = 0;
-  
-  Object.entries(extractedData).forEach(([extractedKey, value]) => {
-  if (value && fieldMapping[extractedKey as keyof ExtractedBillData]) {
-    const placeholder = fieldMapping[extractedKey as keyof ExtractedBillData];
-    // Try multiple selectors to find the input
-    const input = document.querySelector(`input[placeholder*="${placeholder}"]`) as HTMLInputElement ||
-                  document.querySelector(`input[name="${extractedKey}"]`) as HTMLInputElement ||
-                  document.querySelector(`input[id="${extractedKey}"]`) as HTMLInputElement;    
-    if (input) {
-        console.log(`Populating ${extractedKey}: ${value}`);
-        input.value = String(value);
-        
-        // Trigger change event so React recognizes the change
-        const event = new Event('input', { bubbles: true });
-        input.dispatchEvent(event);
-        
-        populatedCount++;
-      } else {
-        console.log(`Input not found for placeholder: "${placeholder}"`);
+  const updateClaimMutation = useUpdateClaim();
+  const updateClaimSilentMutation = useUpdateClaimSilent();
+
+  const populateFormFields = async (extractedData: ExtractedBillData) => {
+    console.log('populateFormFields called with:', extractedData);
+    
+    // Map the extracted data to your form field names
+    const mappedData: Record<string, unknown> = {};
+    
+    Object.entries(extractedData).forEach(([key, value]) => {
+      if (value) {
+        // Map extracted keys to actual form field names
+        switch (key) {
+          case 'consignee_name':
+            mappedData['consigner_name'] = (value);
+            break;
+          case 'consignee_importer':
+            mappedData['consignee_name'] = (value);
+            break;
+          case 'applicant_survey':
+            mappedData['applicant_survey'] = (value);
+            break;
+          case 'underwriter_name':
+            mappedData['underwriter_name'] = (value);
+            break;
+          case 'cha_name':
+            mappedData['cha_name'] = (value);
+            break;
+          case 'certificate_no':
+            mappedData['certificate_no'] = (value);
+            break;
+          case 'endorsement_no':
+            mappedData['endorsement_no'] = (value);
+            break;
+          case 'invoice_no':
+            mappedData['invoice_no'] = (value);
+            break;
+          case 'invoice_date':
+            mappedData['invoice_date'] = (value);
+            break;
+          case 'invoice_value':
+            mappedData['invoice_value'] = (value);
+            break;
+          case 'invoice_pcs':
+            mappedData['invoice_pkg_count'] = (value);
+            break;
+          case 'invoice_gross_wt':
+            mappedData['invoice_gross_wt'] = (value);
+            break;
+          case 'invoice_net_wt':
+            mappedData['invoice_net_wt'] = (value);
+            break;
+          default:
+            mappedData[key] = (value);
+        }
       }
+    });
+
+    try {
+      // Get current form data and merge with extracted data
+      const currentFormData = (claim?.form_data as Record<string, unknown>) || {};
+      const updatedFormData = {
+        ...currentFormData,
+        ...mappedData
+      };
+
+      // Update the claim in the database
+      await updateClaimSilentMutation.mutateAsync({
+        id: claim!.id,
+        updates: {
+          form_data: updatedFormData as unknown as Json
+        }
+      });
+
+      console.log(`Successfully saved ${Object.keys(mappedData).length} fields to database`);
+      toast.success(`Extracted and saved ${Object.keys(mappedData).length} fields to database!`);
+      
+      // Refresh the claim data to show updated fields
+      queryClient.invalidateQueries({ queryKey: ["claim", id] });
+      
+    } catch (error) {
+      console.error('Failed to save extracted data:', error);
+      toast.error('Failed to save extracted data to database');
     }
-  });
-  
-  console.log(`Successfully populated ${populatedCount} fields`);
-  toast.success(`Populated ${populatedCount} form fields!`);
-};
+  };
+
+  const handleStatusUpdate = async (newStatus: ClaimStatus) => {
+    try {
+      await updateClaimMutation.mutateAsync({
+        id: claim!.id,
+        updates: { status: newStatus }
+      });
+      toast.success(`Claim status updated to ${newStatus}`);
+    } catch (error) {
+      toast.error("Failed to update claim status");
+    }
+  };
 
   // Upload Bill of Entry mutation
   const uploadBillOfEntryMutation = useMutation<ClaimDocumentRow, Error, File>({
@@ -127,7 +219,6 @@ export const ClaimDetails = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Upload file to storage
       const fileName = `${Date.now()}-${file.name}`;
       const filePath = `${user.id}/${id}/${fileName}`;
       
@@ -137,7 +228,6 @@ export const ClaimDetails = () => {
 
       if (uploadError) throw uploadError;
 
-      // Save document record to database
       const { data, error } = await supabase
         .from("claim_documents")
         .insert({
@@ -165,54 +255,46 @@ export const ClaimDetails = () => {
     },
   });
 
-  // FIX 5: Add proper typing for mutation response
-const extractBillDataMutation = useMutation({
-  mutationFn: async (documentData: ClaimDocumentRow) => {
-    // Download file from Supabase
-    const { data: fileData, error } = await supabase.storage
-      .from('claim-documents')
-      .download(documentData.file_path);
+  const extractBillDataMutation = useMutation({
+    mutationFn: async (documentData: ClaimDocumentRow) => {
+      const { data: fileData, error } = await supabase.storage
+        .from('claim-documents')
+        .download(documentData.file_path);
 
-    if (error) throw new Error(`Failed to download file: ${error.message}`);
+      if (error) throw new Error(`Failed to download file: ${error.message}`);
 
-    // Convert to base64 using browser APIs (not Buffer)
-    const arrayBuffer = await fileData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Convert to base64 using browser's btoa
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64Data = btoa(binary);
+      const arrayBuffer = await fileData.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64Data = btoa(binary);
 
-    // Send to backend
-    // Send to backend with claim ID for dynamic field mapping
-    const response = await fetch('http://localhost:5000/extract-bill-data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        pdfData: base64Data,
-        claimId: id  // Add claim ID to get custom field labels
-      })
-    });
+      const response = await fetch('http://localhost:5000/extract-bill-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          pdfData: base64Data,
+          claimId: id
+        })
+      });
 
-    if (!response.ok) throw new Error('Extraction failed');
-    return response.json();
-  },
-  onSuccess: (result) => {
-    if (result.success && result.extractedData) {
-      populateFormFields(result.extractedData);
-      toast.success("Data extracted successfully!");
-    } else {
-      toast.error("Extraction failed: " + result.message);
-    }
-  },
-  onError: (error) => {
-    toast.error("Failed to extract data: " + error.message);
-  },
-});
-
+      if (!response.ok) throw new Error('Extraction failed');
+      return response.json();
+    },
+    onSuccess: (result) => {
+      if (result.success && result.extractedData) {
+        populateFormFields(result.extractedData);
+      } else {
+        toast.error("Extraction failed: " + result.message);
+      }
+    },
+    onError: (error) => {
+      toast.error("Failed to extract data: " + error.message);
+    },
+  });
 
   const handleExtractData = async () => {
     if (!uploadedBillOfEntry) return;
@@ -281,6 +363,27 @@ const extractBillDataMutation = useMutation({
     );
   }
 
+  if (claim && !isAdmin && claim.user_id !== user?.id) {
+  return (
+    <div className="min-h-screen p-6 bg-gradient-background">
+      <div className="max-w-7xl mx-auto text-center py-12">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20">
+          <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
+          <p className="text-muted-foreground mt-2">
+            You don't have permission to view this claim.
+          </p>
+          <Button asChild className="w-full bg-slate-600 hover:bg-slate-700 text-white shadow-sm transition-all duration-200">
+            <Link to="/">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   const currentStatus = statusConfig[claim.status as keyof typeof statusConfig];
   const StatusIcon = currentStatus?.icon || Clock;
 
@@ -307,6 +410,21 @@ const extractBillDataMutation = useMutation({
                       <StatusIcon className="w-3 h-3" />
                       {currentStatus?.label}
                     </Badge>
+                    <Select
+                      value={claim.status}
+                      onValueChange={(newStatus: ClaimStatus) => handleStatusUpdate(newStatus)}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="submitted">Submitted</SelectItem>
+                        <SelectItem value="under_review">Under Review</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <p className="text-muted-foreground flex items-center gap-2 mt-1">
                     <span className="font-medium">Claim #{claim.claim_number}</span>
@@ -342,7 +460,7 @@ const extractBillDataMutation = useMutation({
               </CardContent>
             </Card>
 
-            {/* FIX 7: Enhanced Bill of Entry Upload with Re-upload and Extract buttons */}
+            {/* Bill of Entry Upload */}
             <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2 text-lg">
