@@ -693,15 +693,15 @@ function buildReportJson(
 
   // Intro
   components.push({ type: "header", props: { text: "Claim Report" } });
-  components.push(
-    paraComponent(
-      `Claim #${claim.claim_number} • ${claim.policy_types?.name ?? "Policy"} • Created ${format(
-        new Date(claim.created_at),
-        "MMM dd, yyyy"
-      )}`,
-      "text-sm text-slate-600"
-    )
-  );
+  // components.push(
+  //   paraComponent(
+  //     `Claim #${claim.claim_number} • ${claim.policy_types?.name ?? "Policy"} • Created ${format(
+  //       new Date(claim.created_at),
+  //       "MMM dd, yyyy"
+  //     )}`,
+  //     "text-sm text-slate-600"
+  //   )
+  // );
 
   /* ---------- Intro / Hero banner ---------- */
   components.push({
@@ -840,15 +840,15 @@ function buildReportJson(
       border: "#E5E7EB",
     },
     assets: {
-      "headerImage": "https://dummyimage.com/1200x90/0f172a/ffffff.png&text=Claim+Report+Header",
-      "footerImage": "https://dummyimage.com/600x40/2563eb/ffffff.png&text=FOOTER",
-      "backgroundImage": "https://img.freepik.com/free-vector/corporate-blank-orange-background-vector-business_53876-166890.jpg?semt=ais_hybrid&w=740&q=80",
+      // "headerImage": "https://dummyimage.com/1200x90/0f172a/ffffff.png&text=Claim+Report+Header",
+      // "footerImage": "https://dummyimage.com/600x40/2563eb/ffffff.png&text=FOOTER",
+      "backgroundImage": "assets/bgimg.png",
    },
     configs: {
       page: { size: "A4", orientation: "portrait", margin: "18mm" },
       font: { family: "Arial", base: "text-[11pt]", leading: "leading-relaxed" },
-      header: { visible: true, align: "center", repeat: "all" },
-      footer: { visible: true, align: "center", text: "Page {{page}} of {{pages}}" },
+      header: { visible: false, align: "right", repeat: "all" },
+      footer: { visible: true, align: "right", text: "Page {{page}} of {{pages}}" },
       date: { align: "right", format: "DD MMM YYYY" },
       table: {
         border: "border border-slate-700",
