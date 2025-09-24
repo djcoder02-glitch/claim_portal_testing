@@ -8,9 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdateClaim, useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useSurveyors, useAddSurveyor } from "@/hooks/useSurveyors";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
 import { Save, Check } from "lucide-react";
+
 
 interface PolicyDetailsFormProps {
   claim: Claim;
@@ -25,11 +28,20 @@ interface FormField {
 }
 
 export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
-  const updateClaimMutation = useUpdateClaim();
-  const updateClaimSilent = useUpdateClaimSilent();
+  
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
   });
+  const { data: surveyors = [], isLoading: surveyorsLoading } = useSurveyors();
+  const addSurveyorMutation = useAddSurveyor();
+
+  // silent claim update mutation
+  const updateClaimSilent = useUpdateClaimSilent();
+  const updateClaimMutation = useUpdateClaim();
+  // create new surveyor
+  const handleCreateSurveyor = async (newName: string) => {
+    await addSurveyorMutation.mutateAsync(newName);
+  };
 
   const fields = (claim.policy_types?.fields || []) as FormField[];
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
@@ -46,12 +58,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     });
   }, [claim.id, updateClaimMutation]);
 
-  useAutosave({
-    control,
-    onSave: handleAutosave,
-    delay: 2000,
-    enabled: false,
-  });
+  useAutosave({ control, onSave: handleAutosave, delay: 2000, enabled: false });
 
   useEffect(() => {
     // Reset form with current claim data, merging both standard and dynamic fields
@@ -350,60 +357,59 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
           </div>
         );
 
-      case 'select':
-        const hasOtherOption = field.options?.includes('Other');
-        const isOtherSelected = fieldValue === 'Other';
+      case 'select': {
+        const hasOtherOption = field.options?.includes("Other");
+        const isOtherSelected = fieldValue === "Other";
         const otherFieldName = `${field.name}_other`;
         const otherFieldValue = watch(otherFieldName);
-        
-        return (
-          <div key={field.name} className="relative space-y-2">
-            <div className="flex items-center justify-between">
-              {editingLabels.has(field.name) ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={fieldLabels[field.name] ?? field.label}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveLabel(field.name)}
-                    className="text-sm font-medium w-auto max-w-xs"
-                  />
-                  <Button type="button" variant="ghost" size="sm" onClick={() => saveLabel(field.name)} className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Save label">
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
-                  {(fieldLabels[field.name] ?? field.label)} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {pendingSaves.has(field.name) && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => saveField(field.name)}
-                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                  title="Save field"
-                >
-                  <Check className="h-3 w-3" />
-                </Button>
+
+        // Assigned surveyor gets searchable select
+        if (field.name === "assigned_surveyor") {
+          return (
+            <div key={field.name} className="relative space-y-2">
+              <Label htmlFor={field.name}>{field.label}</Label>
+              <SearchableSelect
+                options={[...(field.options || []), ...surveyors]}
+                value={typeof fieldValue === "string" ? fieldValue : ""}
+                placeholder="Select or search surveyor..."
+                searchPlaceholder="Type to search or add surveyor..."
+                allowClear
+                allowCreate
+                disabled={surveyorsLoading || addSurveyorMutation.isPending}
+                onValueChange={(value) => {
+                  setValue(field.name, value);
+                  if (value !== (claim.form_data?.[field.name] || "")) {
+                    setPendingSaves((prev) => new Set([...prev, field.name]));
+                  }
+                }}
+                onCreateOption={(newValue: string) => handleCreateSurveyor(newValue)}
+                onOpenChange={(open) => {
+                  if (!open && pendingSaves.has(field.name)) {
+                    setTimeout(() => saveField(field.name), 100);
+                  }
+                }}
+              />
+              {surveyorsLoading && (
+                <p className="text-xs text-muted-foreground">Loading surveyors...</p>
               )}
             </div>
+          );
+        }
+
+        // Default Select for other fields
+        return (
+          <div key={field.name} className="relative space-y-2">
             <Select
-              value={fieldValue || ""}
+              value={typeof fieldValue === "string" ? fieldValue : ""}
               onValueChange={(value) => {
                 setValue(field.name, value);
-                // Clear the other field when switching away from "Other"
-                if (value !== 'Other') {
-                  setValue(otherFieldName, '');
-                }
-                if (value !== (claim.form_data?.[field.name] || '')) {
-                  setPendingSaves(prev => new Set([...prev, field.name]));
+                if (value !== (claim.form_data?.[field.name] || "")) {
+                  setPendingSaves((prev) => new Set([...prev, field.name]));
                 }
               }}
               onOpenChange={(open) => {
                 if (!open && pendingSaves.has(field.name)) {
-                  setTimeout(() => saveField(field.name), 100);
+                  setTimeout(() => saveCustomField(field.name), 100);
                 }
               }}
             >
@@ -418,34 +424,30 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
                 ))}
               </SelectContent>
             </Select>
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
-            
-            {/* Conditional "Other" text input */}
+
+            {/* Optional "Other" input */}
             {hasOtherOption && isOtherSelected && (
               <div className="space-y-2">
                 <Label htmlFor={otherFieldName}>
-                  Please specify {field.label.toLowerCase()}:
-                  <span className="text-destructive">*</span>
+                  Please specify {field.label.toLowerCase()}
                 </Label>
                 <Input
                   id={otherFieldName}
                   placeholder={`Enter ${field.label.toLowerCase()}`}
-                  {...register(otherFieldName, { 
-                    required: isOtherSelected ? `Please specify ${field.label.toLowerCase()}` : false,
+                  defaultValue={otherFieldValue as string}
+                  {...register(otherFieldName, {
+                    required: isOtherSelected
+                      ? `Please specify ${field.label.toLowerCase()}`
+                      : false,
                     onChange: (e) => {
-                      if ((e.target as HTMLInputElement).value !== (claim.form_data?.[otherFieldName] || '')) {
-                        setPendingSaves(prev => new Set([...prev, otherFieldName]));
+                      const val = (e.target as HTMLInputElement).value;
+                      if (val !== (claim.form_data?.[otherFieldName] || "")) {
+                        setPendingSaves((prev) => new Set([...prev, field.name]));
                       }
                     },
                     onBlur: () => {
-                      if (pendingSaves.has(otherFieldName)) {
-                        saveField(otherFieldName);
-                      }
-                    }
+                      if (pendingSaves.has(field.name)) saveCustomField(field.name);
+                    },
                   })}
                 />
                 {errors[otherFieldName] && (
@@ -457,6 +459,8 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
             )}
           </div>
         );
+      }
+
 
       case 'checkbox':
         return (
@@ -527,21 +531,31 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     { name: 'loss_description', label: 'Loss Description', type: 'textarea' as const, required: false },
   ];
 
-  const saveLabel = async (fieldName: string) => {
-    try {
-      const existingData = claim.form_data || {};
-      const updatedLabels = { ...(existingData.field_labels || {}), ...fieldLabels };
-      await updateClaimSilent.mutateAsync({
-        id: claim.id,
-        updates: { form_data: { ...existingData, field_labels: updatedLabels } },
-      });
-      setEditingLabels(prev => { const next = new Set(prev); next.delete(fieldName); return next; });
-      toast.success("Label updated", { duration: 1500 });
-    } catch (e) {
-      console.error("Failed to save label", e);
-      toast.error("Failed to save label", { duration: 1500 });
-    }
-  };
+const saveLabel = async (fieldName: string) => {
+  try {
+    const existingData = claim.form_data || {};
+    const updatedLabels = {
+      ...(existingData.field_labels || {}),
+      ...fieldLabels,
+    };
+
+    await updateClaimSilent.mutateAsync({
+      id: claim.id,
+      updates: { form_data: { ...existingData, field_labels: updatedLabels } },
+    });
+
+    setEditingLabels((prev) => {
+      const next = new Set(prev);
+      next.delete(fieldName);
+      return next;
+    });
+
+    toast.success("Label updated", { duration: 1500 });
+  } catch (e) {
+    console.error("Failed to save label", e);
+    toast.error("Failed to save label", { duration: 1500 });
+  }
+};
 
   return (
     <div className="max-w-4xl mx-auto">
