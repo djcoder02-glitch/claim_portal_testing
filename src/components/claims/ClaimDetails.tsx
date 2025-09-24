@@ -19,6 +19,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useAuth } from '../auth/AuthProvider';
+import { useSurveyors } from "@/hooks/useSurveyors";
+import { useInsurers, useAddInsurer } from "@/hooks/useInsurers";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Label } from "recharts";
 
 
 const statusConfig = {
@@ -59,6 +63,10 @@ export const ClaimDetails = () => {
   const [uploadedBillOfEntry, setUploadedBillOfEntry] = useState<ClaimDocumentRow | null>(null);
   const queryClient = useQueryClient();
   const {isAdmin, user} = useAuth();
+  const { data: surveyors = [], isLoading: surveyorsLoading } = useSurveyors();
+  const { data: insurers = [], isLoading: insurersLoading } = useInsurers();
+  const addInsurerMutation = useAddInsurer();
+
 
   console.log('[ClaimDetails] User:', user?.id);
   console.log('[ClaimDetails] isAdmin:', isAdmin);
@@ -363,6 +371,8 @@ export const ClaimDetails = () => {
     );
   }
 
+  
+
   if (claim && !isAdmin && claim.user_id !== user?.id) {
   return (
     <div className="min-h-screen p-6 bg-gradient-background">
@@ -568,6 +578,7 @@ export const ClaimDetails = () => {
               <TabsContent value="policy-details" className="space-y-6">
                 <PolicyDetailsForm claim={claim} />
               </TabsContent>
+
 
               <TabsContent value="additional-info" className="space-y-6">
                 <AdditionalInformationForm claim={claim} />

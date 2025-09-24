@@ -995,7 +995,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       </Card>
 
       {/* Live Preview */}
-      {/* <Card>
+      <Card>
         <CardHeader>
           <CardTitle>Report Preview</CardTitle>
           <p className="text-sm text-muted-foreground">Preview rendered by the backend /render endpoint</p>
@@ -1009,7 +1009,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
             </div>
           )}
         </CardContent>
-      </Card> */}
+      </Card>
     </div>
   );
 };
