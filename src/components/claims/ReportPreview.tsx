@@ -842,7 +842,7 @@ function buildReportJson(
     assets: {
       // "headerImage": "https://dummyimage.com/1200x90/0f172a/ffffff.png&text=Claim+Report+Header",
       // "footerImage": "https://dummyimage.com/600x40/2563eb/ffffff.png&text=FOOTER",
-      "backgroundImage": "assets/bgimg.png",
+      "backgroundImage": "https://ik.imagekit.io/dgkuuzqgq/reportBG.png?updatedAt=1758726961386",
    },
     configs: {
       page: { size: "A4", orientation: "portrait", margin: "18mm" },
@@ -920,18 +920,18 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handlePreview = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
-    console.log("Preview payload:", JSON.stringify(payload));
-    const res = await fetch(`${API_BASE}/render`, {
+    const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(err || "Render failed");
+      throw new Error(err || "PDF failed");
     }
-    const html = await res.text();
-    setPreviewHtml(html);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   };
 
   const handleDownload = async () => {
@@ -995,7 +995,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       </Card>
 
       {/* Live Preview */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Report Preview</CardTitle>
           <p className="text-sm text-muted-foreground">Preview rendered by the backend /render endpoint</p>
@@ -1009,7 +1009,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 };
