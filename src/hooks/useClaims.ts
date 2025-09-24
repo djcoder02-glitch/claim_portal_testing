@@ -6,7 +6,6 @@ import { Tables, TablesUpdate, TablesInsert } from "@/integrations/supabase/type
 
 // Use Supabase generated types
 type ClaimUpdate = TablesUpdate<'claims'>;
-type ClaimInsert = TablesInsert<'claims'>;
 
 export interface Claim {
   id: string;
@@ -134,8 +133,21 @@ export const useCreateClaim = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+        onSuccess: (data) => {
+      // Invalidate the claims list
       queryClient.invalidateQueries({ queryKey: ["claims"] });
+
+      // Invalidate any claim detail cache so useClaimById refetches updated data.
+      // Invalidate by prefix "claim" which covers keys like ["claim", id] and ["claim", id, "user"/"admin"]
+      queryClient.invalidateQueries({ queryKey: ["claim"] });
+
+      // Also target the newly created claim specifically when possible
+      if (data && (data as any).id) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const createdId = (data as any).id as string;
+        queryClient.invalidateQueries({ queryKey: ["claim", createdId] });
+      }
+
       toast.success("Claim created successfully!");
     },
     onError: (error) => {

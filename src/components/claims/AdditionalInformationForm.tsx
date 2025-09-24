@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
+import type { FieldErrors, UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,8 @@ import { useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Plus, X, Info, Check } from "lucide-react";
-
+import { SearchableSelect} from "@/components/ui/searchable-select";
+import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
 interface AdditionalInformationFormProps {
   claim: Claim;
 }
@@ -32,6 +34,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
   });
+
+  const addFieldOptionMutation = useAddFieldOption();
+  
+  const handleCreateFieldOption = async (fieldName: string, newValue: string) : Promise<void> => {
+    await addFieldOptionMutation.mutateAsync({ fieldName, optionValue: newValue });
+  };
 
   // State for collapsible sections
   const [openSections, setOpenSections] = useState({
@@ -61,7 +69,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }));
 
     setCustomFields(withSection);
-    setHiddenFields(new Set(savedHiddenFields));
+    setHiddenFields(new Set(Array.isArray(savedHiddenFields) ? savedHiddenFields : []));
     setFieldLabels(savedFieldLabels);
     
     // Also set the form values for custom fields
@@ -73,7 +81,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   }, [claim.form_data, setValue]);
 
   // Autosave functionality - memoized to prevent infinite loops
-  const handleAutosave = useCallback(async (data: Record<string, any>) => {
+  const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
     // Exclude custom field values from autosave; only save standard fields
     const standardData = Object.fromEntries(
       Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
@@ -90,10 +98,10 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         ...standardData,
         ...existingCustomEntries,
         // Preserve existing custom fields metadata and hidden fields
-        custom_fields_metadata: claim.form_data?.custom_fields_metadata || [],
-        hidden_fields: claim.form_data?.hidden_fields || [],
-        field_labels: claim.form_data?.field_labels || {},
-      },
+        custom_fields_metadata: (claim.form_data?.custom_fields_metadata as unknown[]) || [],
+        hidden_fields: (claim.form_data?.hidden_fields as string[]) || [],
+        field_labels: (claim.form_data?.field_labels as Record<string, string>) || {},
+      } as any, // cast to any for Supabase Json
     },
   });
   }, [claim.id, updateClaimMutation, claim.form_data]);
@@ -117,7 +125,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     reset(claim.form_data || {});
   }, [claim.form_data, reset]);
 
-  const onSubmit = async (data: Record<string, any>) => {
+  const onSubmit = async (data: Record<string, unknown>) => {
     try {
       // Save any pending custom fields first
       const pendingFieldNames = Array.from(pendingSaves);
@@ -146,7 +154,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: dataWithMetadata,
+          form_data: dataWithMetadata as any, // cast for Supabase Json
         },
       });
       // Success toast only on tick mark saves
@@ -184,7 +192,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: dataWithMetadata,
+          form_data: dataWithMetadata as any, // cast for Supabase Json
         },
       });
       
@@ -209,16 +217,16 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const saveFieldLabel = async (fieldName: string) => {
     try {
       const existingData = claim.form_data || {};
-      const updatedLabels = { ...(existingData.field_labels || {}), ...fieldLabels };
+      const updatedLabels = { ...(typeof existingData.field_labels === "object" && existingData.field_labels !== null ? existingData.field_labels : {}), ...fieldLabels };
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
           form_data: {
             ...existingData,
             field_labels: updatedLabels,
-            custom_fields_metadata: customFields,
+            custom_fields_metadata: customFields as unknown[], // cast for Supabase Json
             hidden_fields: Array.from(hiddenFields),
-          },
+          } as any, // cast for Supabase Json
         },
       });
       setEditingLabels(prev => {
@@ -248,7 +256,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: dataWithMetadata,
+          form_data: dataWithMetadata as any, // cast for Supabase Json
         },
       });
     } catch (error) {
@@ -286,6 +294,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
 
     switch (field.type) {
+
+      
       case 'text':
         return (
           <div key={field.name} className="relative space-y-2">
@@ -639,107 +649,136 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         );
 
       case 'select':
-        return (
-          <div key={field.name} className="relative space-y-2">
-            <div className="flex items-center justify-between">
-              {field.isCustom ? (
-                <Input
-                  value={field.label}
-                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-                  className="text-sm font-medium w-auto max-w-xs"
-                  placeholder="Field label"
-                />
-              ) : isEditingLabel ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={fieldLabels[field.name] ?? displayedLabel}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveFieldLabel(field.name)}
-                    className="text-sm font-medium w-auto max-w-xs"
-                    placeholder="Field label"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveFieldLabel(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save label"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
-                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {showActions && (
-                <div className="flex items-center gap-1">
-                  {pendingSaves.has(field.name) && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => saveCustomField(field.name)}
-                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Save field"
-                    >
-                      <Check className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-            </div>
-            <Select
-              value={fieldValue || ""}
-              onValueChange={(value) => {
-                setValue(field.name, value);
-                if (value !== (claim.form_data?.[field.name] || '')) {
-                  setPendingSaves(prev => new Set([...prev, field.name]));
-                }
-              }}
-              onOpenChange={(open) => {
-                // Save when select closes (blur equivalent)
-                if (!open && pendingSaves.has(field.name)) {
-                  setTimeout(() => saveCustomField(field.name), 100);
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
-          </div>
-        );
+  // Check if this field should be searchable
+  if (['content_industry_use', 'arrival_details', 'number_packages'].includes(field.name)) {
+    return (
+      <SearchableSelectField
+        key={field.name}
+        field={field}
+        fieldValue={fieldValue}
+        displayedLabel={displayedLabel}
+        isEditingLabel={isEditingLabel}
+        showActions={showActions}
+        claim={claim}
+        fieldLabels={fieldLabels}
+        setFieldLabels={setFieldLabels}
+        editingLabels={editingLabels}
+        setEditingLabels={setEditingLabels}
+        pendingSaves={pendingSaves}
+        setPendingSaves={setPendingSaves}
+        setValue={setValue}
+        errors={errors}
+        saveCustomField={saveCustomField}
+        saveFieldLabel={saveFieldLabel}
+        removeField={removeField}
+        removeCustomField={removeCustomField}
+        updateCustomField={updateCustomField}
+        handleCreateFieldOption={handleCreateFieldOption}
+        addFieldOptionMutation={addFieldOptionMutation}
+      />
+    );
+  }
 
+  // Regular select for non-searchable fields
+  return (
+    <div key={field.name} className="relative space-y-2">
+      <div className="flex items-center justify-between">
+        {field.isCustom ? (
+          <Input
+            value={field.label}
+            onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+            className="text-sm font-medium w-auto max-w-xs"
+            placeholder="Field label"
+          />
+        ) : isEditingLabel ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={fieldLabels[field.name] ?? displayedLabel}
+              onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+              onBlur={() => saveFieldLabel(field.name)}
+              className="text-sm font-medium w-auto max-w-xs"
+              placeholder="Field label"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => saveFieldLabel(field.name)}
+              className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+              title="Save label"
+            >
+              <Check className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+            {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+          </Label>
+        )}
+        {showActions && (
+          <div className="flex items-center gap-1">
+            {pendingSaves.has(field.name) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => saveCustomField(field.name)}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                title="Save field"
+              >
+                <Check className="h-3 w-3" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+      </div>
+      <Select
+        value={typeof fieldValue === "string" ? fieldValue : ""}
+        onValueChange={(value) => {
+          setValue(field.name, value);
+          if (value !== (claim.form_data?.[field.name] || '')) {
+            setPendingSaves(prev => new Set([...prev, field.name]));
+          }
+        }}
+        onOpenChange={(open) => {
+          if (!open && pendingSaves.has(field.name)) {
+            setTimeout(() => saveCustomField(field.name), 100);
+          }
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+        </SelectTrigger>
+        <SelectContent>
+          {field.options?.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {errors[field.name] && (
+        <p className="text-sm text-destructive">
+          {errors[field.name]?.message as string}
+        </p>
+      )}
+    </div>
+  );
       case 'checkbox':
         return (
           <div key={field.name} className="relative flex items-center space-x-2">
             <Checkbox
               id={field.name}
-              checked={fieldValue || false}
+              checked={typeof fieldValue === "boolean" ? fieldValue : false}
               onCheckedChange={(checked) => {
                 setValue(field.name, checked);
                 if (checked !== (claim.form_data?.[field.name] || false)) {
@@ -969,6 +1008,183 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
           </form>
         </CardContent>
       </Card>
+    </div>
+  );
+};
+
+// Add this at the bottom of the file, after the main component
+interface SearchableSelectFieldProps {
+  field: FormField;
+  fieldValue: unknown; // we don't assume a string/boolean until used
+  displayedLabel: string;
+  isEditingLabel: boolean;
+  showActions: boolean;
+  claim: Claim;
+  fieldLabels: Record<string, string>;
+  setFieldLabels: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  editingLabels: Set<string>;
+  setEditingLabels: React.Dispatch<React.SetStateAction<Set<string>>>;
+  pendingSaves: Set<string>;
+  setPendingSaves: React.Dispatch<React.SetStateAction<Set<string>>>;
+  // Use the library type for setValue so it matches useForm's return
+  setValue: UseFormSetValue<Record<string, unknown>>;
+  // FieldErrors from react-hook-form is the canonical type for errors
+  errors: FieldErrors<Record<string, unknown>>;
+  saveCustomField: (fieldName: string) => Promise<void> | void;
+  saveFieldLabel: (fieldName: string) => Promise<void> | void;
+  removeField: (fieldName: string) => void;
+  removeCustomField: (fieldName: string) => void;
+  updateCustomField: (fieldName: string, updates: Partial<FormField>) => void;
+  // This will be an async function (it calls the mutation)
+  handleCreateFieldOption: (fieldName: string, newValue: string) => Promise<void>;
+  // Minimal type for the mutation object you use here
+  addFieldOptionMutation: {
+    isPending: boolean;
+    mutateAsync?: (payload: { fieldName: string; optionValue: string }) => Promise<void>;
+  };
+}
+
+const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({ 
+  field, 
+  fieldValue, 
+  displayedLabel, 
+  isEditingLabel, 
+  showActions,
+  claim,
+  fieldLabels,
+  setFieldLabels,
+  editingLabels,
+  setEditingLabels,
+  pendingSaves,
+  setPendingSaves,
+  setValue,
+  errors,
+  saveCustomField,
+  saveFieldLabel,
+  removeField,
+  removeCustomField,
+  updateCustomField,
+  handleCreateFieldOption,
+  addFieldOptionMutation
+}) => {
+  // Hook called at component level - this is correct
+  const { data: dynamicOptions = [], isLoading } = useFieldOptions(field.name);
+  
+  // Combine options
+  const allOptions = [
+    ...(field.options || []),
+    ...dynamicOptions.filter(option => !(field.options || []).includes(option))
+  ];
+
+  return (
+    <div className="relative space-y-2">
+      {/* Label section */}
+      <div className="flex items-center justify-between">
+        {field.isCustom ? (
+          <Input
+            value={field.label}
+            onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+            className="text-sm font-medium w-auto max-w-xs"
+            placeholder="Field label"
+          />
+        ) : isEditingLabel ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={fieldLabels[field.name] ?? displayedLabel}
+              onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+              onBlur={() => saveFieldLabel(field.name)}
+              className="text-sm font-medium w-auto max-w-xs"
+              placeholder="Field label"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => saveFieldLabel(field.name)}
+              className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+              title="Save label"
+            >
+              <Check className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+            {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+          </Label>
+        )}
+        
+        {showActions && (
+          <div className="flex items-center gap-1">
+            {pendingSaves.has(field.name) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => saveCustomField(field.name)}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                title="Save field"
+              >
+                <Check className="h-3 w-3" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {isLoading && (
+        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+          <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full"></div>
+          <span>Loading options...</span>
+        </div>
+      )}
+
+      {!isLoading && (
+        <SearchableSelect
+          options={allOptions}
+          value={typeof fieldValue === "string" ? fieldValue : ""}
+          placeholder={`Select ${field.label.toLowerCase()}...`}
+          searchPlaceholder={`Search or add ${field.label.toLowerCase()}...`}
+          onValueChange={(value) => {
+            setValue(field.name, value);
+            if (value !== (claim.form_data?.[field.name] || '')) {
+              setPendingSaves(prev => new Set([...prev, field.name]));
+            }
+          }}
+          allowClear={true}
+          allowCreate={true}
+          onCreateOption={(newValue) => handleCreateFieldOption(field.name, newValue)}
+          createOptionText={`Add ${field.label.toLowerCase()}`}
+          className="w-full"
+          disabled={addFieldOptionMutation.isPending}
+          onOpenChange={(open) => {
+            if (!open && pendingSaves.has(field.name)) {
+              setTimeout(() => saveCustomField(field.name), 100);
+            }
+          }}
+        />
+      )}
+
+      {addFieldOptionMutation.isPending && (
+        <div className="text-xs text-muted-foreground flex items-center space-x-1">
+          <div className="animate-spin h-3 w-3 border-2 border-green-600 border-t-transparent rounded-full"></div>
+          <span>Adding new option...</span>
+        </div>
+      )}
+
+      {errors[field.name] && (
+        <p className="text-sm text-destructive">
+          {errors[field.name]?.message as string}
+        </p>
+      )}
     </div>
   );
 };

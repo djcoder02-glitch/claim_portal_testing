@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,9 @@ import {
 import { usePolicyTypes, useCreateClaim } from "@/hooks/useClaims";
 import { ChevronRight, FileText, Car, Anchor, Wrench, Flame, Plus, Users, Settings, Shuffle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { SearchableSelect } from "@/components/ui/searchable-select"
+import { useSurveyors, useAddSurveyor } from "@/hooks/useSurveyors";
+
 
 interface NewClaimDialogProps {
   open: boolean;
@@ -25,6 +29,9 @@ interface ClaimFormData {
   title: string;
   description: string;
   claim_amount?: number;
+  registration_id: string;
+  insured_name: string;
+  assigned_surveyor?: string;
 }
 
 const policyIcons = {
@@ -42,11 +49,27 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   const [selectedMainType, setSelectedMainType] = useState<string>("");
   const [selectedPolicyType, setSelectedPolicyType] = useState<string>("");
   const navigate = useNavigate();
-  
+  const { data: surveyors = [], isLoading: surveyorsLoading, error: surveyorsError } = useSurveyors();
+  const addSurveyorMutation = useAddSurveyor();
+
+  const handleCreateSurveyor = async (newSurveyor: string) => {
+    console.log("User wants to create surveyor:", newSurveyor);
+    
+    try {
+      // Call the mutation to add the surveyor to database
+      await addSurveyorMutation.mutateAsync(newSurveyor);
+      
+      // The success handling is done in the mutation's onSuccess callback
+      // The new surveyor will automatically appear in the dropdown
+    } catch (error) {
+      // Error handling is done in the mutation's onError callback
+      console.error("Error in handleCreateSurveyor:", error);
+    }
+  };
   const { data: policyTypes, isLoading } = usePolicyTypes();
   const createClaimMutation = useCreateClaim();
   
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClaimFormData>();
+  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<ClaimFormData>();
 
   const handlePolicySelect = (policyTypeId: string) => {
     setSelectedPolicyType(policyTypeId);
@@ -62,6 +85,11 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
         title: data.title,
         description: data.description,
         claim_amount: data.claim_amount,
+        form_data:{
+          registration_id: data.registration_id,
+          insured_name: data.insured_name,
+          assigned_surveyor: data.assigned_surveyor
+        },  
       });
 
       // Close dialog and navigate to claim details
@@ -238,6 +266,63 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                 <p className="text-sm text-destructive">{errors.claim_amount.message}</p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="registration_id">Registration ID *</Label>
+              <Input
+                id="registration_id"
+                placeholder="Enter registration ID"
+                {...register("registration_id", { 
+                  required: "Registration ID is required",
+                  minLength: {
+                    value: 3,
+                    message: "Registration ID must be at least 3 characters"
+                  }
+                })}
+              />
+              {errors.registration_id && (
+                <p className="text-sm text-destructive">{errors.registration_id.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="insured_name">Insured Name *</Label>
+              <Input
+                id="insured_name"
+                placeholder="Enter insured name"
+                {...register("insured_name", { 
+                  required: "Insured name is required",
+                  minLength: {
+                    value: 2,
+                    message: "Insured name must be at least 2 characters"
+                  }
+                })}
+              />
+              {errors.insured_name && (
+                <p className="text-sm text-destructive">{errors.insured_name.message}</p>
+              )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assigned_surveyor">Assigned Surveyor</Label>
+            <SearchableSelect
+              options={surveyors}
+              value={watch("assigned_surveyor") || ""}
+              placeholder="Select or search for surveyor..."
+              searchPlaceholder="Type to search or add new surveyor..."
+              onValueChange={(value) => setValue("assigned_surveyor", value)}
+              allowClear={true}
+              allowCreate={true}
+              onCreateOption={handleCreateSurveyor}
+              createOptionText="Add surveyor"
+              className="w-full"
+              disabled={surveyorsLoading || addSurveyorMutation.isPending}
+            />
+            {surveyorsLoading && (
+              <p className="text-xs text-muted-foreground">Loading surveyors...</p>
+            )}
+          </div>
+
 
             <div className="flex justify-between pt-4">
               <Button 
