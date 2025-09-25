@@ -27,7 +27,7 @@ interface NewClaimDialogProps {
 
 interface ClaimFormData {
   title: string;
-  description: string;
+  //description: string;
   claim_amount?: number;
   registration_id: string;
   insured_name: string;
@@ -55,7 +55,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<ClaimFormData>({
     defaultValues: {
       title: "",
-      description: "",
+    //  description: "",
       registration_id: "",
       insured_name: "",
       assigned_surveyor: "",
@@ -86,7 +86,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
       const claim = await createClaimMutation.mutateAsync({
         policy_type_id: selectedPolicyType,
         title: data.title,
-        description: data.description,
+     //   description: data.description,
         claim_amount: data.claim_amount,
         form_data: {
           registration_id: data.registration_id,
@@ -233,15 +233,15 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title">Claim Title *</Label>
-              <Input id="title" placeholder="Brief description of your claim" {...register("title", { required: "Claim title is required" })} />
+             <Input id="title" placeholder="Brief description of your claim" {...register("title", { required: "Claim title is required" })} />
               {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
             </div>
 
-            {/* Description */}
+            {/* Description
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" placeholder="Provide more details about your claim" rows={4} {...register("description")} />
-            </div>
+            </div> */}
 
             {/* Claim Amount */}
             <div className="space-y-2">
