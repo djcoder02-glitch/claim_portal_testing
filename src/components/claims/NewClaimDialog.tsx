@@ -254,33 +254,6 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
               {errors.claim_amount && <p className="text-sm text-destructive">{errors.claim_amount.message}</p>}
             </div>
 
-            {/* Intimation Date */}
-            <div className="space-y-2">
-              <Label htmlFor="intimation_date">Intimation Date</Label>
-              <Input 
-                id="intimation_date" 
-                type="date"
-                {...register("intimation_date", { 
-                  validate: (value) => {
-                    const selectedDate = new Date(value);
-                    const today = new Date();
-                    today.setHours(23, 59, 59, 999); // End of today
-                    
-                    if (selectedDate > today) {
-                      return "Intimation date cannot be in the future";
-                    }        
-                    return true;
-                  }
-                })} 
-              />
-              <p className="text-xs text-muted-foreground">
-                Date when the claim was first reported or intimated
-              </p>
-              {errors.intimation_date && <p className="text-sm text-destructive">{errors.intimation_date.message}</p>}
-            </div>
-
-
-
             {/* Registration ID */}
             <div className="space-y-2">
               <Label htmlFor="registration_id">Registration ID *</Label>
