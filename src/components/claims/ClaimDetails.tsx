@@ -26,6 +26,7 @@ import { Label } from "recharts";
 
 
 const statusConfig = {
+  pending: { color: "bg-blue-600", icon: Clock, label: "Pending" }, // Default status
   submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
   under_review: { color: "bg-amber-600", icon: AlertCircle, label: "Under Review" },
   approved: { color: "bg-green-700", icon: CheckCircle2, label: "Approved" },
@@ -34,7 +35,7 @@ const statusConfig = {
 };
 
 type ClaimDocumentRow = Tables<'claim_documents'>;
-type ClaimStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected" | "paid";
+type ClaimStatus = "pending" | "submitted" | "under_review" | "approved" | "rejected" | "paid";
 
 interface ExtractedBillData {
   consignee_name?: string;
@@ -193,7 +194,7 @@ export const ClaimDetails = () => {
       await updateClaimSilentMutation.mutateAsync({
         id: claim!.id,
         updates: {
-          form_data: updatedFormData as unknown as Json
+          form_data: updatedFormData as unknown as Json,
         }
       });
 
@@ -213,7 +214,9 @@ export const ClaimDetails = () => {
     try {
       await updateClaimMutation.mutateAsync({
         id: claim!.id,
-        updates: { status: newStatus }
+        updates: {
+          status: newStatus,
+        }
       });
       toast.success(`Claim status updated to ${newStatus}`);
     } catch (error) {
@@ -416,18 +419,20 @@ export const ClaimDetails = () => {
                     <h1 className="text-2xl font-bold text-slate-800">
                       {claim.title}
                     </h1>
-                    <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-sm`}>
-                      <StatusIcon className="w-3 h-3" />
-                      {currentStatus?.label}
-                    </Badge>
+                    
+                    {/* Make Badge a clickable dropdown */}
                     <Select
                       value={claim.status}
                       onValueChange={(newStatus: ClaimStatus) => handleStatusUpdate(newStatus)}
                     >
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
+                      <SelectTrigger className="w-auto border-0 p-0 h-auto">
+                        <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-sm cursor-pointer hover:opacity-80`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {currentStatus?.label}
+                        </Badge>
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="submitted">Submitted</SelectItem>
                         <SelectItem value="under_review">Under Review</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
@@ -465,7 +470,7 @@ export const ClaimDetails = () => {
                 </div>
                 <div className="text-sm">
                   <p className="text-muted-foreground">Description</p>
-                  <p className="text-sm">{claim.description || 'No description provided'}</p>
+                  {/* <p className="text-sm">{claim.description || 'No description provided'}</p> */}
                 </div>
               </CardContent>
             </Card>

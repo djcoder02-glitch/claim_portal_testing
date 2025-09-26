@@ -33,6 +33,7 @@ interface ClaimFormData {
   insured_name: string;
   assigned_surveyor?: string;
   insurer?: string; // ✅ Added
+  intimation_date?: string;
 }
 
 const policyIcons = {
@@ -60,6 +61,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
       insured_name: "",
       assigned_surveyor: "",
       insurer: "",
+      intimation_date:"",
     },
   });
 
@@ -88,11 +90,13 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
         title: data.title,
      //   description: data.description,
         claim_amount: data.claim_amount,
+        intimation_date: data.intimation_date,
         form_data: {
           registration_id: data.registration_id,
           insured_name: data.insured_name,
           assigned_surveyor: data.assigned_surveyor,
           insurer: data.insurer,
+
         },
       });
 
@@ -249,6 +253,33 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
               <Input id="claim_amount" type="number" step="0.01" placeholder="0.00" {...register("claim_amount", { valueAsNumber: true, min: { value: 0, message: "Amount must be positive" } })} />
               {errors.claim_amount && <p className="text-sm text-destructive">{errors.claim_amount.message}</p>}
             </div>
+
+            {/* Intimation Date */}
+            <div className="space-y-2">
+              <Label htmlFor="intimation_date">Intimation Date</Label>
+              <Input 
+                id="intimation_date" 
+                type="date"
+                {...register("intimation_date", { 
+                  validate: (value) => {
+                    const selectedDate = new Date(value);
+                    const today = new Date();
+                    today.setHours(23, 59, 59, 999); // End of today
+                    
+                    if (selectedDate > today) {
+                      return "Intimation date cannot be in the future";
+                    }        
+                    return true;
+                  }
+                })} 
+              />
+              <p className="text-xs text-muted-foreground">
+                Date when the claim was first reported or intimated
+              </p>
+              {errors.intimation_date && <p className="text-sm text-destructive">{errors.intimation_date.message}</p>}
+            </div>
+
+
 
             {/* Registration ID */}
             <div className="space-y-2">

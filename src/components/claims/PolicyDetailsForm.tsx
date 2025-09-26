@@ -77,10 +77,12 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   useAutosave({ control, onSave: handleAutosave, delay: 2000, enabled: false });
 
   useEffect(() => {
-    const allFormData = { ...claim.form_data };
+    const allFormData = { ...claim.form_data,
+      intimation_date: claim.intimation_date|| claim.form_data?.intimaion_date || '',
+     };
     reset(allFormData);
     setFieldLabels((claim.form_data?.field_labels || {}) as Record<string, string>);
-  }, [claim.form_data, reset]);
+  }, [claim.form_data,claim.intimation_date, reset]);
 
   const saveLabel = async (fieldName: string) => {
     try {
@@ -371,6 +373,7 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     { name: "sum_insured", label: "Sum Insured", type: "number" as const, required: false },
     { name: "date_of_loss", label: "Date of Loss", type: "date" as const, required: false },
     { name: "loss_description", label: "Loss Description", type: "textarea" as const, required: false },
+    {name:"intimation_date", label:"Intimation Date", type:"date" as const, required:false},
   ];
 
   const onSubmit = async (data: Record<string, any>) => {
