@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Plus, X, Info, Check } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X, Info, Check, Edit } from "lucide-react";
 import { SearchableSelect} from "@/components/ui/searchable-select";
 import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
 interface AdditionalInformationFormProps {
@@ -49,6 +49,18 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     section4: false,
   });
 
+
+  //Section editing states
+  const [editingSection, setEditingSection]= useState <string |null>(null);
+
+  const [sectionEditMode, setSectionEditMode] = useState({
+    section1: false,
+    section2: false,
+    section3: false,
+    section4: false,
+  });
+
+  
   // State for managing custom fields and hidden fields
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
@@ -110,7 +122,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     control,
     onSave: handleAutosave,
     delay: 2000,
-    enabled: false,
+    enabled: true,
   });
 
   const toggleSection = (section: keyof typeof openSections) => {
@@ -284,7 +296,30 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
   };
 
-  const renderField = (field: FormField, showActions = true) => {
+// Toggle section for sections along with edit options
+  const toggleSectionEdit = (sectionKey: string) => {
+    // If we're already editing this section, turn off edit mode
+    if (editingSection === sectionKey) {
+      setEditingSection(null);
+      setSectionEditMode(prev => ({
+        ...prev,
+        [sectionKey]: false
+      }));
+    } else {
+      // Turn off any other section that might be editing and enable this one
+      setEditingSection(sectionKey);
+      setSectionEditMode({
+        section1: false,
+        section2: false,
+        section3: false,
+        section4: false,
+        [sectionKey]: true
+      });
+    }
+  };
+
+
+const renderField = (field: FormField, isEditing = false) => {    const showActions = isEditing; // Red X buttons only show in edit mode
     const fieldValue = watch(field.name);
     const displayedLabel = fieldLabels[field.name] ?? field.label;
     const isEditingLabel = editingLabels.has(field.name);
@@ -328,7 +363,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   </Button>
                 </div>
               ) : (
-                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                <Label 
+                  htmlFor={field.name} 
+                  className={isEditing ? "cursor-pointer" : ""}
+                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+                >
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -415,7 +454,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   </Button>
                 </div>
               ) : (
-                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                <Label 
+  htmlFor={field.name} 
+  className={isEditing ? "cursor-pointer" : ""}
+  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+>
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -505,7 +548,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   </Button>
                 </div>
               ) : (
-                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                <Label 
+  htmlFor={field.name} 
+  className={isEditing ? "cursor-pointer" : ""}
+  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+>
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -592,7 +639,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
                   </Button>
                 </div>
               ) : (
-                <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+                <Label 
+  htmlFor={field.name} 
+  className={isEditing ? "cursor-pointer" : ""}
+  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+>
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -660,6 +711,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         isEditingLabel={isEditingLabel}
         showActions={showActions}
         claim={claim}
+        isEditing={isEditing}
         fieldLabels={fieldLabels}
         setFieldLabels={setFieldLabels}
         editingLabels={editingLabels}
@@ -916,7 +968,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const additionalFields = getAdditionalDetailsFields();
 
-  const renderSection = (
+    const renderSection = (
     sectionKey: keyof typeof openSections, 
     title: string, 
     fields: FormField[], 
@@ -925,25 +977,46 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   ) => {
     const allFields = [...fields, ...customFieldsForSection];
     const isOpen = openSections[sectionKey];
+    const isEditing = sectionEditMode[sectionKey];
 
     return (
       <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
-        <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
-          <CollapsibleTrigger asChild>
+        <Card className={`bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-200 ${
+  isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
+}`}>
+          <div className="flex items-center">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className={`flex-1 justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-t-lg`}
+              >
+                <h4 className="text-lg font-semibold flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  {title}
+                </h4>
+                {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </Button>
+            </CollapsibleTrigger>
+            
             <Button
               variant="ghost"
-              className={`w-full justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-t-lg`}
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSectionEdit(sectionKey);
+              }}
+              className={`mr-2 ${colorClass} text-white hover:bg-white/20 transition-all duration-200 ${
+                isEditing ? 'bg-white/30' : ''
+              }`}
+              title={isEditing ? 'Exit edit mode' : 'Edit section'}
             >
-              <h4 className="text-lg font-semibold flex items-center gap-2">
-                <Info className="w-5 h-5" />
-                {title}
-              </h4>
-              {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              <Edit className="w-4 h-4" />
             </Button>
-          </CollapsibleTrigger>
+          </div>
+          
           <CollapsibleContent className="animate-accordion-down">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
-              {allFields.map(field => renderField(field))}
+            {allFields.map(field => renderField(field, isEditing))}
             </div>
             <div className="px-6 pb-6 bg-slate-50/50">
               <Button
@@ -1019,6 +1092,7 @@ interface SearchableSelectFieldProps {
   displayedLabel: string;
   isEditingLabel: boolean;
   showActions: boolean;
+  isEditing:boolean;
   claim: Claim;
   fieldLabels: Record<string, string>;
   setFieldLabels: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -1108,7 +1182,11 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
             </Button>
           </div>
         ) : (
-          <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+          <Label 
+            htmlFor={field.name} 
+            className={isEditing ? "cursor-pointer" : ""}
+            onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+          >
             {displayedLabel} {field.required && <span className="text-destructive">*</span>}
           </Label>
         )}
