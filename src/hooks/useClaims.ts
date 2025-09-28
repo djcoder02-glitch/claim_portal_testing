@@ -13,8 +13,9 @@ export interface Claim {
   policy_type_id: string;
   claim_number: string;
   title: string;
-  description?: string;
-  status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'paid';
+  // description?: string;
+  intimation_date?: string;
+  status: 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'paid';
   claim_amount?: number;
   form_data: Record<string, unknown>;
   created_at: string;
@@ -42,8 +43,9 @@ interface DatabaseClaimRow {
   policy_type_id: string;
   claim_number: string;
   title: string;
-  description: string | null;
+  // description: string | null;
   status: string;
+  intimation_date:string | null;
   claim_amount: number | null;
   form_data: Record<string, unknown> | null;
   created_at: string;
@@ -108,7 +110,8 @@ export const useCreateClaim = () => {
     mutationFn: async (claimData: {
       policy_type_id: string;
       title: string;
-      description?: string;
+      // description?: string;
+      intimation_date?: string;
       form_data?: Record<string, unknown>;
       claim_amount?: number;
     }) => {
@@ -123,9 +126,10 @@ export const useCreateClaim = () => {
           policy_type_id: claimData.policy_type_id,
           title: claimData.title,
           user_id: user.id,
-          description: claimData.description || null,
+          intimation_date:claimData.intimation_date || null,
           form_data: claimData.form_data || null,
           claim_amount: claimData.claim_amount || null,
+          status:'pending'
         } as never)
         .select()
         .single();

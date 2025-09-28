@@ -20,12 +20,13 @@ type SortOrder = 'asc' | 'desc';
 type ViewMode = 'list' | 'grid';
 
 const statusColors = {
+  pending: "rgb(37 99 235)",
   submitted: "hsl(var(--status-submitted))", 
   under_review: "hsl(var(--status-under-review))",
   approved: "hsl(var(--status-approved))",
   rejected: "hsl(var(--status-rejected))",
   paid: "hsl(var(--status-paid))",
-  draft: "hsl(var(--muted))",
+  //draft: "hsl(var(--muted))",
 };
 
 export const ClaimsTable = ({ claims }: ClaimsTableProps) => {

@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const statusColors = {
+  pending:"rbg(37 99 235)",
   submitted: "hsl(var(--status-submitted))", 
   under_review: "hsl(var(--status-under-review))",
   approved: "hsl(var(--status-approved))",
@@ -22,6 +23,7 @@ const statusColors = {
 };
 
 const statusIcons = {
+  pending:Clock,
   submitted: Clock,
   under_review: Clock,
   approved: CheckCircle,
