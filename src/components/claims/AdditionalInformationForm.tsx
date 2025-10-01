@@ -19,6 +19,7 @@ interface AdditionalInformationFormProps {
   claim: Claim;
 }
 
+
 interface FormField {
   name: string;
   label: string;
@@ -28,6 +29,121 @@ interface FormField {
   isCustom?: boolean;
   section?: 'section1' | 'section2' | 'section3' | 'section4';
 }
+
+interface ImageGridProps {
+  sectionKey: string;
+  images: string[];
+  setImages: (urls: string[]) => void;
+  claimId: string;
+  claimFormData: Record<string, unknown>;
+  updateClaim: ReturnType<typeof useUpdateClaimSilent>;
+  customFields: FormField[];
+  hiddenFields: Set<string>;
+  fieldLabels: Record<string, string>;
+}
+
+
+const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels }) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  if (!e.target.files?.length) return;
+
+  const file = e.target.files[0];
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch("http://localhost:5000/upload-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error("Upload failed");
+    const data = await res.json();
+
+    const updated = [...images];
+    updated[index] = data.url;
+    setImages(updated);
+
+    // 🔥 Save into Supabase JSON
+    await updateClaim.mutateAsync({
+      id: claimId,
+      updates: {
+        form_data: {
+          ...claimFormData,
+          [`${sectionKey}_images`]: updated,
+          custom_fields_metadata: customFields,
+          hidden_fields: Array.from(hiddenFields),
+          field_labels: fieldLabels,
+        } as any,
+      },
+    });
+  } catch (err) {
+    console.error("Image upload failed", err);
+  }
+};
+
+const handleRemove = async (index: number) => {
+  const updated = [...images];
+  updated[index] = "";
+  setImages(updated);
+
+  await updateClaim.mutateAsync({
+    id: claimId,
+    updates: {
+      form_data: {
+        ...claimFormData,
+        [`${sectionKey}_images`]: updated,
+        custom_fields_metadata: customFields,
+        hidden_fields: Array.from(hiddenFields),
+        field_labels: fieldLabels,
+      } as any,
+    },
+  });
+};
+
+
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-semibold mb-2">Optional Images</p>
+      <div className="grid grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={`${sectionKey}-img-${i}`}
+            className="border border-dashed border-gray-300 rounded-md flex items-center justify-center relative aspect-square bg-gray-50"
+          >
+            {images[i] ? (
+              <div className="relative w-full h-full">
+                <img
+                  src={images[i]}
+                  alt={`Uploaded ${i + 1}`}
+                  className="object-cover w-full h-full rounded-md"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemove(i)}
+                  className="absolute top-1 right-1 bg-white/70 rounded-full p-1 text-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label className="cursor-pointer text-gray-400 text-sm">
+                + Upload
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleUpload(e, i)}
+                />
+              </label>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
   const updateClaimMutation = useUpdateClaimSilent();
@@ -49,6 +165,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     section4: false,
   });
 
+  const [sectionImages, setSectionImages] = useState<Record<string, string[]>>({});
 
   //Section editing states
   const [editingSection, setEditingSection]= useState <string |null>(null);
@@ -90,7 +207,16 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         setValue(field.name, claim.form_data[field.name]);
       }
     });
-  }, [claim.form_data, setValue]);
+
+    const imagesBySection: Record<string, string[]> = {};
+
+  Object.keys(openSections).forEach((sectionKey) => {
+    imagesBySection[sectionKey] = claim.form_data?.[`${sectionKey}_images`] || Array(6).fill("");
+  });
+
+  setSectionImages(imagesBySection);
+
+  }, [claim.form_data, setValue, openSections]);
 
   // Autosave functionality - memoized to prevent infinite loops
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
@@ -155,20 +281,26 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
       );
 
-      const dataWithMetadata = {
-        ...standardData,
-        ...existingCustomEntries,
-        custom_fields_metadata: customFields,
-        hidden_fields: Array.from(hiddenFields),
-        field_labels: fieldLabels,
-      };
-      
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: dataWithMetadata as any, // cast for Supabase Json
-        },
-      });
+      const imagesData: Record<string, string[]> = {};
+    Object.entries(sectionImages).forEach(([sectionKey, images]) => {
+      imagesData[`${sectionKey}_images`] = images;
+    });
+
+    const dataWithMetadata = {
+      ...standardData,
+      ...existingCustomEntries,
+      custom_fields_metadata: customFields,
+      hidden_fields: Array.from(hiddenFields),
+      field_labels: fieldLabels,
+      ...imagesData, // merge in all sections’ images
+    };
+
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates: {
+        form_data: dataWithMetadata as any,
+      },
+    });
       // Success toast only on tick mark saves
     } catch (error) {
       console.error("Failed to update claim:", error);
@@ -997,7 +1129,7 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
                 {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </Button>
             </CollapsibleTrigger>
-            
+{/*             
             <Button
               variant="ghost"
               size="sm"
@@ -1011,26 +1143,48 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
               title={isEditing ? 'Exit edit mode' : 'Edit section'}
             >
               <Edit className="w-4 h-4" />
-            </Button>
+            </Button> */}
           </div>
           
           <CollapsibleContent className="animate-accordion-down">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
-            {allFields.map(field => renderField(field, isEditing))}
-            </div>
-            <div className="px-6 pb-6 bg-slate-50/50">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addCustomField(sectionKey)}
-                className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
-              >
-                <Plus className="h-3 w-3" />
-                Add Field
-              </Button>
-            </div>
-          </CollapsibleContent>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
+    {allFields.map((field) => renderField(field, isEditing))}
+  </div>
+  <div className="px-6 pb-6 bg-slate-50/50">
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => addCustomField(sectionKey)}
+      className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
+    >
+      <Plus className="h-3 w-3" />
+      Add Field
+    </Button>
+  </div>
+
+  {/* Image grid lives here */}
+  <div className="px-6 pb-6 bg-slate-50/50">
+    <ImageGrid
+  sectionKey={sectionKey}
+  images={sectionImages[sectionKey] || Array(6).fill("")}
+  setImages={(urls) =>
+    setSectionImages((prev) => ({
+      ...prev,
+      [sectionKey]: urls,
+    }))
+  }
+  claimId={claim.id}
+  claimFormData={claim.form_data || {}}
+  updateClaim={updateClaimMutation}
+  customFields={customFields}
+  hiddenFields={hiddenFields}
+  fieldLabels={fieldLabels}
+/>
+
+  </div>
+</CollapsibleContent>
+
         </Card>
       </Collapsible>
     );
@@ -1066,8 +1220,8 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
             {/* Section 3 - Transportation Details */}
             {renderSection('section3', 'Section 3 - Transportation Details', section3Fields, section3Custom, 'bg-success')}
 
-            {/* Report Text Section */}
-            {renderSection('section4', 'Report Text Section', section4Fields, section4Custom, 'bg-info')}
+            {/* Section 4 - Report Section */}
+            {renderSection('section4', 'Section 4 - Report Section', section4Fields, section4Custom, 'bg-info')}
             
             <div className="pt-6 border-t border-border/50">
               <Button 
