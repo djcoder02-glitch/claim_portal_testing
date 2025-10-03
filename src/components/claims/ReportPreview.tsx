@@ -372,43 +372,43 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
       }
 
 
-      case "Financial Summary":
-        return (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Claimed Amount</p>
-                <p className="text-2xl font-bold">
-                  {claim.claim_amount ? `${money(claim.claim_amount)}` : "Not specified"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge variant={claim.status === "approved" ? "default" : "secondary"}>
-                  {claim.status.replace("_", " ").toUpperCase()}
-                </Badge>
-              </div>
-            </div>
-          </div>
-        );
+      // case "Financial Summary":
+      //   return (
+      //     <div className="space-y-3">
+      //       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      //         <div>
+      //           <p className="text-sm text-muted-foreground">Claimed Amount</p>
+      //           <p className="text-2xl font-bold">
+      //             {claim.claim_amount ? `${money(claim.claim_amount)}` : "Not specified"}
+      //           </p>
+      //         </div>
+      //         <div>
+      //           <p className="text-sm text-muted-foreground">Status</p>
+      //           <Badge variant={claim.status === "approved" ? "default" : "secondary"}>
+      //             {claim.status.replace("_", " ").toUpperCase()}
+      //           </Badge>
+      //         </div>
+      //       </div>
+      //     </div>
+      //   );
 
-      case "Timeline":
-        return (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-primary rounded-full" />
-                <span className="text-sm">Claim created on {format(new Date(claim.created_at), "MMM dd, yyyy")}</span>
-              </div>
-              {claim.updated_at !== claim.created_at && (
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full" />
-                  <span className="text-sm">Last updated on {format(new Date(claim.updated_at), "MMM dd, yyyy")}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        );
+      // case "Timeline":
+      //   return (
+      //     <div className="space-y-3">
+      //       <div className="space-y-2">
+      //         <div className="flex items-center space-x-2">
+      //           <div className="w-2 h-2 bg-primary rounded-full" />
+      //           <span className="text-sm">Claim created on {format(new Date(claim.created_at), "MMM dd, yyyy")}</span>
+      //         </div>
+      //         {claim.updated_at !== claim.created_at && (
+      //           <div className="flex items-center space-x-2">
+      //             <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+      //             <span className="text-sm">Last updated on {format(new Date(claim.updated_at), "MMM dd, yyyy")}</span>
+      //           </div>
+      //         )}
+      //       </div>
+      //     </div>
+      //   
 
       default:
         return <p className="text-muted-foreground">Section content not available</p>;
@@ -525,15 +525,7 @@ const sectionHasData = (sectionName: string, claim: Claim): boolean => {
         return (isStandardField || isCustomField) && hasValue;
       });
     }
-    
-    case "Financial Summary":
-      // Show if there's a claim amount or always show for financial summary
-      return claim.claim_amount !== null && claim.claim_amount !== undefined;
-      
-    case "Timeline":
-      // Always show timeline since it contains creation/update info
-      return true;
-      
+
     default:
       return false;
   }
@@ -546,8 +538,8 @@ const getInitialSections = (claim: Claim): ReportSection[] => [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: sectionHasData("Survey & Loss Details", claim), order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: sectionHasData("Transportation Details", claim), order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: sectionHasData("Report Text Section", claim), order: 6 },
-  { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 7 },
-  { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 8 },
+  // { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 7 },
+  // { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 8 },
 ];
 
 /* =========================
@@ -561,8 +553,8 @@ const defaultSections: ReportSection[] = [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: true, order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: true, order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: true, order: 6 },
-  { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 7 },
-  { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 8 },
+  // { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 7 },
+  // { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 8 },
 ];
 
 /* =========================
@@ -590,17 +582,17 @@ const paraComponent = (text: string, wrapperClass?: string) => ({
 
 const subheaderComponent = (text: string) => ({ type: "subheader", props: { text } });
 
-const financialTableComponent = (claim: Claim) => ({
-  type: "table",
-  props: {
-    title: "",
-    headers: ["Description", "Amount"],
-    rows: [
-      ["Claimed Amount", claim.claim_amount ? money(claim.claim_amount) : "Not specified"],
-      ["Status", (claim.status || "").replace("_", " ").toUpperCase()],
-    ],
-  },
-});
+// const financialTableComponent = (claim: Claim) => ({
+//   type: "table",
+//   props: {
+//     title: "",
+//     headers: ["Description", "Amount"],
+//     rows: [
+//       ["Claimed Amount", claim.claim_amount ? money(claim.claim_amount) : "Not specified"],
+//       ["Status", (claim.status || "").replace("_", " ").toUpperCase()],
+//     ],
+//   },
+// });
 
 const documentsTableComponent = (grouped: Record<string, ClaimDocument[]>) => {
   const rows: Array<Array<string>> = [];
@@ -798,22 +790,22 @@ function buildReportJson(
         });
         break;
       }
-      case "Financial Summary": {
-        components.push(subheaderComponent("Financial Summary"));
-        components.push(financialTableComponent(claim));
-        break;
-      }
-      case "Timeline": {
-        components.push(subheaderComponent("Timeline"));
-        const rows = [
-          ["Created", format(new Date(claim.created_at), "MMM dd, yyyy")],
-          ...(claim.updated_at && claim.updated_at !== claim.created_at
-            ? [["Last updated", format(new Date(claim.updated_at), "MMM dd, yyyy")]]
-            : []),
-        ];
-        components.push({ type: "table", props: { title: "", headers: ["Event", "When"], rows } });
-        break;
-      }
+      
+      // case "Financial Summary": {
+      //   components.push(subheaderComponent("Financial Summary"));
+      //   components.push(financialTableComponent(claim));
+      //   break;
+      // case "Timeline": {
+      //   components.push(subheaderComponent("Timeline"));
+      //   const rows = [
+      //     ["Created", format(new Date(claim.created_at), "MMM dd, yyyy")],
+      //     ...(claim.updated_at && claim.updated_at !== claim.created_at
+      //       : []),
+      //   ];
+      //   components.push({ type: "table", props: { title: "", headers: ["Event", "When"], rows } });
+      //   break;
+      // }
+
       default: {
         components.push(subheaderComponent(s.name));
         components.push(paraComponent("Section content not available."));
