@@ -333,7 +333,11 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
       
       case 'text':
         return (
-          <div key={field.name} className="relative space-y-2">
+          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+            isEditing 
+              ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+              : 'py-1'
+          }`}>
             <div className="flex items-center justify-between">
               {field.isCustom ? (
                 <Input
@@ -424,7 +428,11 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
 
       case 'number':
         return (
-          <div key={field.name} className="relative space-y-2">
+          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+            isEditing 
+              ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+              : 'py-1'
+          }`}>
             <div className="flex items-center justify-between">
               {field.isCustom ? (
                 <Input
@@ -517,8 +525,12 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
         );
 
       case 'date':
-        return (
-          <div key={field.name} className="relative space-y-2">
+       return (
+          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+            isEditing 
+              ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+              : 'py-1'
+          }`}>
             <div className="flex items-center justify-between">
               {field.isCustom ? (
                 <Input
@@ -609,7 +621,11 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
 
       case 'textarea':
         return (
-          <div key={field.name} className="relative space-y-2">
+          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+            isEditing 
+              ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+              : 'py-1'
+          }`}>
             <div className="flex items-center justify-between">
               {field.isCustom ? (
                 <Input
@@ -732,8 +748,12 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
   }
 
   // Regular select for non-searchable fields
-  return (
-    <div key={field.name} className="relative space-y-2">
+    return (
+    <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+      isEditing 
+        ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+        : 'py-1'
+    }`}>
       <div className="flex items-center justify-between">
         {field.isCustom ? (
           <Input
@@ -763,7 +783,11 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
             </Button>
           </div>
         ) : (
-          <Label htmlFor={field.name} className="cursor-pointer" onClick={() => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; })}>
+           <Label 
+            htmlFor={field.name} 
+            className={isEditing ? "cursor-pointer" : ""}
+            onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+          >
             {displayedLabel} {field.required && <span className="text-destructive">*</span>}
           </Label>
         )}
@@ -827,7 +851,11 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
   );
       case 'checkbox':
         return (
-          <div key={field.name} className="relative flex items-center space-x-2">
+          <div key={field.name} className={`relative flex items-center space-x-2 transition-all duration-200 rounded-lg ${
+            isEditing 
+              ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+              : 'py-1'
+          }`}>
             <Checkbox
               id={field.name}
               checked={typeof fieldValue === "boolean" ? fieldValue : false}
@@ -982,37 +1010,39 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
     return (
       <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
         <Card className={`bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-200 ${
-  isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
-}`}>
-          <div className="flex items-center">
-            <CollapsibleTrigger asChild>
+              isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
+            }`}>
+                      <div className="flex items-stretch">
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`flex-1 justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
+                >
+                  <h4 className="text-lg font-semibold flex items-center gap-2">
+                    <Info className="w-5 h-5" />
+                    {title}
+                  </h4>
+                  {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </Button>
+              </CollapsibleTrigger>
+              
               <Button
                 variant="ghost"
-                className={`flex-1 justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-t-lg`}
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSectionEdit(sectionKey);
+                }}
+                className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 ${
+                  isEditing 
+                    ? 'bg-white text-blue-600 hover:bg-blue-50 border-l border-blue-200' 
+                    : `${colorClass} text-white hover:bg-white/20 border-l border-white/20`
+                }`}
+                title={isEditing ? 'Exit edit mode' : 'Edit section'}
               >
-                <h4 className="text-lg font-semibold flex items-center gap-2">
-                  <Info className="w-5 h-5" />
-                  {title}
-                </h4>
-                {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                <Edit className="w-4 h-4" />
               </Button>
-            </CollapsibleTrigger>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleSectionEdit(sectionKey);
-              }}
-              className={`mr-2 ${colorClass} text-white hover:bg-white/20 transition-all duration-200 ${
-                isEditing ? 'bg-white/30' : ''
-              }`}
-              title={isEditing ? 'Exit edit mode' : 'Edit section'}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          </div>
+            </div>
           
           <CollapsibleContent className="animate-accordion-down">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
