@@ -175,6 +175,7 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                       <div>Policy: {claim.policy_types?.name}</div>
                       <div>Created: {format(new Date(claim.created_at), 'MMM dd, yyyy')}</div>
                       <div>Updated: {format(new Date(claim.updated_at), 'MMM dd, yyyy')}</div>
+                      <div>Intimation: {claim.intimation_date ? format(new Date(claim.intimation_date), 'MMM dd, yyyy') : 'Not set'}</div>
                       {claim.claim_amount && (
                         <div className="font-medium text-foreground">
                           Amount: ${claim.claim_amount.toLocaleString()}
@@ -216,11 +217,11 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                 <TableHead>Insurer</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort('created_at')}
+                  onClick={() => handleSort('intimation_date')}
                 >
                   <div className="flex items-center space-x-1">
                     <span>Intimation Date</span>
-                    {getSortIcon('created_at')}
+                    {getSortIcon('intimation_date')}
                   </div>
                 </TableHead>
                 <TableHead 
@@ -258,6 +259,9 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                   <TableCell>-</TableCell>
                   <TableCell>{format(new Date(claim.created_at), 'MMM dd, yyyy')}</TableCell>
                   <TableCell>{format(new Date(claim.updated_at), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell>
+                    {claim.intimation_date ? format(new Date(claim.intimation_date), 'MMM dd, yyyy') : 'Not set'}
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

@@ -26,11 +26,12 @@ const statusConfig = {
   under_review: { color: "bg-amber-600", icon: AlertCircle, label: "Under Review" },
   approved: { color: "bg-green-700", icon: CheckCircle2, label: "Approved" },
   rejected: { color: "bg-red-600", icon: AlertCircle, label: "Rejected" },
-  paid: { color: "bg-green-800", icon: CheckCircle2, label: "Paid" }
+  paid: { color: "bg-green-800", icon: CheckCircle2, label: "Paid" },
+  pending:{color: "bg-blue-600", icon: AlertCircle, label:"Pending"},
 };
 
 type ClaimDocumentRow = Tables<'claim_documents'>;
-type ClaimStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected" | "paid";
+type ClaimStatus = "pending" | "submitted" | "under_review" | "approved" | "rejected" | "paid";
 
 interface ExtractedBillData {
   consignee_name?: string;
@@ -406,18 +407,18 @@ export const ClaimDetails = () => {
                     <h1 className="text-2xl font-bold text-slate-800">
                       {claim.title}
                     </h1>
-                    <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-sm`}>
-                      <StatusIcon className="w-3 h-3" />
-                      {currentStatus?.label}
-                    </Badge>
                     <Select
                       value={claim.status}
                       onValueChange={(newStatus: ClaimStatus) => handleStatusUpdate(newStatus)}
                     >
                       <SelectTrigger className="w-48">
-                        <SelectValue />
+                        <Badge className={`${currentStatus?.color} text-white px-3 py-1 flex items-center gap-1 shadow-sm`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {currentStatus?.label}
+                        </Badge>
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="submitted">Submitted</SelectItem>
                         <SelectItem value="under_review">Under Review</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
@@ -452,10 +453,6 @@ export const ClaimDetails = () => {
                   <p className="font-semibold">
                     {claim.claim_amount ? `$${Number(claim.claim_amount).toLocaleString()}` : 'Not specified'}
                   </p>
-                </div>
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Description</p>
-                  <p className="text-sm">{claim.description || 'No description provided'}</p>
                 </div>
               </CardContent>
             </Card>

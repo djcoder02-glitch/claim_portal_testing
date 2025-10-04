@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import type { FieldErrors, UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -12,13 +13,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Plus, X, Info, Check, Edit } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Info, Check, Edit } from "lucide-react";
 import { SearchableSelect} from "@/components/ui/searchable-select";
 import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
+import { useFormTemplates, useSaveTemplate, type DynamicSection, type FormTemplate, type TemplateField} from "@/hooks/useFormTemplates";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Save, Plus, Download, Upload, Palette, Trash2 } from "lucide-react";
+
 interface AdditionalInformationFormProps {
   claim: Claim;
 }
-
 
 interface FormField {
   name: string;
@@ -42,29 +46,62 @@ interface ImageGridProps {
   fieldLabels: Record<string, string>;
 }
 
+// Add color options for sections
+const colorOptions = [
+  { value: 'bg-gradient-primary', label: 'Blue', class: 'bg-gradient-primary' },
+  { value: 'bg-warning', label: 'Orange', class: 'bg-warning' },
+  { value: 'bg-success', label: 'Green', class: 'bg-success' },
+  { value: 'bg-info', label: 'Teal', class: 'bg-info' },
+  { value: 'bg-red-600', label: 'Red', class: 'bg-red-600' },
+  { value: 'bg-purple-600', label: 'Purple', class: 'bg-purple-600' },
+  { value: 'bg-indigo-600', label: 'Indigo', class: 'bg-indigo-600' },
+  { value: 'bg-pink-600', label: 'Pink', class: 'bg-pink-600' },
+];
 
 const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels }) => {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-  if (!e.target.files?.length) return;
+    if (!e.target.files?.length) return;
 
-  const file = e.target.files[0];
-  const formData = new FormData();
-  formData.append("file", file);
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
 
-  try {
-    const res = await fetch("http://localhost:5000/upload-image", {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const res = await fetch("http://localhost:5000/upload-image", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!res.ok) throw new Error("Upload failed");
-    const data = await res.json();
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
 
+      const updated = [...images];
+      updated[index] = data.url;
+      setImages(updated);
+
+      await updateClaim.mutateAsync({
+        id: claimId,
+        updates: {
+          form_data: {
+            ...claimFormData,
+            [`${sectionKey}_images`]: updated,
+            custom_fields_metadata: customFields,
+            hidden_fields: Array.from(hiddenFields),
+            field_labels: fieldLabels,
+          } as any,
+          // intimation_date: ""
+        },
+      });
+    } catch (err) {
+      console.error("Image upload failed", err);
+    }
+  };
+
+  const handleRemove = async (index: number) => {
     const updated = [...images];
-    updated[index] = data.url;
+    updated[index] = "";
     setImages(updated);
 
-    // 🔥 Save into Supabase JSON
     await updateClaim.mutateAsync({
       id: claimId,
       updates: {
@@ -75,32 +112,10 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
           hidden_fields: Array.from(hiddenFields),
           field_labels: fieldLabels,
         } as any,
+        // intimation_date: ""
       },
     });
-  } catch (err) {
-    console.error("Image upload failed", err);
-  }
-};
-
-const handleRemove = async (index: number) => {
-  const updated = [...images];
-  updated[index] = "";
-  setImages(updated);
-
-  await updateClaim.mutateAsync({
-    id: claimId,
-    updates: {
-      form_data: {
-        ...claimFormData,
-        [`${sectionKey}_images`]: updated,
-        custom_fields_metadata: customFields,
-        hidden_fields: Array.from(hiddenFields),
-        field_labels: fieldLabels,
-      } as any,
-    },
-  });
-};
-
+  };
 
   return (
     <div className="mt-4">
@@ -144,7 +159,6 @@ const handleRemove = async (index: number) => {
   );
 };
 
-
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
   const updateClaimMutation = useUpdateClaimSilent();
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
@@ -158,8 +172,15 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   };
 
   // State for collapsible sections
-  const [openSections, setOpenSections] = useState({
+  const [openSections, setOpenSections] = useState<Record<string,boolean>>({
     section1: true,
+    section2: false,
+    section3: false,
+    section4: false,
+  });
+
+  const [sectionEditMode, setSectionEditMode] = useState<Record<string, boolean>>({
+    section1: false,
     section2: false,
     section3: false,
     section4: false,
@@ -167,16 +188,19 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const [sectionImages, setSectionImages] = useState<Record<string, string[]>>({});
 
+  // Add these new state variables
+  const [dynamicSections, setDynamicSections] = useState<DynamicSection[]>([]);
+  const [currentTemplate, setCurrentTemplate] = useState<FormTemplate | null>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showNewSectionDialog, setShowNewSectionDialog] = useState(false);
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [newSectionColor, setNewSectionColor] = useState('bg-slate-600');
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+
   //Section editing states
   const [editingSection, setEditingSection]= useState <string |null>(null);
-
-  const [sectionEditMode, setSectionEditMode] = useState({
-    section1: false,
-    section2: false,
-    section3: false,
-    section4: false,
-  });
-
   
   // State for managing custom fields and hidden fields
   const [customFields, setCustomFields] = useState<FormField[]>([]);
@@ -185,13 +209,17 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
   const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
 
+  const { data: templates = [] } = useFormTemplates(claim.policy_type_id);
+  const saveTemplateMutation = useSaveTemplate();
+
   // Load custom fields from form_data on mount
   useEffect(() => {
     const savedCustomFields = (claim.form_data?.custom_fields_metadata || []) as FormField[];
     const savedHiddenFields = claim.form_data?.hidden_fields || [];
     const savedFieldLabels = (claim.form_data?.field_labels || {}) as Record<string, string>;
+      const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
 
-    // Backward-compatible: assign section if missing using prior index-based distribution
+
     const withSection = savedCustomFields.map((field, index) => ({
       ...field,
       section: field.section || (['section1','section2','section3','section4'][index % 4] as FormField['section']),
@@ -200,8 +228,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setCustomFields(withSection);
     setHiddenFields(new Set(Array.isArray(savedHiddenFields) ? savedHiddenFields : []));
     setFieldLabels(savedFieldLabels);
+
+     if (savedDynamicSections && savedDynamicSections.length > 0) {
+    setDynamicSections(savedDynamicSections);
+  }
     
-    // Also set the form values for custom fields
     withSection.forEach((field) => {
       if (claim.form_data?.[field.name] !== undefined) {
         setValue(field.name, claim.form_data[field.name]);
@@ -210,48 +241,46 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
     const imagesBySection: Record<string, string[]> = {};
 
-  Object.keys(openSections).forEach((sectionKey) => {
-    imagesBySection[sectionKey] = claim.form_data?.[`${sectionKey}_images`] || Array(6).fill("");
-  });
+    Object.keys(openSections).forEach((sectionKey) => {
+      imagesBySection[sectionKey] = claim.form_data?.[`${sectionKey}_images`] || (Array(6).fill("") as string[]);
+    });
 
-  setSectionImages(imagesBySection);
-
+    setSectionImages(imagesBySection);
   }, [claim.form_data, setValue, openSections]);
 
-  // Autosave functionality - memoized to prevent infinite loops
+  // Autosave functionality
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
-    // Exclude custom field values from autosave; only save standard fields
     const standardData = Object.fromEntries(
       Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
     );
 
-  const existingCustomEntries = Object.fromEntries(
-    Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
-  );
+    const existingCustomEntries = Object.fromEntries(
+      Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
+    );
 
-  await updateClaimMutation.mutateAsync({
-    id: claim.id,
-    updates: {
-      form_data: {
-        ...standardData,
-        ...existingCustomEntries,
-        // Preserve existing custom fields metadata and hidden fields
-        custom_fields_metadata: (claim.form_data?.custom_fields_metadata as unknown[]) || [],
-        hidden_fields: (claim.form_data?.hidden_fields as string[]) || [],
-        field_labels: (claim.form_data?.field_labels as Record<string, string>) || {},
-      } as any, // cast to any for Supabase Json
-    },
-  });
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates: {
+        form_data: {
+          ...standardData,
+          ...existingCustomEntries,
+          custom_fields_metadata: (claim.form_data?.custom_fields_metadata as unknown[]) || [],
+          hidden_fields: (claim.form_data?.hidden_fields as string[]) || [],
+          field_labels: (claim.form_data?.field_labels as Record<string, string>) || {},
+        } as any,
+        // intimation_date: ""
+      },
+    });
   }, [claim.id, updateClaimMutation, claim.form_data]);
 
   useAutosave({
     control,
     onSave: handleAutosave,
     delay: 2000,
-    enabled: true,
+    enabled: false,
   });
 
-  const toggleSection = (section: keyof typeof openSections) => {
+  const toggleSection = (section : string) => {
     setOpenSections(prev => ({
       ...prev,
       [section]: !prev[section]
@@ -259,13 +288,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   };
 
   useEffect(() => {
-    // Reset form with current claim data
     reset(claim.form_data || {});
   }, [claim.form_data, reset]);
 
   const onSubmit = async (data: Record<string, unknown>) => {
     try {
-      // Save any pending custom fields first
+          console.log('🔍 Current dynamicSections:', dynamicSections);
+
       const pendingFieldNames = Array.from(pendingSaves);
       if (pendingFieldNames.length > 0) {
         for (const fieldName of pendingFieldNames) {
@@ -273,7 +302,6 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         }
       }
 
-      // Only persist standard fields; custom fields are saved via tick
       const standardData = Object.fromEntries(
         Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
       );
@@ -282,26 +310,33 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       );
 
       const imagesData: Record<string, string[]> = {};
-    Object.entries(sectionImages).forEach(([sectionKey, images]) => {
-      imagesData[`${sectionKey}_images`] = images;
-    });
+      Object.entries(sectionImages).forEach(([sectionKey, images]) => {
+        imagesData[`${sectionKey}_images`] = images;
+      });
 
-    const dataWithMetadata = {
-      ...standardData,
-      ...existingCustomEntries,
-      custom_fields_metadata: customFields,
-      hidden_fields: Array.from(hiddenFields),
-      field_labels: fieldLabels,
-      ...imagesData, // merge in all sections’ images
-    };
+      const dataWithMetadata = {
+        ...standardData,
+        ...existingCustomEntries,
+        custom_fields_metadata: customFields,
+        hidden_fields: Array.from(hiddenFields),
+        field_labels: fieldLabels,
+        dynamic_sections_metadata:dynamicSections,
+        ...imagesData,
+      };
 
-    await updateClaimMutation.mutateAsync({
-      id: claim.id,
-      updates: {
-        form_data: dataWithMetadata as any,
-      },
-    });
-      // Success toast only on tick mark saves
+      console.log('💾 Data being saved:', dataWithMetadata);
+    console.log('📦 dynamic_sections_metadata:', dataWithMetadata.dynamic_sections_metadata);
+
+
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: {
+          form_data: dataWithMetadata as any,
+          // intimation_date: ""
+        },
+      });
+          console.log('✅ Save completed');
+
     } catch (error) {
       console.error("Failed to update claim:", error);
       toast.error("Failed to update additional information");
@@ -336,7 +371,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: dataWithMetadata as any, // cast for Supabase Json
+          form_data: dataWithMetadata as any,
+          // intimation_date: ""
         },
       });
       
@@ -346,7 +382,6 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         return newSet;
       });
       
-      // Show success toast only when explicitly saving via tick mark
       toast.success("Claim updated successfully!", {
         duration: 2000,
       });
@@ -368,9 +403,10 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
           form_data: {
             ...existingData,
             field_labels: updatedLabels,
-            custom_fields_metadata: customFields as unknown[], // cast for Supabase Json
+            custom_fields_metadata: customFields as unknown[],
             hidden_fields: Array.from(hiddenFields),
-          } as any, // cast for Supabase Json
+          } as any,
+          // intimation_date: ""
         },
       });
       setEditingLabels(prev => {
@@ -400,7 +436,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       await updateClaimMutation.mutateAsync({
         id: claim.id,
         updates: {
-          form_data: dataWithMetadata as any, // cast for Supabase Json
+          form_data: dataWithMetadata as any,
+          // intimation_date: ""
         },
       });
     } catch (error) {
@@ -422,15 +459,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setCustomFields(prev => prev.map(field => 
       field.name === fieldName ? { ...field, ...updates } : field
     ));
-    // Only mark as pending if this is a field value change, not label change
     if (updates.label === undefined) {
       setPendingSaves(prev => new Set([...prev, fieldName]));
     }
   };
 
-// Toggle section for sections along with edit options
   const toggleSectionEdit = (sectionKey: string) => {
-    // If we're already editing this section, turn off edit mode
     if (editingSection === sectionKey) {
       setEditingSection(null);
       setSectionEditMode(prev => ({
@@ -438,7 +472,6 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         [sectionKey]: false
       }));
     } else {
-      // Turn off any other section that might be editing and enable this one
       setEditingSection(sectionKey);
       setSectionEditMode({
         section1: false,
@@ -450,8 +483,316 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
   };
 
+  // Additional details fields based on policy type - MOVED HERE
+  const getAdditionalDetailsFields = () => {
+    const policyTypeName = claim.policy_types?.name?.toLowerCase() || '';
+    
+    const commonFields = [
+      { name: 'consigner_name', label: 'Name of Consigner of Goods (Exporter)', type: 'text' as const, required: false },
+      { name: 'consignee_name', label: 'Name of Consignee of Goods (Importer)', type: 'text' as const, required: false },
+      { name: 'applicant_survey', label: 'Applicant of Survey', type: 'text' as const, required: false },
+      { name: 'underwriter_name', label: 'Name of Underwriter / Insurer', type: 'text' as const, required: false },
+      { name: 'cha_name', label: 'Name of CHA / Clearing Agent / Forwarder', type: 'text' as const, required: false },
+      { name: 'certificate_no', label: 'Certificate No (if Applicable)', type: 'text' as const, required: false },
+      { name: 'endorsement_no', label: 'Endorsement No (if Any)', type: 'text' as const, required: false },
+      { name: 'invoice_no', label: 'Invoice Details Invoice No', type: 'text' as const, required: false },
+      { name: 'invoice_date', label: 'Invoice Details Invoice Date', type: 'date' as const, required: false },
+      { name: 'invoice_value', label: 'Invoice Details Invoice Value', type: 'number' as const, required: false },
+      { name: 'invoice_pkg_count', label: 'Invoice Details No of PKG', type: 'number' as const, required: false },
+      { name: 'invoice_gross_wt', label: 'Invoice Details Gross WT', type: 'text' as const, required: false },
+      { name: 'invoice_net_wt', label: 'Invoice Details Net WT', type: 'text' as const, required: false },
+      { name: 'goods_description', label: 'Description of Goods', type: 'textarea' as const, required: false },
+      { name: 'intimation_date', label: 'Date of Intimation of Survey', type: 'date' as const, required: false },
+      { name: 'survey_date_place', label: 'Date and Place of Survey', type: 'textarea' as const, required: false },
+      { name: 'external_condition_review', label: 'External Condition Upon Reviewing the Consignment as per Consignee', type: 'textarea' as const, required: false },
+      { name: 'packing_nature', label: 'Nature of Packing', type: 'textarea' as const, required: false },
+      { name: 'packing_condition', label: 'External Condition of Packing at the Time of Survey', type: 'textarea' as const, required: false },
+      { name: 'damage_description', label: 'Description of Loss / Damage', type: 'textarea' as const, required: false },
+      { name: 'loss_cause', label: 'Cause of Loss', type: 'textarea' as const, required: false },
+      { name: 'joint_survey', label: 'Was Any Joint Survey Held', type: 'textarea' as const, required: false },
+      { name: 'consignee_notice', label: 'Has Consignee Given Notice of Loss / Damage to or Made Claim Against Carriers?', type: 'textarea' as const, required: false },
+      { name: 'transporter_name', label: 'Name of the Transporter', type: 'text' as const, required: false },
+      { name: 'vehicle_number', label: 'Vehicle Number', type: 'text' as const, required: false },
+      { name: 'lr_date_issuance', label: 'LR & Date of Issuance', type: 'text' as const, required: false },
+      { name: 'consignment_note', label: 'Consignment Note No / Docket No & Date', type: 'text' as const, required: false },
+      { name: 'delivery_challan', label: 'Delivery Challan No', type: 'text' as const, required: false },
+      { name: 'dispatch_condition', label: 'External Condition While Dispatching the Consignment from Port / CFS / Warehouse', type: 'textarea' as const, required: false },
+      { name: 'survey_address', label: 'Address of Survey', type: 'textarea' as const, required: false },
+      { name: 'number_packages', label: 'Number of Packages', type: 'select' as const, required: false, options: ['BULK/RM', '1-10', '11-50', '51-100', '100+'] },
+      { name: 'packing_contents', label: 'Whats Inside Packing Consignment', type: 'textarea' as const, required: false },
+      { name: 'content_industry_use', label: 'Use of Content Industry it is Utilised in', type: 'select' as const, required: false, options: ['Manufacturing', 'Construction', 'Electronics', 'Textiles', 'Automotive', 'Food Processing', 'Other'] },
+      { name: 'arrival_details', label: 'How Did it Arrive to the Premises Spot of Survey Mention Container No and or Vehicle No if Applicable', type: 'select' as const, required: false, options: ['By Road Transport', 'By Sea Container', 'By Air Cargo', 'By Rail', 'Other'] },
+      { name: 'external_condition_tag', label: 'External Condition Tag', type: 'textarea' as const, required: false },
+    ];
 
-const renderField = (field: FormField, isEditing = false) => {    const showActions = isEditing; // Red X buttons only show in edit mode
+    if (policyTypeName.includes('marine') || policyTypeName.includes('cargo')) {
+      return [
+        ...commonFields,
+        { name: 'vessel_name', label: 'Vessel Name', type: 'text' as const, required: false },
+        { name: 'port_loading', label: 'Port of Loading', type: 'text' as const, required: false },
+        { name: 'port_discharge', label: 'Port of Discharge', type: 'text' as const, required: false },
+        { name: 'bl_number', label: 'Bill of Lading Number', type: 'text' as const, required: false },
+      ];
+    }
+
+    if (policyTypeName.includes('fire') || policyTypeName.includes('property')) {
+      return [
+        ...commonFields,
+        { name: 'building_type', label: 'Building Type', type: 'select' as const, required: false, options: ['Residential', 'Commercial', 'Industrial', 'Warehouse'] },
+        { name: 'fire_brigade_called', label: 'Was Fire Brigade Called?', type: 'select' as const, required: false, options: ['Yes', 'No'] },
+        { name: 'sprinkler_system', label: 'Sprinkler System Present?', type: 'select' as const, required: false, options: ['Yes', 'No'] },
+      ];
+    }
+
+    return commonFields;
+  };
+
+  const addNewSection = () => {
+    if (!newSectionName.trim()) return;
+    
+    const newSection: DynamicSection = {
+      id: `custom_${Date.now()}`,
+      name: newSectionName,
+      order_index: dynamicSections.length + 1,
+      color_class: newSectionColor,
+      fields: [],
+      isCustom: true
+    };
+    
+    setDynamicSections([...dynamicSections, newSection]);
+    setNewSectionName('');
+    setNewSectionColor('bg-slate-600');
+    setShowNewSectionDialog(false);
+    toast.success(`Section "${newSectionName}" added!`);
+  };
+
+  const removeSection = (sectionId: string) => {
+    setDynamicSections(prev => prev.filter(section => section.id !== sectionId));
+    toast.success("Section removed");
+  };
+
+  const addFieldToSection = (sectionId: string) => {
+    const newField: FormField = {
+      name: `custom_${Date.now()}`,
+      label: 'New Field',
+      type: 'text',
+      required: false,
+      isCustom: true,
+      section: sectionId as FormField['section'],
+    };
+    
+    setCustomFields(prev => [...prev, newField]);
+    setPendingSaves(prev => new Set([...prev, newField.name]));
+  }
+
+  const saveAsTemplate = async () => {
+  if (!templateName.trim()) return;
+  
+  try {
+    // Merge custom fields into their respective sections
+    const sectionsWithCustomFields = dynamicSections.map(section => {
+      // Get custom fields for this section
+      const sectionCustomFields = customFields.filter(f => f.section === section.id);
+      
+      // Convert custom fields to TemplateField format
+      const customTemplateFields: TemplateField[] = sectionCustomFields.map((field, index) => ({
+        id: field.name,
+        name: field.name,
+        label: fieldLabels[field.name] || field.label, // Use custom label if exists
+        type: field.type as TemplateField['type'],
+        required: field.required,
+        options: field.options,
+        order_index: section.fields.length + index + 1
+      }));
+      
+      // Update existing field labels
+      const updatedFields = section.fields.map(field => ({
+        ...field,
+        label: fieldLabels[field.name] || field.label // Apply custom labels
+      }));
+      
+      return {
+        ...section,
+        fields: [...updatedFields, ...customTemplateFields]
+      };
+    });
+    
+    await saveTemplateMutation.mutateAsync({
+      name: templateName,
+      description: templateDescription,
+      policyTypeId: claim.policy_type_id,
+      sections: sectionsWithCustomFields
+    });
+    
+    setTemplateName('');
+    setTemplateDescription('');
+    setShowSaveTemplateDialog(false);
+  } catch (error) {
+    console.error('Failed to save template:', error);
+  }
+};
+
+const loadTemplate = (template: FormTemplate) => {
+  const convertedSections: DynamicSection[] = template.sections.map(section => ({
+    id: section.id,
+    name: section.name,
+    order_index: section.order_index,
+    color_class: section.color_class,
+    fields: section.fields,
+    isCustom: !section.name.startsWith('Section ')
+  }));
+  
+  // Extract custom fields and field labels from template
+  const loadedCustomFields: FormField[] = [];
+  const loadedFieldLabels: Record<string, string> = {};
+  
+  template.sections.forEach(section => {
+    section.fields.forEach(field => {
+      // Store all field labels
+      loadedFieldLabels[field.name] = field.label;
+      
+      // Identify custom fields (those not in the default field set)
+      const defaultFieldNames = getAdditionalDetailsFields().map(f => f.name);
+      if (!defaultFieldNames.includes(field.name)) {
+        loadedCustomFields.push({
+          name: field.name,
+          label: field.label,
+          type: field.type as FormField['type'],
+          required: field.required,
+          options: field.options,
+          isCustom: true,
+          section: section.id as FormField['section']
+        });
+      }
+    });
+  });
+  
+  setDynamicSections(convertedSections);
+  setCustomFields(loadedCustomFields);
+  setFieldLabels(loadedFieldLabels);
+  
+  // ✅ Preserve existing form data - repopulate all fields with current values
+  Object.entries(claim.form_data || {}).forEach(([key, value]) => {
+    // Skip metadata and image fields
+    if (!key.endsWith('_metadata') && 
+        !key.endsWith('_images') && 
+        !key.includes('hidden_fields') && 
+        !key.includes('field_labels')) {
+      setValue(key, value);
+    }
+  });
+  
+  setCurrentTemplate(template);
+  setShowTemplateDialog(false);
+  toast.success(`Template "${template.name}" loaded! Your existing data has been preserved.`);
+};
+
+  // Initialize dynamic sections from existing structure
+  useEffect(() => {
+  // Check if we have saved sections in the claim data
+  const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
+  
+  if (savedDynamicSections && savedDynamicSections.length > 0) {
+    // Load saved sections
+    setDynamicSections(savedDynamicSections);
+    return;
+  }
+
+  // Only create default sections if:
+  // 1. No saved sections exist
+  // 2. We haven't already created sections in state
+  if (dynamicSections.length > 0) return;
+
+  const additionalFields = getAdditionalDetailsFields();
+  const section1Fields = additionalFields.slice(0, 13);
+  const section2Fields = additionalFields.slice(13, 23);
+  const section3Fields = additionalFields.slice(23, 29);
+  const section4Fields = additionalFields.slice(29);
+
+  const defaultSections: DynamicSection[] = [
+    {
+      id: 'section1',
+      name: 'Section 1 - Basic Information',
+      order_index: 1,
+      color_class: 'bg-gradient-primary',
+      fields: section1Fields.map((field, index) => ({
+        id: field.name,
+        name: field.name,
+        label: field.label,
+        type: field.type as TemplateField['type'],
+        required: field.required,
+        options: field.options,
+        order_index: index + 1
+      })),
+      isCustom: false
+    },
+    {
+      id: 'section2',
+      name: 'Section 2 - Survey & Loss Details',
+      order_index: 2,
+      color_class: 'bg-warning',
+      fields: section2Fields.map((field, index) => ({
+        id: field.name,
+        name: field.name,
+        label: field.label,
+        type: field.type as TemplateField['type'],
+        required: field.required,
+        options: field.options,
+        order_index: index + 1
+      })),
+      isCustom: false
+    },
+    {
+      id: 'section3',
+      name: 'Section 3 - Transportation Details',
+      order_index: 3,
+      color_class: 'bg-success',
+      fields: section3Fields.map((field, index) => ({
+        id: field.name,
+        name: field.name,
+        label: field.label,
+        type: field.type as TemplateField['type'],
+        required: field.required,
+        options: field.options,
+        order_index: index + 1
+      })),
+      isCustom: false
+    },
+    {
+      id: 'section4',
+      name: 'Section 4 - Report Section',
+      order_index: 4,
+      color_class: 'bg-info',
+      fields: section4Fields.map((field, index) => ({
+        id: field.name,
+        name: field.name,
+        label: field.label,
+        type: field.type as TemplateField['type'],
+        required: field.required,
+        options: field.options,
+        order_index: index + 1
+      })),
+      isCustom: false
+    }
+  ];
+  
+  setDynamicSections(defaultSections);
+}, [claim.form_data]); 
+
+  // Now define these after useEffect where getAdditionalDetailsFields is available
+  const additionalFields = getAdditionalDetailsFields();
+  const section1Fields = additionalFields.slice(0, 13);
+  const section2Fields = additionalFields.slice(13, 23);
+  const section3Fields = additionalFields.slice(23, 29);
+  const section4Fields = additionalFields.slice(29);
+
+  const section1Custom = customFields.filter((f) => f.section === 'section1');
+  const section2Custom = customFields.filter((f) => f.section === 'section2');
+  const section3Custom = customFields.filter((f) => f.section === 'section3');
+  const section4Custom = customFields.filter((f) => f.section === 'section4');
+
+  const renderField = (field: FormField, isEditing = false) => {
+    const showActions = isEditing || pendingSaves.has(field.name); 
     const fieldValue = watch(field.name);
     const displayedLabel = fieldLabels[field.name] ?? field.label;
     const isEditingLabel = editingLabels.has(field.name);
@@ -461,8 +802,6 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
     }
 
     switch (field.type) {
-
-      
       case 'text':
         return (
           <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
@@ -595,10 +934,10 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
                 </div>
               ) : (
                 <Label 
-  htmlFor={field.name} 
-  className={isEditing ? "cursor-pointer" : ""}
-  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
->
+                  htmlFor={field.name} 
+                  className={isEditing ? "cursor-pointer" : ""}
+                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+                >
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -657,7 +996,7 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
         );
 
       case 'date':
-       return (
+        return (
           <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
@@ -693,10 +1032,10 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
                 </div>
               ) : (
                 <Label 
-  htmlFor={field.name} 
-  className={isEditing ? "cursor-pointer" : ""}
-  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
->
+                  htmlFor={field.name} 
+                  className={isEditing ? "cursor-pointer" : ""}
+                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+                >
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -788,10 +1127,10 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
                 </div>
               ) : (
                 <Label 
-  htmlFor={field.name} 
-  className={isEditing ? "cursor-pointer" : ""}
-  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
->
+                  htmlFor={field.name} 
+                  className={isEditing ? "cursor-pointer" : ""}
+                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+                >
                   {displayedLabel} {field.required && <span className="text-destructive">*</span>}
                 </Label>
               )}
@@ -848,139 +1187,138 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
         );
 
       case 'select':
-  // Check if this field should be searchable
-  if (['content_industry_use', 'arrival_details', 'number_packages'].includes(field.name)) {
-    return (
-      <SearchableSelectField
-        key={field.name}
-        field={field}
-        fieldValue={fieldValue}
-        displayedLabel={displayedLabel}
-        isEditingLabel={isEditingLabel}
-        showActions={showActions}
-        claim={claim}
-        isEditing={isEditing}
-        fieldLabels={fieldLabels}
-        setFieldLabels={setFieldLabels}
-        editingLabels={editingLabels}
-        setEditingLabels={setEditingLabels}
-        pendingSaves={pendingSaves}
-        setPendingSaves={setPendingSaves}
-        setValue={setValue}
-        errors={errors}
-        saveCustomField={saveCustomField}
-        saveFieldLabel={saveFieldLabel}
-        removeField={removeField}
-        removeCustomField={removeCustomField}
-        updateCustomField={updateCustomField}
-        handleCreateFieldOption={handleCreateFieldOption}
-        addFieldOptionMutation={addFieldOptionMutation}
-      />
-    );
-  }
-
-  // Regular select for non-searchable fields
-    return (
-    <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
-      isEditing 
-        ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
-        : 'py-1'
-    }`}>
-      <div className="flex items-center justify-between">
-        {field.isCustom ? (
-          <Input
-            value={field.label}
-            onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-            className="text-sm font-medium w-auto max-w-xs"
-            placeholder="Field label"
-          />
-        ) : isEditingLabel ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={fieldLabels[field.name] ?? displayedLabel}
-              onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-              onBlur={() => saveFieldLabel(field.name)}
-              className="text-sm font-medium w-auto max-w-xs"
-              placeholder="Field label"
+        if (['content_industry_use', 'arrival_details', 'number_packages'].includes(field.name)) {
+          return (
+            <SearchableSelectField
+              key={field.name}
+              field={field}
+              fieldValue={fieldValue}
+              displayedLabel={displayedLabel}
+              isEditingLabel={isEditingLabel}
+              showActions={showActions}
+              claim={claim}
+              isEditing={isEditing}
+              fieldLabels={fieldLabels}
+              setFieldLabels={setFieldLabels}
+              editingLabels={editingLabels}
+              setEditingLabels={setEditingLabels}
+              pendingSaves={pendingSaves}
+              setPendingSaves={setPendingSaves}
+              setValue={setValue}
+              errors={errors}
+              saveCustomField={saveCustomField}
+              saveFieldLabel={saveFieldLabel}
+              removeField={removeField}
+              removeCustomField={removeCustomField}
+              updateCustomField={updateCustomField}
+              handleCreateFieldOption={handleCreateFieldOption}
+              addFieldOptionMutation={addFieldOptionMutation}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => saveFieldLabel(field.name)}
-              className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-              title="Save label"
+          );
+        }
+
+        return (
+          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+            isEditing 
+              ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+              : 'py-1'
+          }`}>
+            <div className="flex items-center justify-between">
+              {field.isCustom ? (
+                <Input
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                  className="text-sm font-medium w-auto max-w-xs"
+                  placeholder="Field label"
+                />
+              ) : isEditingLabel ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={fieldLabels[field.name] ?? displayedLabel}
+                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    onBlur={() => saveFieldLabel(field.name)}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveFieldLabel(field.name)}
+                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Save label"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Label 
+                  htmlFor={field.name} 
+                  className={isEditing ? "cursor-pointer" : ""}
+                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
+                >
+                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+                </Label>
+              )}
+              {showActions && (
+                <div className="flex items-center gap-1">
+                  {pendingSaves.has(field.name) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => saveCustomField(field.name)}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Save field"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <Select
+              value={typeof fieldValue === "string" ? fieldValue : ""}
+              onValueChange={(value) => {
+                setValue(field.name, value);
+                if (value !== (claim.form_data?.[field.name] || '')) {
+                  setPendingSaves(prev => new Set([...prev, field.name]));
+                }
+              }}
+              onOpenChange={(open) => {
+                if (!open && pendingSaves.has(field.name)) {
+                  setTimeout(() => saveCustomField(field.name), 100);
+                }
+              }}
             >
-              <Check className="h-3 w-3" />
-            </Button>
-          </div>
-        ) : (
-           <Label 
-            htmlFor={field.name} 
-            className={isEditing ? "cursor-pointer" : ""}
-            onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
-          >
-            {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-          </Label>
-        )}
-        {showActions && (
-          <div className="flex items-center gap-1">
-            {pendingSaves.has(field.name) && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => saveCustomField(field.name)}
-                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                title="Save field"
-              >
-                <Check className="h-3 w-3" />
-              </Button>
+              <SelectTrigger>
+                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {field.options?.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors[field.name] && (
+              <p className="text-sm text-destructive">
+                {errors[field.name]?.message as string}
+              </p>
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-            >
-              <X className="h-3 w-3" />
-            </Button>
           </div>
-        )}
-      </div>
-      <Select
-        value={typeof fieldValue === "string" ? fieldValue : ""}
-        onValueChange={(value) => {
-          setValue(field.name, value);
-          if (value !== (claim.form_data?.[field.name] || '')) {
-            setPendingSaves(prev => new Set([...prev, field.name]));
-          }
-        }}
-        onOpenChange={(open) => {
-          if (!open && pendingSaves.has(field.name)) {
-            setTimeout(() => saveCustomField(field.name), 100);
-          }
-        }}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-        </SelectTrigger>
-        <SelectContent>
-          {field.options?.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {errors[field.name] && (
-        <p className="text-sm text-destructive">
-          {errors[field.name]?.message as string}
-        </p>
-      )}
-    </div>
-  );
+        );
+
       case 'checkbox':
         return (
           <div key={field.name} className={`relative flex items-center space-x-2 transition-all duration-200 rounded-lg ${
@@ -995,7 +1333,6 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
                 setValue(field.name, checked);
                 if (checked !== (claim.form_data?.[field.name] || false)) {
                   setPendingSaves(prev => new Set([...prev, field.name]));
-                  // For checkboxes, auto-save after a short delay since it's a discrete action
                   setTimeout(() => {
                     if (pendingSaves.has(field.name)) {
                       saveCustomField(field.name);
@@ -1049,86 +1386,129 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
     }
   };
 
-  // Additional details fields based on policy type
-  const getAdditionalDetailsFields = () => {
-    const policyTypeName = claim.policy_types?.name?.toLowerCase() || '';
+  const renderDynamicSection = (section: DynamicSection) => {
+    const convertedSectionFields = section.fields.map(field => ({
+      name: field.name,
+      label: field.label,
+      type: field.type as FormField['type'],
+      required: field.required,
+      options: field.options,
+      isCustom: false
+    })).filter(field => !hiddenFields.has(field.name));
     
-    // Common fields for all policy types
-    const commonFields = [
-      // Section 1 - Basic Information
-      { name: 'consigner_name', label: 'Name of Consigner of Goods (Exporter)', type: 'text' as const, required: false },
-      { name: 'consignee_name', label: 'Name of Consignee of Goods (Importer)', type: 'text' as const, required: false },
-      { name: 'applicant_survey', label: 'Applicant of Survey', type: 'text' as const, required: false },
-      { name: 'underwriter_name', label: 'Name of Underwriter / Insurer', type: 'text' as const, required: false },
-      { name: 'cha_name', label: 'Name of CHA / Clearing Agent / Forwarder', type: 'text' as const, required: false },
-      { name: 'certificate_no', label: 'Certificate No (if Applicable)', type: 'text' as const, required: false },
-      { name: 'endorsement_no', label: 'Endorsement No (if Any)', type: 'text' as const, required: false },
-      
-      // Invoice Details
-      { name: 'invoice_no', label: 'Invoice Details Invoice No', type: 'text' as const, required: false },
-      { name: 'invoice_date', label: 'Invoice Details Invoice Date', type: 'date' as const, required: false },
-      { name: 'invoice_value', label: 'Invoice Details Invoice Value', type: 'number' as const, required: false },
-      { name: 'invoice_pkg_count', label: 'Invoice Details No of PKG', type: 'number' as const, required: false },
-      { name: 'invoice_gross_wt', label: 'Invoice Details Gross WT', type: 'text' as const, required: false },
-      { name: 'invoice_net_wt', label: 'Invoice Details Net WT', type: 'text' as const, required: false },
-      
-      // Section 2 - Survey Details
-      { name: 'goods_description', label: 'Description of Goods', type: 'textarea' as const, required: false },
-      { name: 'intimation_date', label: 'Date of Intimation of Survey', type: 'date' as const, required: false },
-      { name: 'survey_date_place', label: 'Date and Place of Survey', type: 'textarea' as const, required: false },
-      { name: 'external_condition_review', label: 'External Condition Upon Reviewing the Consignment as per Consignee', type: 'textarea' as const, required: false },
-      { name: 'packing_nature', label: 'Nature of Packing', type: 'textarea' as const, required: false },
-      { name: 'packing_condition', label: 'External Condition of Packing at the Time of Survey', type: 'textarea' as const, required: false },
-      { name: 'damage_description', label: 'Description of Loss / Damage', type: 'textarea' as const, required: false },
-      { name: 'loss_cause', label: 'Cause of Loss', type: 'textarea' as const, required: false },
-      { name: 'joint_survey', label: 'Was Any Joint Survey Held', type: 'textarea' as const, required: false },
-      { name: 'consignee_notice', label: 'Has Consignee Given Notice of Loss / Damage to or Made Claim Against Carriers?', type: 'textarea' as const, required: false },
-      
-      // Section 3 - Transportation Details
-      { name: 'transporter_name', label: 'Name of the Transporter', type: 'text' as const, required: false },
-      { name: 'vehicle_number', label: 'Vehicle Number', type: 'text' as const, required: false },
-      { name: 'lr_date_issuance', label: 'LR & Date of Issuance', type: 'text' as const, required: false },
-      { name: 'consignment_note', label: 'Consignment Note No / Docket No & Date', type: 'text' as const, required: false },
-      { name: 'delivery_challan', label: 'Delivery Challan No', type: 'text' as const, required: false },
-      { name: 'dispatch_condition', label: 'External Condition While Dispatching the Consignment from Port / CFS / Warehouse', type: 'textarea' as const, required: false },
-      
-      // Report Text Section
-      { name: 'survey_address', label: 'Address of Survey', type: 'textarea' as const, required: false },
-      { name: 'number_packages', label: 'Number of Packages', type: 'select' as const, required: false, options: ['BULK/RM', '1-10', '11-50', '51-100', '100+'] },
-      { name: 'packing_contents', label: 'Whats Inside Packing Consignment', type: 'textarea' as const, required: false },
-      { name: 'content_industry_use', label: 'Use of Content Industry it is Utilised in', type: 'select' as const, required: false, options: ['Manufacturing', 'Construction', 'Electronics', 'Textiles', 'Automotive', 'Food Processing', 'Other'] },
-      { name: 'arrival_details', label: 'How Did it Arrive to the Premises Spot of Survey Mention Container No and or Vehicle No if Applicable', type: 'select' as const, required: false, options: ['By Road Transport', 'By Sea Container', 'By Air Cargo', 'By Rail', 'Other'] },
-      { name: 'external_condition_tag', label: 'External Condition Tag', type: 'textarea' as const, required: false },
-    ];
+    const sectionCustomFields = customFields.filter(f => f.section === section.id);
+    const allFields = [...convertedSectionFields, ...sectionCustomFields];
+    
+    const isOpen = section.id in openSections ? openSections[section.id as keyof typeof openSections] : true;
+    const isEditing = section.id in sectionEditMode ? sectionEditMode[section.id as keyof typeof sectionEditMode] : false;
 
-    // Policy-type specific fields can be added here
-    if (policyTypeName.includes('marine') || policyTypeName.includes('cargo')) {
-      // Add marine/cargo specific fields
-      return [
-        ...commonFields,
-        { name: 'vessel_name', label: 'Vessel Name', type: 'text' as const, required: false },
-        { name: 'port_loading', label: 'Port of Loading', type: 'text' as const, required: false },
-        { name: 'port_discharge', label: 'Port of Discharge', type: 'text' as const, required: false },
-        { name: 'bl_number', label: 'Bill of Lading Number', type: 'text' as const, required: false },
-      ];
-    }
+    return (
+      <Collapsible 
+        open={isOpen} 
+        onOpenChange={() => {
+          setOpenSections(prev => ({
+            ...prev,
+            [section.id]: !isOpen
+          }));
+        }}
+      >
+        <Card className={`bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-200 ${
+          isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
+        }`}>
+          <div className="flex items-stretch">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className={`flex-1 justify-between p-4 h-auto text-left ${section.color_class} text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
+              >
+                <h4 className="text-lg font-semibold flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  {section.name}
+                </h4>
+                {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </Button>
+            </CollapsibleTrigger>
+            
+            <div className="flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSectionEditMode(prev => ({
+                    ...prev,
+                    [section.id]: !isEditing
+                  }));
+                }}
+                className={`h-auto px-3 py-2 transition-all duration-200 ${
+                  isEditing 
+                    ? 'bg-white text-blue-600 hover:bg-blue-50 border-l border-blue-200' 
+                    : `${section.color_class} text-white hover:bg-white/20 border-l border-white/20`
+                }`}
+                title={isEditing ? 'Exit edit mode' : 'Edit section'}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+              
+              {section.isCustom && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeSection(section.id);
+                  }}
+                  className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 ${section.color_class} text-white hover:bg-red-500 border-l border-white/20`}
+                  title="Remove section"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          <CollapsibleContent className="animate-accordion-down">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
+              {allFields.map((field) => renderField(field, isEditing))}
+            </div>
+            <div className="px-6 pb-6 bg-slate-50/50">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addFieldToSection(section.id)}
+                className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
+              >
+                <Plus className="h-3 w-3" />
+                Add Field
+              </Button>
+            </div>
 
-    if (policyTypeName.includes('fire') || policyTypeName.includes('property')) {
-      // Add fire/property specific fields
-      return [
-        ...commonFields,
-        { name: 'building_type', label: 'Building Type', type: 'select' as const, required: false, options: ['Residential', 'Commercial', 'Industrial', 'Warehouse'] },
-        { name: 'fire_brigade_called', label: 'Was Fire Brigade Called?', type: 'select' as const, required: false, options: ['Yes', 'No'] },
-        { name: 'sprinkler_system', label: 'Sprinkler System Present?', type: 'select' as const, required: false, options: ['Yes', 'No'] },
-      ];
-    }
-
-    return commonFields;
+            <div className="px-6 pb-6 bg-slate-50/50">
+              <ImageGrid
+                sectionKey={section.id}
+                images={sectionImages[section.id] || (Array(6).fill("") as string[])}
+                setImages={(urls) =>
+                  setSectionImages((prev) => ({
+                    ...prev,
+                    [section.id]: urls,
+                  }))
+                }
+                claimId={claim.id}
+                claimFormData={claim.form_data || {}}
+                updateClaim={updateClaimMutation}
+                customFields={customFields}
+                hiddenFields={hiddenFields}
+                fieldLabels={fieldLabels}
+              />
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    );
   };
 
-  const additionalFields = getAdditionalDetailsFields();
-
-    const renderSection = (
+  const renderSection = (
     sectionKey: keyof typeof openSections, 
     title: string, 
     fields: FormField[], 
@@ -1140,119 +1520,246 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
     const isEditing = sectionEditMode[sectionKey];
 
     return (
-      <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
+      <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey as string)}>
         <Card className={`bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-200 ${
-              isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
-            }`}>
-                      <div className="flex items-stretch">
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`flex-1 justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
-                >
-                  <h4 className="text-lg font-semibold flex items-center gap-2">
-                    <Info className="w-5 h-5" />
-                    {title}
-                  </h4>
-                  {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                </Button>
-              </CollapsibleTrigger>
-{/*               
+          isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
+          }`}>
+          <div className="flex items-stretch">
+            <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleSectionEdit(sectionKey);
-                }}
-                className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 ${
-                  isEditing 
-                    ? 'bg-white text-blue-600 hover:bg-blue-50 border-l border-blue-200' 
-                    : `${colorClass} text-white hover:bg-white/20 border-l border-white/20`
-                }`}
-                title={isEditing ? 'Exit edit mode' : 'Edit section'}
+                className={`flex-1 justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
               >
-                <Edit className="w-4 h-4" />
-              </Button> */}
-            </div>
+                <h4 className="text-lg font-semibold flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  {title}
+                </h4>
+                {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </Button>
+            </CollapsibleTrigger>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSectionEdit(sectionKey);
+              }}
+              className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 ${
+                isEditing 
+                  ? 'bg-white text-blue-600 hover:bg-blue-50 border-l border-blue-200' 
+                  : `${colorClass} text-white hover:bg-white/20 border-l border-white/20`
+              }`}
+              title={isEditing ? 'Exit edit mode' : 'Edit section'}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          </div>
           
           <CollapsibleContent className="animate-accordion-down">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
-    {allFields.map((field) => renderField(field, isEditing))}
-  </div>
-  <div className="px-6 pb-6 bg-slate-50/50">
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => addCustomField(sectionKey)}
-      className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
-    >
-      <Plus className="h-3 w-3" />
-      Add Field
-    </Button>
-  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
+              {allFields.map((field) => renderField(field, isEditing))}
+            </div>
+            <div className="px-6 pb-6 bg-slate-50/50">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addCustomField(sectionKey)}
+                className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
+              >
+                <Plus className="h-3 w-3" />
+                Add Field
+              </Button>
+            </div>
 
-  {/* Image grid lives here */}
-  <div className="px-6 pb-6 bg-slate-50/50">
-    <ImageGrid
-  sectionKey={sectionKey}
-  images={sectionImages[sectionKey] || Array(6).fill("")}
-  setImages={(urls) =>
-    setSectionImages((prev) => ({
-      ...prev,
-      [sectionKey]: urls,
-    }))
-  }
-  claimId={claim.id}
-  claimFormData={claim.form_data || {}}
-  updateClaim={updateClaimMutation}
-  customFields={customFields}
-  hiddenFields={hiddenFields}
-  fieldLabels={fieldLabels}
-/>
-
-  </div>
-</CollapsibleContent>
-
+            <div className="px-6 pb-6 bg-slate-50/50">
+              <ImageGrid
+                sectionKey={sectionKey}
+                images={sectionImages[sectionKey] || Array(6).fill("")}
+                setImages={(urls) =>
+                  setSectionImages((prev) => ({
+                    ...prev,
+                    [sectionKey]: urls,
+                  }))
+                }
+                claimId={claim.id}
+                claimFormData={claim.form_data || {}}
+                updateClaim={updateClaimMutation}
+                customFields={customFields}
+                hiddenFields={hiddenFields}
+                fieldLabels={fieldLabels}
+              />
+            </div>
+          </CollapsibleContent>
         </Card>
       </Collapsible>
     );
   };
 
-  const section1Fields = additionalFields.slice(0, 13);
-  const section2Fields = additionalFields.slice(13, 23);
-  const section3Fields = additionalFields.slice(23, 29);
-  const section4Fields = additionalFields.slice(29);
-
-  const section1Custom = customFields.filter((f) => f.section === 'section1');
-  const section2Custom = customFields.filter((f) => f.section === 'section2');
-  const section3Custom = customFields.filter((f) => f.section === 'section3');
-  const section4Custom = customFields.filter((f) => f.section === 'section4');
-
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
         <CardHeader className="bg-slate-700 text-white rounded-t-lg">
-          <CardTitle className="flex items-center gap-2">
-            <Info className="w-5 h-5" />
-            Additional Information
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5" />
+              Additional Information
+              {currentTemplate && (
+                <Badge variant="secondary" className="ml-2">
+                  {currentTemplate.name}
+                </Badge>
+              )}
+            </CardTitle>
+            
+            <div className="flex gap-2">
+              <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary" size="sm">
+                    <Upload className="w-4 h-4 mr-1" />
+                    Load Template
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Load Form Template</DialogTitle>
+                </DialogHeader>
+                <DialogDescription className="sr-only">
+                  Select a saved template to load its field structure
+                </DialogDescription>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {templates.map(template => (
+                      <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => loadTemplate(template)}>
+                        <CardContent className="p-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start">
+                              <h3 className="font-medium">{template.name}</h3>
+                              {template.is_default && (
+                                <Badge variant="outline" className="text-xs">Default</Badge>
+                              )}
+                            </div>
+                            {template.description && (
+                              <p className="text-sm text-muted-foreground">{template.description}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {template.sections.length} sections • {template.sections.reduce((acc, section) => acc + section.fields.length, 0)} fields
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary" size="sm">
+                    <Save className="w-4 h-4 mr-1" />
+                    Save Template
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save as Template</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label htmlFor="template-name">Template Name *</Label>
+                      <Input
+                        id="template-name"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        placeholder="Enter template name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="template-description">Description</Label>
+                      <Textarea
+                        id="template-description"
+                        value={templateDescription}
+                        onChange={(e) => setTemplateDescription(e.target.value)}
+                        placeholder="Optional description"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowSaveTemplateDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={saveAsTemplate} disabled={!templateName.trim() || saveTemplateMutation.isPending}>
+                        {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Section 1 - Basic Information */}
-            {renderSection('section1', 'Section 1 - Basic Information', section1Fields, section1Custom, 'bg-gradient-primary')}
+            {dynamicSections
+              .sort((a, b) => a.order_index - b.order_index)
+              .map((section) => (
+                <div key={section.id}>
+                  {renderDynamicSection(section)}
+                </div>
+              ))}
 
-            {/* Section 2 - Survey & Loss Details */}
-            {renderSection('section2', 'Section 2 - Survey & Loss Details', section2Fields, section2Custom, 'bg-warning')}
+            <div className="flex justify-center pt-4">
+              <Dialog open={showNewSectionDialog} onOpenChange={setShowNewSectionDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add New Section
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Section</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label htmlFor="section-name">Section Name *</Label>
+                      <Input
+                        id="section-name"
+                        value={newSectionName}
+                        onChange={(e) => setNewSectionName(e.target.value)}
+                        placeholder="Enter section name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="section-color">Section Color</Label>
+                      <Select value={newSectionColor} onValueChange={setNewSectionColor}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {colorOptions.map(color => (
+                            <SelectItem key={color.value} value={color.value}>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-4 h-4 rounded ${color.class}`} />
+                                {color.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowNewSectionDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={addNewSection} disabled={!newSectionName.trim()}>
+                        Create Section
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
 
-            {/* Section 3 - Transportation Details */}
-            {renderSection('section3', 'Section 3 - Transportation Details', section3Fields, section3Custom, 'bg-success')}
-
-            {/* Section 4 - Report Section */}
-            {renderSection('section4', 'Section 4 - Report Section', section4Fields, section4Custom, 'bg-info')}
-            
             <div className="pt-6 border-t border-border/50">
               <Button 
                 type="submit" 
@@ -1269,14 +1776,13 @@ const renderField = (field: FormField, isEditing = false) => {    const showActi
   );
 };
 
-// Add this at the bottom of the file, after the main component
 interface SearchableSelectFieldProps {
   field: FormField;
-  fieldValue: unknown; // we don't assume a string/boolean until used
+  fieldValue: unknown;
   displayedLabel: string;
   isEditingLabel: boolean;
   showActions: boolean;
-  isEditing:boolean;
+  isEditing: boolean;
   claim: Claim;
   fieldLabels: Record<string, string>;
   setFieldLabels: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -1284,21 +1790,17 @@ interface SearchableSelectFieldProps {
   setEditingLabels: React.Dispatch<React.SetStateAction<Set<string>>>;
   pendingSaves: Set<string>;
   setPendingSaves: React.Dispatch<React.SetStateAction<Set<string>>>;
-  // Use the library type for setValue so it matches useForm's return
   setValue: UseFormSetValue<Record<string, unknown>>;
-  // FieldErrors from react-hook-form is the canonical type for errors
   errors: FieldErrors<Record<string, unknown>>;
   saveCustomField: (fieldName: string) => Promise<void> | void;
   saveFieldLabel: (fieldName: string) => Promise<void> | void;
   removeField: (fieldName: string) => void;
   removeCustomField: (fieldName: string) => void;
   updateCustomField: (fieldName: string, updates: Partial<FormField>) => void;
-  // This will be an async function (it calls the mutation)
   handleCreateFieldOption: (fieldName: string, newValue: string) => Promise<void>;
-  // Minimal type for the mutation object you use here
   addFieldOptionMutation: {
     isPending: boolean;
-    mutateAsync?: (payload: { fieldName: string; optionValue: string }) => Promise<void>;
+    mutateAsync: (payload: { fieldName: string; optionValue: string }) => Promise<void>;
   };
 }
 
@@ -1308,6 +1810,7 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
   displayedLabel, 
   isEditingLabel, 
   showActions,
+  isEditing,
   claim,
   fieldLabels,
   setFieldLabels,
@@ -1325,10 +1828,8 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
   handleCreateFieldOption,
   addFieldOptionMutation
 }) => {
-  // Hook called at component level - this is correct
   const { data: dynamicOptions = [], isLoading } = useFieldOptions(field.name);
   
-  // Combine options
   const allOptions = [
     ...(field.options || []),
     ...dynamicOptions.filter(option => !(field.options || []).includes(option))
@@ -1336,7 +1837,6 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
 
   return (
     <div className="relative space-y-2">
-      {/* Label section */}
       <div className="flex items-center justify-between">
         {field.isCustom ? (
           <Input

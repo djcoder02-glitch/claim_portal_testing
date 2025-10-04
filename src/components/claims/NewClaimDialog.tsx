@@ -32,7 +32,7 @@ interface ClaimFormData {
   registration_id: string;
   insured_name: string;
   assigned_surveyor?: string;
-  insurer?: string; // ✅ Added
+  insurer?: string; 
   intimation_date?: string;
 }
 
@@ -254,6 +254,32 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
               {errors.claim_amount && <p className="text-sm text-destructive">{errors.claim_amount.message}</p>}
             </div>
 
+            {/* Intimation Date - ADD THIS FIELD */}
+            <div className="space-y-2">
+              <Label htmlFor="intimation_date">Intimation Date</Label>
+              <Input 
+                id="intimation_date" 
+                type="date"
+                {...register("intimation_date", { 
+                  validate: (value) => {
+                    if (!value) return true; // Optional field
+                    const selectedDate = new Date(value);
+                    const today = new Date();
+                    today.setHours(23, 59, 59, 999); // End of today
+                    
+                    if (selectedDate > today) {
+                      return "Intimation date cannot be in the future";
+                    }        
+                    return true;
+                  }
+                })} 
+              />
+              <p className="text-xs text-muted-foreground">
+                Date when the claim was first reported or intimated
+              </p>
+              {errors.intimation_date && <p className="text-sm text-destructive">{errors.intimation_date.message}</p>}
+            </div>
+
             {/* Registration ID */}
             <div className="space-y-2">
               <Label htmlFor="registration_id">Registration ID *</Label>
@@ -267,6 +293,8 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
               <Input id="insured_name" placeholder="Enter insured name" {...register("insured_name", { required: "Insured name is required", minLength: { value: 2, message: "Insured name must be at least 2 characters" } })} />
               {errors.insured_name && <p className="text-sm text-destructive">{errors.insured_name.message}</p>}
             </div>
+
+
 
             {/* Insurer */}
             <div className="space-y-2">

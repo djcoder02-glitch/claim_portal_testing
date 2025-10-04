@@ -77,12 +77,13 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   useAutosave({ control, onSave: handleAutosave, delay: 2000, enabled: false });
 
   useEffect(() => {
-    const allFormData = { ...claim.form_data,
-      intimation_date: claim.intimation_date|| claim.form_data?.intimaion_date || '',
-     };
-    reset(allFormData);
-    setFieldLabels((claim.form_data?.field_labels || {}) as Record<string, string>);
-  }, [claim.form_data,claim.intimation_date, reset]);
+  const allFormData = { 
+    ...claim.form_data,
+    intimation_date: claim.intimation_date || claim.form_data?.intimation_date || '',
+  };
+  reset(allFormData);
+  setFieldLabels((claim.form_data?.field_labels || {}) as Record<string, string>);
+}, [claim.form_data, claim.intimation_date, reset]);
 
   const saveLabel = async (fieldName: string) => {
     try {

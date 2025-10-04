@@ -14,7 +14,7 @@ export interface Claim {
   claim_number: string;
   title: string;
   // description?: string;
-  intimation_date?: string;
+  intimation_date: string|null;
   status: 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'paid';
   claim_amount?: number;
   form_data: Record<string, unknown>;
