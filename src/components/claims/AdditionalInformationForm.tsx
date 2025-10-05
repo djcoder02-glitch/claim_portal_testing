@@ -195,7 +195,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   // State for collapsible sections
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({
-    section1: true,
+    section1: false,
     section2: false,
     section3: false,
     section4: false,
@@ -620,22 +620,24 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       const customTemplateFields: TemplateField[] = sectionCustomFields.map((field, index) => ({
         id: field.name,
         name: field.name,
-        label: fieldLabels[field.name] || field.label, // Use custom label if exists
+        label: fieldLabels[field.name] || field.label,
         type: field.type as TemplateField['type'],
         required: field.required,
         options: field.options,
         order_index: section.fields.length + index + 1
       }));
       
-      // Update existing field labels
-      const updatedFields = section.fields.map(field => ({
-        ...field,
-        label: fieldLabels[field.name] || field.label // Apply custom labels
-      }));
+      // Update existing field labels and filter out hidden fields
+      const updatedFields = section.fields
+        .filter(field => !hiddenFields.has(field.name)) // ✅ Exclude hidden fields
+        .map(field => ({
+          ...field,
+          label: fieldLabels[field.name] || field.label
+        }));
       
       return {
         ...section,
-        fields: [...updatedFields, ...customTemplateFields]
+        fields: [...updatedFields, ...customTemplateFields.filter(f => !hiddenFields.has(f.name))] // ✅ Also filter custom fields
       };
     });
     
@@ -649,6 +651,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setTemplateName('');
     setTemplateDescription('');
     setShowSaveTemplateDialog(false);
+    toast.success("Template saved with current field configuration!");
   } catch (error) {
     console.error('Failed to save template:', error);
   }
