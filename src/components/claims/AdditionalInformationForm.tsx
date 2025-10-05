@@ -44,6 +44,7 @@ interface ImageGridProps {
   customFields: FormField[];
   hiddenFields: Set<string>;
   fieldLabels: Record<string, string>;
+  sectionImages: Record<string, string[]>;
 }
 
 // Add color options for sections
@@ -58,7 +59,7 @@ const colorOptions = [
   { value: 'bg-pink-600', label: 'Pink', class: 'bg-pink-600' },
 ];
 
-const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels }) => {
+const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels, sectionImages }) => {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     if (!e.target.files?.length) return;
 
@@ -71,8 +72,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
 
     try {
       console.log("Uploading image to backend...");
-      // const res = await fetch("http://localhost:5000/upload-image", {
-      const res = await fetch("https://reports-backend-48dg.onrender.com/upload-image", {
+      const res = await fetch("http://localhost:5000/upload-image", {
+      // const res = await fetch("https://reports-backend-48dg.onrender.com/upload-image", {
         method: "POST",
         body: formData,
       });
@@ -84,6 +85,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
       const updated = [...images];
       updated[index] = data.url;
       setImages(updated);
+      console.log(sectionKey, " ke images updated:", updated);
 
       // 🔥 Save into Supabase JSON
       await updateClaim.mutateAsync({
@@ -98,6 +100,10 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
           } as any,
         },
       });
+
+      console.log(sectionImages);
+      console.log("Images", images)
+      console.log("claim", claimFormData);
 
       // ✅ Update toast on success
       toast.success("Image uploaded successfully!", { id: toastId, duration: 2000 });
@@ -261,14 +267,18 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       }
     });
 
-    const imagesBySection: Record<string, string[]> = {};
+    Object.entries(claim.form_data || {}).forEach(([key, value]) => {
+    if (key.endsWith("_images") && Array.isArray(value)) {
+      // Normalize to exactly 6 slots
+      const urls = value.slice(0, 6);
+      while (urls.length < 6) urls.push("");
+      sectionImages[key.replace(/_images$/, "")] = urls;
+    }
+  });
 
-    Object.keys(openSections).forEach((sectionKey) => {
-      imagesBySection[sectionKey] = claim.form_data?.[`${sectionKey}_images`] || (Array(6).fill("") as string[]);
-    });
+    console.log("claim fetched", claim.form_data)
 
-    setSectionImages(imagesBySection);
-  }, [claim.form_data, setValue, openSections]);
+  }, [claim.form_data, setValue, openSections, , setSectionImages]);
 
   // Autosave functionality
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
@@ -582,6 +592,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     };
     
     setDynamicSections([...dynamicSections, newSection]);
+
     setNewSectionName('');
     setNewSectionColor('bg-slate-600');
     setShowNewSectionDialog(false);
@@ -1525,95 +1536,7 @@ const loadTemplate = (template: FormTemplate) => {
                 customFields={customFields}
                 hiddenFields={hiddenFields}
                 fieldLabels={fieldLabels}
-              />
-            </div>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-    );
-  };
-
-  const renderSection = (
-    sectionKey: keyof typeof openSections, 
-    title: string, 
-    fields: FormField[], 
-    customFieldsForSection: FormField[],
-    colorClass: string
-  ) => {
-    const allFields = [...fields, ...customFieldsForSection];
-    const isOpen = openSections[sectionKey];
-    const isEditing = sectionEditMode[sectionKey];
-
-    return (
-      <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey as string)}>
-        <Card className={`bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-200 ${
-          isEditing ? 'border-blue-400 shadow-blue-100' : 'border-slate-200'
-          }`}>
-          <div className="flex items-stretch">
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className={`flex-1 justify-between p-4 h-auto text-left ${colorClass} text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
-              >
-                <h4 className="text-lg font-semibold flex items-center gap-2">
-                  <Info className="w-5 h-5" />
-                  {title}
-                </h4>
-                {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              </Button>
-            </CollapsibleTrigger>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleSectionEdit(sectionKey);
-              }}
-              className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 ${
-                isEditing 
-                  ? 'bg-white text-blue-600 hover:bg-blue-50 border-l border-blue-200' 
-                  : `${colorClass} text-white hover:bg-white/20 border-l border-white/20`
-              }`}
-              title={isEditing ? 'Exit edit mode' : 'Edit section'}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          <CollapsibleContent className="animate-accordion-down">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
-              {allFields.map((field) => renderField(field, isEditing))}
-            </div>
-            <div className="px-6 pb-6 bg-slate-50/50">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addCustomField(sectionKey)}
-                className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
-              >
-                <Plus className="h-3 w-3" />
-                Add Field
-              </Button>
-            </div>
-
-            <div className="px-6 pb-6 bg-slate-50/50">
-              <ImageGrid
-                sectionKey={sectionKey}
-                images={sectionImages[sectionKey] || Array(6).fill("")}
-                setImages={(urls) =>
-                  setSectionImages((prev) => ({
-                    ...prev,
-                    [sectionKey]: urls,
-                  }))
-                }
-                claimId={claim.id}
-                claimFormData={claim.form_data || {}}
-                updateClaim={updateClaimMutation}
-                customFields={customFields}
-                hiddenFields={hiddenFields}
-                fieldLabels={fieldLabels}
+                sectionImages={sectionImages}
               />
             </div>
           </CollapsibleContent>

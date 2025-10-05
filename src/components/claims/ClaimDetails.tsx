@@ -61,10 +61,10 @@ export const ClaimDetails = () => {
   const queryClient = useQueryClient();
   const {isAdmin, user} = useAuth();
 
-  console.log('[ClaimDetails] User:', user?.id);
-  console.log('[ClaimDetails] isAdmin:', isAdmin);
-  console.log('[ClaimDetails] Claim user_id:', claim?.user_id);
-  console.log('[ClaimDetails] Claim exists:', !!claim);
+  // console.log('[ClaimDetails] User:', user?.id);
+  // console.log('[ClaimDetails] isAdmin:', isAdmin);
+  // console.log('[ClaimDetails] Claim user_id:', claim?.user_id);
+  // console.log('[ClaimDetails] Claim exists:', !!claim);
 
   useEffect(() => {
     const loadExistingDocuments = async () => {
