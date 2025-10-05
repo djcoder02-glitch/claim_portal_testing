@@ -605,6 +605,7 @@ const documentsTableComponent = (grouped: Record<string, ClaimDocument[]>) => {
       ]);
     });
   });
+
   return {
     type: "table",
     props: {
@@ -612,9 +613,39 @@ const documentsTableComponent = (grouped: Record<string, ClaimDocument[]>) => {
       headers: ["File", "Details"],
       rows,
       notes: rows.length ? undefined : "No documents uploaded.",
+    }
+  };
+};
+
+const imageGridComponent = (title: string, urls: string[] | null | undefined) => {
+  if (!Array.isArray(urls)) return null;
+
+  // Filter valid URLs
+  const validUrls = urls.filter((u) => typeof u === "string" && u.trim() !== "");
+  if (validUrls.length === 0) return null;
+
+  // Limit to 6 images (3 rows × 2 columns)
+  const limited = validUrls.slice(0, 6);
+
+  // Group into 2 columns per row
+  const rows: string[][] = [];
+  for (let i = 0; i < limited.length; i += 2) {
+    rows.push(limited.slice(i, i + 2));
+  }
+
+  return {
+    type: "image-grid",
+    props: { title, rows },
+    style: {
+      wrapper: "mt-3 mb-6 grid grid-cols-2 gap-2 justify-center items-center",
+      image: "object-cover rounded-md w-full h-auto border-0",
+      title: "text-center text-sm text-muted-foreground mb-2",
+      imgContainer: "flex justify-center",
     },
   };
 };
+
+
 
 function buildReportJson(
   claim: Claim,
@@ -622,6 +653,8 @@ function buildReportJson(
   groupedDocuments: Record<string, ClaimDocument[]>
 ) {
   const visibleSections = sections.filter((s) => s.isVisible).sort((a, b) => a.order - b.order);
+
+  console.log(claim.form_data);
 
   const policyFields = [
     "registration_id",
@@ -746,6 +779,12 @@ function buildReportJson(
         components.push(subheaderComponent("Basic Information"));
         const pairs = claim.form_data || {};
         components.push(kvTableComponent("", basicInfoFields.map((k) => [k, (pairs as any)[k]])));
+        const imageFieldKey = "section1_images";
+          if (imageFieldKey && Array.isArray(claim.form_data?.[imageFieldKey])) {
+          const grid = imageGridComponent("Images", claim.form_data[imageFieldKey]);
+          if (grid) components.push(grid);
+          }
+
         break;
       }
       case "Survey & Loss Details": {
@@ -764,12 +803,24 @@ function buildReportJson(
             components.push(paraComponent(`${labelize(k)}: ${String(v)}`));
           }
         });
+        const imageFieldKey = "section2_images";
+
+        if (imageFieldKey && Array.isArray(claim.form_data?.[imageFieldKey])) {
+          const grid = imageGridComponent("Images", claim.form_data[imageFieldKey]);
+          if (grid) components.push(grid);
+        }
         break;
       }
       case "Transportation Details": {
         components.push(subheaderComponent("Transportation Details"));
         const pairs = claim.form_data || {};
         components.push(kvTableComponent("", transportFields.map((k) => [k, (pairs as any)[k]])));
+        const imageFieldKey = "section3_images";
+
+        if (imageFieldKey && Array.isArray(claim.form_data?.[imageFieldKey])) {
+          const grid = imageGridComponent("Images", claim.form_data[imageFieldKey]);
+          if (grid) components.push(grid);
+        }
         break;
       }
       case "Report Text Section": {
@@ -788,6 +839,12 @@ function buildReportJson(
             components.push(paraComponent(`${labelize(k)}: ${String(v)}`));
           }
         });
+        const imageFieldKey = "section4_images";
+
+          if (imageFieldKey && Array.isArray(claim.form_data?.[imageFieldKey])) {
+            const grid = imageGridComponent("Images", claim.form_data[imageFieldKey]);
+            if (grid) components.push(grid);
+          }
         break;
       }
       
@@ -912,6 +969,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handlePreview = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
+    console.log("Preview Payload:", payload);
     const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -928,6 +986,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handleDownload = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
+    console.log("Preview Payload:", payload);
     const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
