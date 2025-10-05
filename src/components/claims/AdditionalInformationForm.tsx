@@ -66,17 +66,55 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
     const formData = new FormData();
     formData.append("file", file);
 
+    // 🔔 Start loading toast
+    const toastId = toast.loading("Uploading image...");
+
     try {
-      const res = await fetch("http://localhost:5000/upload-image", {
+      console.log("Uploading image to backend...");
+      // const res = await fetch("http://localhost:5000/upload-image", {
+      const res = await fetch("https://reports-backend-48dg.onrender.com/upload-image", {
         method: "POST",
         body: formData,
       });
+      console.log("Upload response:", res);
 
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
 
       const updated = [...images];
       updated[index] = data.url;
+      setImages(updated);
+
+      // 🔥 Save into Supabase JSON
+      await updateClaim.mutateAsync({
+        id: claimId,
+        updates: {
+          form_data: {
+            ...claimFormData,
+            [`${sectionKey}_images`]: updated,
+            custom_fields_metadata: customFields,
+            hidden_fields: Array.from(hiddenFields),
+            field_labels: fieldLabels,
+          } as any,
+        },
+      });
+
+      // ✅ Update toast on success
+      toast.success("Image uploaded successfully!", { id: toastId, duration: 2000 });
+    } catch (err) {
+      console.error("Image upload failed", err);
+      // ❌ Update toast on failure
+      toast.error("Image upload failed. Please try again.", { id: toastId, duration: 2500 });
+    }
+  };
+
+  const handleRemove = async (index: number) => {
+    // 🔔 Start loading toast
+    const toastId = toast.loading("Removing image...");
+
+    try {
+      const updated = [...images];
+      updated[index] = "";
       setImages(updated);
 
       await updateClaim.mutateAsync({
@@ -89,32 +127,16 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
             hidden_fields: Array.from(hiddenFields),
             field_labels: fieldLabels,
           } as any,
-          // intimation_date: ""
         },
       });
-    } catch (err) {
-      console.error("Image upload failed", err);
+
+      // ✅ Success toast
+      toast.success("Image removed successfully.", { id: toastId, duration: 2000 });
+    } catch (error) {
+      console.error("Failed to remove image:", error);
+      // ❌ Error toast
+      toast.error("Failed to remove image.", { id: toastId, duration: 2500 });
     }
-  };
-
-  const handleRemove = async (index: number) => {
-    const updated = [...images];
-    updated[index] = "";
-    setImages(updated);
-
-    await updateClaim.mutateAsync({
-      id: claimId,
-      updates: {
-        form_data: {
-          ...claimFormData,
-          [`${sectionKey}_images`]: updated,
-          custom_fields_metadata: customFields,
-          hidden_fields: Array.from(hiddenFields),
-          field_labels: fieldLabels,
-        } as any,
-        // intimation_date: ""
-      },
-    });
   };
 
   return (
