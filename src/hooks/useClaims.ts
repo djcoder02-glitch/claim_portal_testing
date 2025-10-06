@@ -228,7 +228,7 @@ export const useClaimById = (id: string) => {
   return useQuery({
     queryKey: ["claim", id, isAdmin ? "admin" : "user"],
     queryFn: async () => {
-      console.log('[useClaimById] isAdmin:', isAdmin, 'claimId:', id);
+      // console.log('[useClaimById] isAdmin:', isAdmin, 'claimId:', id);
       
       if (isAdmin) {
           // Get all claims via admin function, then filter for the specific one
