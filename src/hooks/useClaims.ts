@@ -25,6 +25,8 @@ export interface Claim {
     description: string;
     fields: unknown[];
   };
+  insurer_name?:string;
+  surveyor_name?:string;
 }
 
 export interface PolicyType {
@@ -272,5 +274,27 @@ export const useClaimById = (id: string) => {
       }
     },
     enabled: !!id,
+  });
+};
+
+export const useDeleteClaim = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('claims')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claims"] });
+      toast.success("Claim deleted successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete claim: " + error.message);
+    },
   });
 };
