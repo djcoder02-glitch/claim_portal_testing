@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useUpdateClaimSilent, type Claim } from "@/hooks/useClaims";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, X, Info, Check, Edit } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Info, Check, Edit, Table } from "lucide-react";
 import { SearchableSelect} from "@/components/ui/searchable-select";
 import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
 import { useFormTemplates, useSaveTemplate, type DynamicSection, type FormTemplate, type TemplateField} from "@/hooks/useFormTemplates";
@@ -21,6 +21,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Save, Plus, Download, Upload, Palette, Trash2 } from "lucide-react";
 import { useSectionTemplates, type SectionTemplate } from "@/hooks/useSectionTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EditableTable, TableModal } from './TableComponents';
+import type { TableData } from '@/hooks/useFormTemplates';
+
 
 interface AdditionalInformationFormProps {
   claim: Claim;
@@ -204,6 +207,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   };
 
   const [activeTab, setActiveTab] = useState<string>("template");
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [currentTableSectionId, setCurrentTableSectionId] = useState<string | null>(null);
 
   // State for collapsible sections
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({
@@ -655,6 +660,72 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setCustomFields(prev => [...prev, newField]);
     setPendingSaves(prev => new Set([...prev, newField.name]));
   }
+  const addTableToSection = (sectionId: string, rows: number, cols: number, name: string) => {
+  const newTable: TableData = {
+    id: `table_${Date.now()}`,
+    name: name,
+    rows,
+    cols,
+    data: Array(rows).fill(null).map(() =>
+      Array(cols).fill(null).map(() => ({ value: '' }))
+    ),
+    created_at: new Date().toISOString(),
+  };
+
+  setDynamicSections(prev =>
+    prev.map(section =>
+      section.id === sectionId
+        ? { ...section, tables: [...(section.tables || []), newTable] }
+        : section
+    )
+  );
+
+  setShowTableModal(false);
+  const sectionName = dynamicSections.find(s => s.id === sectionId)?.name || 'section';
+  toast.success(`Table "${name}" added to ${sectionName}!`);
+};
+  const updateTableData = (sectionId: string, tableId: string, newData: Array<Array<{ value: string }>>) => {
+    setDynamicSections(prev =>
+      prev.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              tables: (section.tables || []).map(table =>
+                table.id === tableId
+                  ? { ...table, data: newData, rows: newData.length, cols: newData[0]?.length || 0 }
+                  : table
+              ),
+            }
+          : section
+      )
+    );
+  };
+
+  const updateTableName = (sectionId: string, tableId: string, newName: string) => {
+    setDynamicSections(prev =>
+      prev.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              tables: (section.tables || []).map(table =>
+                table.id === tableId ? { ...table, name: newName } : table
+              ),
+            }
+          : section
+      )
+    );
+  };
+
+  const deleteTable = (sectionId: string, tableId: string) => {
+    setDynamicSections(prev =>
+      prev.map(section =>
+        section.id === sectionId
+          ? { ...section, tables: (section.tables || []).filter(t => t.id !== tableId) }
+          : section
+      )
+    );
+    toast.success('Table deleted');
+  };
 
   const saveAsTemplate = async () => {
   if (!templateName.trim()) return;
@@ -705,6 +776,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     console.error('Failed to save template:', error);
   }
 };
+
+
 
 const loadTemplate = (template: FormTemplate) => {
   const convertedSections: DynamicSection[] = template.sections.map(section => ({
@@ -1543,21 +1616,39 @@ const loadTemplate = (template: FormTemplate) => {
           
           <CollapsibleContent className="animate-accordion-down">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
-              {allFields.map((field) => renderField(field, isEditing))}
-            </div>
-            <div className="px-6 pb-6 bg-slate-50/50">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addFieldToSection(section.id)}
-                className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
-              >
-                <Plus className="h-3 w-3" />
-                Add Field
-              </Button>
-            </div>
+                {allFields.map((field) => renderField(field, isEditing))}
+              </div>
+              <div className="px-6 pb-6 bg-slate-50/50 space-y-4">
+                {/* Render Tables */}
+                {section.tables && section.tables.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-700">Data Tables</h4>
+                    {section.tables.map((table) => (
+                      <EditableTable
+                        key={table.id}
+                        tableId={table.id}
+                        tableName={table.name}
+                        data={table.data}
+                        onUpdate={(newData) => updateTableData(section.id, table.id, newData)}
+                        onDelete={() => deleteTable(section.id, table.id)}
+                        onNameChange={(newName) => updateTableName(section.id, table.id, newName)}
+                      />
+                    ))}
+                  </div>
+                )}
 
+                {/* Only Add Field Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addFieldToSection(section.id)}
+                  className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Field
+                </Button>
+              </div>
             <div className="px-6 pb-6 bg-slate-50/50">
               <ImageGrid
                 sectionKey={section.id}
@@ -1901,6 +1992,21 @@ const loadTemplate = (template: FormTemplate) => {
                   </Tabs>
                 </DialogContent>
               </Dialog>
+              {/* Add Table Button - Opens modal to select section */}
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => {
+                  if (dynamicSections.length === 0) {
+                    toast.error("Please create a section first before adding a table");
+                    return;
+                  }
+                  setShowTableModal(true);
+                }}
+              >
+                <Table className="w-4 h-4" />
+                Add Table
+              </Button>
             </div>
 
             <div className="pt-6 border-t border-border/50">
@@ -1915,6 +2021,14 @@ const loadTemplate = (template: FormTemplate) => {
           </form>
         </CardContent>
       </Card>
+      <TableModal
+      isOpen={showTableModal}
+      onClose={() => setShowTableModal(false)}
+      onCreateTable={(sectionId, rows, cols, name) => {
+        addTableToSection(sectionId, rows, cols, name);
+      }}
+      sections={dynamicSections.map(s => ({ id: s.id, name: s.name }))}
+    />
     </div>
   );
 };
