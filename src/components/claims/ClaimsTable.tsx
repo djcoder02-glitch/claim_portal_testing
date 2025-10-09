@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { Claim } from "@/hooks/useClaims";
+import { Claim, useDeleteClaim } from "@/hooks/useClaims";
 
 interface ClaimsTableProps {
   claims: Claim[];
@@ -29,16 +29,18 @@ const statusColors = {
   //draft: "hsl(var(--muted))",
 };
 
+
 export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const deleteClaim= useDeleteClaim();
 
   // Filter and sort claims
   const filteredAndSortedClaims = useMemo(() => {
-    let filtered = claims.filter(claim => {
+    const filtered = claims.filter(claim => {
       const matchesSearch = 
         claim.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         claim.claim_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -178,7 +180,7 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                       <div>Intimation: {claim.intimation_date ? format(new Date(claim.intimation_date), 'MMM dd, yyyy') : 'Not set'}</div>
                       {claim.claim_amount && (
                         <div className="font-medium text-foreground">
-                          Amount: ${claim.claim_amount.toLocaleString()}
+                          Amount: Rs. {claim.claim_amount.toLocaleString()}
                         </div>
                       )}
                     </div>
@@ -193,13 +195,13 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Claim ID</TableHead>
+                <TableHead>Claim Title</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => handleSort('claim_number')}
                 >
                   <div className="flex items-center space-x-1">
-                    <span>Registration Number</span>
+                    <span>Claim Number</span>
                     {getSortIcon('claim_number')}
                   </div>
                 </TableHead>
@@ -217,15 +219,6 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                 <TableHead>Insurer</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort('intimation_date')}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Intimation Date</span>
-                    {getSortIcon('intimation_date')}
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50"
                   onClick={() => handleSort('updated_at')}
                 >
                   <div className="flex items-center space-x-1">
@@ -233,7 +226,6 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                     {getSortIcon('updated_at')}
                   </div>
                 </TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -255,13 +247,9 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                     </Badge>
                   </TableCell>
                   <TableCell>{claim.policy_types?.name || '-'}</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>{format(new Date(claim.created_at), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell>{claim.surveyor_name || '-'}</TableCell>
+                  <TableCell>{claim.insurer_name || '-'}</TableCell>
                   <TableCell>{format(new Date(claim.updated_at), 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>
-                    {claim.intimation_date ? format(new Date(claim.intimation_date), 'MMM dd, yyyy') : 'Not set'}
-                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -271,10 +259,19 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuItem asChild>
-                          <Link to={`/claims/${claim.id}`}>View Details</Link>
+                          <Link to={`/claims/${claim.id}`}>Edit Claim</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Edit Claim</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this claim? This action cannot be undone.')) {
+                              deleteClaim.mutate(claim.id);
+                            }
+                          }}
+                        >
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

@@ -19,6 +19,8 @@ import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
 import { useFormTemplates, useSaveTemplate, type DynamicSection, type FormTemplate, type TemplateField} from "@/hooks/useFormTemplates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Save, Plus, Download, Upload, Palette, Trash2 } from "lucide-react";
+import { useSectionTemplates, type SectionTemplate } from "@/hooks/useSectionTemplates";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AdditionalInformationFormProps {
   claim: Claim;
@@ -194,10 +196,14 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   });
 
   const addFieldOptionMutation = useAddFieldOption();
+  const [selectedTemplate, setSelectedTemplate] = useState<SectionTemplate | null>(null);
+  const { data: sectionTemplates = [], isLoading: templatesLoading } = useSectionTemplates(claim.policy_type_id);
   
   const handleCreateFieldOption = async (fieldName: string, newValue: string) : Promise<void> => {
     await addFieldOptionMutation.mutateAsync({ fieldName, optionValue: newValue });
   };
+
+  const [activeTab, setActiveTab] = useState<string>("template");
 
   // State for collapsible sections
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({
@@ -598,6 +604,38 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setShowNewSectionDialog(false);
     toast.success(`Section "${newSectionName}" added!`);
   };
+
+  const createSectionFromTemplate = () => {
+  if (!selectedTemplate) {
+    toast.error("Please select a template");
+    return;
+  }
+  
+  const sectionName = newSectionName.trim() || selectedTemplate.name;
+  
+  const newSection: DynamicSection = {
+    id: `custom_${Date.now()}`,
+    name: sectionName,
+    order_index: dynamicSections.length + 1,
+    color_class: selectedTemplate.color_class,
+    fields: selectedTemplate.preset_fields.map((field) => ({
+      id: `${field.name}_${Date.now()}`,
+      name: field.name,
+      label: field.label,
+      type: field.type as TemplateField['type'],
+      required: field.required,
+      options: field.options,
+      order_index: field.order_index
+    })),
+    isCustom: true
+  };
+  
+  setDynamicSections([...dynamicSections, newSection]);
+  setShowNewSectionDialog(false);
+  setSelectedTemplate(null);
+  setNewSectionName('');
+  toast.success(`Section "${sectionName}" created with ${newSection.fields.length} fields!`);
+};
 
   const removeSection = (sectionId: string) => {
     setDynamicSections(prev => prev.filter(section => section.id !== sectionId));
@@ -1663,47 +1701,204 @@ const loadTemplate = (template: FormTemplate) => {
                     Add New Section
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
                   <DialogHeader>
                     <DialogTitle>Create New Section</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      Choose a template or create from scratch
+                    </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 mt-4">
-                    <div>
-                      <Label htmlFor="section-name">Section Name *</Label>
-                      <Input
-                        id="section-name"
-                        value={newSectionName}
-                        onChange={(e) => setNewSectionName(e.target.value)}
-                        placeholder="Enter section name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="section-color">Section Color</Label>
-                      <Select value={newSectionColor} onValueChange={setNewSectionColor}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorOptions.map(color => (
-                            <SelectItem key={color.value} value={color.value}>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-4 h-4 rounded ${color.class}`} />
-                                {color.label}
+                  
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                    <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-lg mb-4">
+                      <TabsTrigger 
+                        value="template" 
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200 py-2.5 font-medium"
+                      >
+                        From Template
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="scratch" 
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200 py-2.5 font-medium"
+                      >
+                        From Scratch
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    {/* TAB 1: From Template */}
+                    <TabsContent value="template" className="flex-1 min-h-0 flex flex-col">
+                      {templatesLoading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+                            <p className="text-muted-foreground">Loading templates...</p>
+                          </div>
+                        </div>
+                      ) : sectionTemplates.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center">
+                          <div className="text-center space-y-4">
+                            <p className="text-muted-foreground">
+                              No templates available for this policy type.
+                            </p>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setActiveTab("scratch")}
+                              className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                            >
+                              Create from Scratch Instead
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 min-h-0 flex flex-col space-y-4">
+                          {/* Fixed height scrollable grid */}
+                          <div className="flex-1 min-h-0">
+                            <div 
+                              className="h-full overflow-y-auto pr-2 space-y-3"
+                              style={{ 
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: 'rgb(203 213 225) transparent' 
+                              }}
+                            >
+                              <div className="grid grid-cols-2 gap-4 pb-4">
+                                {sectionTemplates.map(template => (
+                                  <Card 
+                                    key={template.id}
+                                    onClick={() => setSelectedTemplate(template)}
+                                    className={`cursor-pointer transition-all duration-200 hover:shadow-lg border-2 ${
+                                      selectedTemplate?.id === template.id 
+                                        ? 'border-primary shadow-lg bg-primary/5' 
+                                        : 'border-border hover:border-primary/50'
+                                    }`}
+                                  >
+                                    <CardContent className="p-4 space-y-3">
+                                      <div className={`w-full h-3 rounded-full ${template.color_class}`} />
+                                      <div className="space-y-2">
+                                        <div className="flex items-start justify-between">
+                                          <h4 className="font-semibold text-sm leading-tight">{template.name}</h4>
+                                          {selectedTemplate?.id === template.id && (
+                                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 ml-2">
+                                              <svg className="w-3 h-3 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {template.description && (
+                                          <p className="text-xs text-muted-foreground leading-relaxed">
+                                            {template.description}
+                                          </p>
+                                        )}
+                                        <Badge variant="secondary" className="text-xs">
+                                          {template.preset_fields.length} fields
+                                        </Badge>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
                               </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowNewSectionDialog(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={addNewSection} disabled={!newSectionName.trim()}>
-                        Create Section
-                      </Button>
-                    </div>
-                  </div>
+                            </div>
+                          </div>
+                          
+                          {/* Fixed bottom section for selected template */}
+                          {selectedTemplate && (
+                            <div className="border-t bg-muted/30 -mx-6 px-6 py-4 space-y-4">
+                              <div>
+                                <Label htmlFor="template-section-name" className="text-sm font-medium">
+                                  Section Name
+                                </Label>
+                                <Input
+                                  id="template-section-name"
+                                  value={newSectionName}
+                                  onChange={(e) => setNewSectionName(e.target.value)}
+                                  placeholder={selectedTemplate.name}
+                                  className="mt-1.5"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Leave empty to use: "{selectedTemplate.name}"
+                                </p>
+                              </div>
+                              
+                              <div className="flex justify-end gap-3">
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => {
+                                    setSelectedTemplate(null);
+                                    setNewSectionName('');
+                                  }}
+                                  className="hover:bg-muted"
+                                >
+                                  Clear Selection
+                                </Button>
+                                <Button 
+                                  onClick={createSectionFromTemplate}
+                                  className="bg-primary hover:bg-primary/90"
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Create with {selectedTemplate.preset_fields.length} Fields
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    {/* TAB 2: From Scratch */}
+                    <TabsContent value="scratch" className="flex-1 space-y-6">
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="section-name" className="text-sm font-medium">Section Name *</Label>
+                          <Input
+                            id="section-name"
+                            value={newSectionName}
+                            onChange={(e) => setNewSectionName(e.target.value)}
+                            placeholder="Enter section name"
+                            className="mt-1.5"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="section-color" className="text-sm font-medium">Section Color</Label>
+                          <Select value={newSectionColor} onValueChange={setNewSectionColor}>
+                            <SelectTrigger className="mt-1.5">
+                              <SelectValue placeholder="Choose a color" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {colorOptions.map(color => (
+                                <SelectItem key={color.value} value={color.value}>
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded ${color.class}`} />
+                                    {color.label}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end gap-3 pt-4 border-t">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setShowNewSectionDialog(false);
+                            setNewSectionName('');
+                          }}
+                          className="hover:bg-muted"
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={addNewSection} 
+                          disabled={!newSectionName.trim()}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Section
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </DialogContent>
               </Dialog>
             </div>

@@ -249,7 +249,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
 
             {/* Claim Amount */}
             <div className="space-y-2">
-              <Label htmlFor="claim_amount">Estimated Claim Amount ($)</Label>
+              <Label htmlFor="claim_amount">Estimated Claim Amount (Rs.)</Label>
               <Input id="claim_amount" type="number" step="0.01" placeholder="0.00" {...register("claim_amount", { valueAsNumber: true, min: { value: 0, message: "Amount must be positive" } })} />
               {errors.claim_amount && <p className="text-sm text-destructive">{errors.claim_amount.message}</p>}
             </div>

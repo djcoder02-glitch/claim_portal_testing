@@ -451,7 +451,7 @@ export const ClaimDetails = () => {
                 <div className="text-sm">
                   <p className="text-muted-foreground">Amount</p>
                   <p className="font-semibold">
-                    {claim.claim_amount ? `$${Number(claim.claim_amount).toLocaleString()}` : 'Not specified'}
+                    {claim.claim_amount ? `Rs. ${Number(claim.claim_amount).toLocaleString()}` : 'Not specified'}
                   </p>
                 </div>
               </CardContent>
