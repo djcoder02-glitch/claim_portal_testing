@@ -67,14 +67,8 @@ export const ClaimDetails = () => {
   // console.log('[ClaimDetails] Claim exists:', !!claim);
 
   const POLICY_DOCUMENT_FIELDS = [
-  'policy_number',
-  'policy_holder_name', 
-  'coverage_amount',
-  'premium_amount',
-  'policy_start_date',
-  'policy_end_date',
-  'insurer_name',
-  'risk_location'
+  'policy_type',
+  'policy_id',
 ];
 
 
