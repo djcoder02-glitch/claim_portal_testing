@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useAuth } from '../auth/AuthProvider';
-
+import {SelectiveDocumentExtractor} from "./SelectiveDocumentExtractor"
 
 const statusConfig = {
   submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
@@ -65,6 +65,52 @@ export const ClaimDetails = () => {
   // console.log('[ClaimDetails] isAdmin:', isAdmin);
   // console.log('[ClaimDetails] Claim user_id:', claim?.user_id);
   // console.log('[ClaimDetails] Claim exists:', !!claim);
+
+  const POLICY_DOCUMENT_FIELDS = [
+  'policy_number',
+  'policy_holder_name', 
+  'coverage_amount',
+  'premium_amount',
+  'policy_start_date',
+  'policy_end_date',
+  'insurer_name',
+  'risk_location'
+];
+
+
+const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>) => {
+  console.log('✅ Policy Document Data Extracted:', extractedData);
+  
+  try {
+    // Get current form data
+    const currentFormData = claim?.form_data || {};
+    
+    // Merge with extracted data
+    const updatedFormData = {
+      ...currentFormData,
+      ...extractedData
+    };
+
+    // Save to database
+    await updateClaimSilentMutation.mutateAsync({
+      id: claim!.id,
+      updates: {
+        form_data: updatedFormData as Json
+      }
+    });
+
+    // Show success message
+    toast.success(`✅ Successfully saved ${Object.keys(extractedData).length} fields from Policy Document!`);
+    
+    // Refresh claim data
+    queryClient.invalidateQueries({ queryKey: ["claim", id] });
+    
+  } catch (error) {
+    console.error('❌ Failed to save extracted data:', error);
+    toast.error('Failed to save extracted data to database');
+  }
+};
+
 
   useEffect(() => {
     const loadExistingDocuments = async () => {
@@ -524,6 +570,17 @@ export const ClaimDetails = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Policy Document Upload & Extraction */}
+            <SelectiveDocumentExtractor
+              claimId={id!}
+              documentLabel="Policy Document"
+              documentTitle="Policy Document"
+              documentDescription="Upload your policy document (PDF format required for field extraction)"
+              fieldsToExtract={POLICY_DOCUMENT_FIELDS}
+              onDataExtracted={handlePolicyDocumentExtracted}
+            />
+
           </div>
 
           {/* Main Content Area */}
