@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, FileText, Info, Eye, Upload, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileText, Info, Eye, Upload, CheckCircle2, Clock, AlertCircle, IndianRupee } from "lucide-react";
 import { useClaimById, useUpdateClaim, useUpdateClaimSilent } from "@/hooks/useClaims";
 import { PolicyDetailsForm } from "./PolicyDetailsForm";
 import { AdditionalInformationForm } from "./AdditionalInformationForm";
@@ -20,6 +20,8 @@ import { Tables } from "@/integrations/supabase/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useAuth } from '../auth/AuthProvider';
 import {SelectiveDocumentExtractor} from "./SelectiveDocumentExtractor"
+import { FeeBillForm } from "./FeeBillForm";
+
 
 const statusConfig = {
   submitted: { color: "bg-slate-600", icon: Clock, label: "Submitted" },
@@ -142,7 +144,8 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
       "policy-details": "Policy Details",
       "additional-info": "Additional Information", 
       "report-preview": "View Report",
-      "documents": "Documents"
+      "documents": "Documents",
+      "fee-bill": "Fee Bill Details",
     };
     
     if (activeTab !== value) {
@@ -581,7 +584,7 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
           <div className="lg:col-span-3">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
               <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
-                <TabsList className="grid w-full grid-cols-4 bg-slate-100 h-14">
+                <TabsList className="grid w-full grid-cols-5 bg-slate-100 h-14">
                   <TabsTrigger 
                     value="policy-details" 
                     className="flex items-center space-x-2 data-[state=active]:bg-slate-700 data-[state=active]:text-white transition-all duration-200"
@@ -604,6 +607,13 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
                     <span>View Report</span>
                   </TabsTrigger>
                   <TabsTrigger 
+                    value="fee-bill" 
+                    className="flex items-center space-x-2 data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all duration-200"
+                  >
+                    <IndianRupee className="w-4 h-4" />
+                    <span>Fee Bill</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
                     value="documents" 
                     className="flex items-center space-x-2 data-[state=active]:bg-slate-500 data-[state=active]:text-white transition-all duration-200"
                   >
@@ -623,6 +633,10 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
 
               <TabsContent value="report-preview" className="space-y-6">
                 <ReportPreview claim={claim} />
+              </TabsContent>
+
+              <TabsContent value="fee-bill" className="space-y-6">
+                <FeeBillForm claim={claim} />
               </TabsContent>
 
               <TabsContent value="documents" className="space-y-6">
