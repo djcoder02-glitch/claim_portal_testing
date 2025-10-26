@@ -96,27 +96,27 @@ const EDITABLE_POLICY_FIELDS = [
 // Fee breakdown fields configuration
 const FEE_BREAKDOWN_FIELDS = [
   {
-    section: 'Motor Final Survey',
+    section: 'Final Survey',
     rows: [
       {
-        key: 'motor_final_survey_base',
+        key: 'final_survey_base',
         label: 'Base Fee',
         type: 'editable' as const,
         defaultValue: 2800.00,
       },
       {
-        key: 'motor_final_survey_additional',
+        key: 'final_survey_additional',
         label: 'Addl. Fee @ 0.70%',
         type: 'calculated' as const,
-        calculation: (values: any) => (Number(values.motor_final_survey_base) || 0) * 0.007,
+        calculation: (values: any) => (Number(values.final_survey_base) || 0) * 0.007,
       },
     ],
   },
   {
-    section: 'Motor Reinspection',
+    section: 'Reinspection',
     rows: [
       {
-        key: 'motor_reinspection_fee',
+        key: 'reinspection_fee',
         label: '',
         type: 'editable' as const,
         defaultValue: 1000.00,
