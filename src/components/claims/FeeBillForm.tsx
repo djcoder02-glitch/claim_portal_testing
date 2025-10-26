@@ -27,7 +27,7 @@ const FIXED_TEXT = {
   ifscCode: "ICIC0000186",
   feeTableNote: "** All the below amounts are in Indian Rupees **",
   receiptText: "Received with thanks from 'United India Insurance Co. Ltd.' a sum of Thirteen Thousand Six Hundred & Sixty Six Only towards above survey-bill.",
-  signatureName: "RAVINDRA BAGGA",
+  signatureName: "RAJESH GONDALIA",
   advanceReceiptHeader: "ADVANCE RECEIPT",
 };
 
