@@ -30,6 +30,16 @@ export interface FormTemplate {
   sections: TemplateSection[];
 }
 
+//Table content
+export interface TableData {
+  id: string;
+  name: string;
+  rows: number;
+  cols: number;
+  data: Array<Array<{ value: string }>>;
+  created_at: string;
+}
+
 export interface DynamicSection {
   id: string;
   name: string;
@@ -37,7 +47,9 @@ export interface DynamicSection {
   color_class: string;
   fields: TemplateField[];
   isCustom: boolean;
+  tables?:TableData[];
 }
+
 
 export const useFormTemplates = (policyTypeId?: string) => {
   return useQuery({
