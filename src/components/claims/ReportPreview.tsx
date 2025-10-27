@@ -65,7 +65,7 @@ interface ClaimDocument {
    Config
 ========================= */
 
-const API_BASE = "https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws/";
+const API_BASE = "https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws";
 // const API_BASE = "http://localhost:5000";
 
 /* =========================
