@@ -316,7 +316,7 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
       }
       const base64Data = btoa(binary);
 
-      const response = await fetch('https://h7ivaeplej.execute-api.ap-south-1.amazonaws.com/default/reports-backend-docker/extract-bill-data', {
+      const response = await fetch('https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws//extract-bill-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

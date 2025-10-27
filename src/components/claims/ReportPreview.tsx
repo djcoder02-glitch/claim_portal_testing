@@ -65,7 +65,7 @@ interface ClaimDocument {
    Config
 ========================= */
 
-const API_BASE = "https://h7ivaeplej.execute-api.ap-south-1.amazonaws.com/default/reports-backend-docker";
+const API_BASE = "https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws/";
 // const API_BASE = "http://localhost:5000";
 
 /* =========================
@@ -806,9 +806,12 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       const err = await res.text();
       throw new Error(err || "PDF failed");
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+      const json = await res.json();
+  const uint8Array = new Uint8Array(json.data);
+
+  const blob = new Blob([uint8Array], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank"); // open in new tab
   };
 
   const handleDownload = async () => {
@@ -823,13 +826,19 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       const err = await res.text();
       throw new Error(err || "PDF failed");
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ClaimReport-${claim.claim_number}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const json = await res.json();
+  const uint8Array = new Uint8Array(json.data);
+
+  const blob = new Blob([uint8Array], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "report.pdf"; // downloaded file name
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url); // free memory
   };
 
   const handleResetOrder = () => {
