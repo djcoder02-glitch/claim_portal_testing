@@ -797,21 +797,33 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
   const handlePreview = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
     console.log("Preview Payload:", payload);
-    const res = await fetch(`${API_BASE}/render.pdf`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(err || "PDF failed");
-    }
-      const json = await res.json();
-  const uint8Array = new Uint8Array(json.data);
+  //   const res = await fetch(`${API_BASE}/render.pdf`, {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify(payload),
+  //   });
+  //   if (!res.ok) {
+  //     const err = await res.text();
+  //     throw new Error(err || "PDF failed");
+  //   }
+  //     const json = await res.json();
+  // const uint8Array = new Uint8Array(json.data);
+  // console.log("Received PDF data:", uint8Array);
 
-  const blob = new Blob([uint8Array], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank"); // open in new tab
+  // const blob = new Blob([uint8Array], { type: "application/pdf" });
+  // const url = URL.createObjectURL(blob);
+  // window.open(url, "_blank"); // open in new tab
+
+  const res = await fetch(`${API_BASE}/render.pdf`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload)
+});
+
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+window.open(url, "_blank"); // opens the PDF in a new tab
+
   };
 
   const handleDownload = async () => {
@@ -828,17 +840,16 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
     }
     const json = await res.json();
   const uint8Array = new Uint8Array(json.data);
+  console.log("Received PDF data:", uint8Array);
 
-  const blob = new Blob([uint8Array], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
+  const blob = await res.blob();
+const url = URL.createObjectURL(blob);
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "report.pdf"; // downloaded file name
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url); // free memory
+const a = document.createElement("a");
+a.href = url;
+a.download = "report.pdf";
+a.click();
+URL.revokeObjectURL(url);
   };
 
   const handleResetOrder = () => {
