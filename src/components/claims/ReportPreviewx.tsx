@@ -14,6 +14,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
+  hasSortableData,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,8 +66,8 @@ interface ClaimDocument {
    Config
 ========================= */
 
-// const API_BASE = "https://reports-backend-48dg.onrender.com";
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://h7ivaeplej.execute-api.ap-south-1.amazonaws.com/default/reports-backend-docker";
+// const API_BASE = "http://localhost:5000";
 
 /* =========================
    Utilities
@@ -121,55 +122,299 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
     transition,
   };
 
-  const renderSectionContent = (section: ReportSection) => {
-  const formData = claim.form_data || {};
-  const sectionPrefix = section.id.replace(/^section/, "section");
-
-  const fields = Object.entries(formData).filter(
-    ([key, value]) =>
-      key.startsWith(sectionPrefix) &&
-      !key.endsWith("_images") &&
-      value !== null &&
-      value !== undefined &&
-      String(value).trim() !== ""
-  );
-
-  const imageKey = Object.keys(formData).find((k) => k === `${sectionPrefix}_images`);
-  const imageUrls = Array.isArray(formData[imageKey]) ? formData[imageKey] : [];
-
-  return (
-    <div className="space-y-4">
-      {fields.length ? (
-        <div className="space-y-2">
-          {fields.map(([key, value]) => (
-            <div key={key} className="flex justify-between">
-              <span className="text-muted-foreground">{labelize(key.replace(/^section\d+_/, ""))}</span>
-              <span className="font-medium">
-                {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
-              </span>
+  const renderSectionContent = () => {
+    switch (section.name) {
+      case "Claim Overview":
+        return (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Claim Number</p>
+                <p className="font-medium">{claim.claim_number}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Policy Type</p>
+                <p className="font-medium">{claim.policy_types?.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge variant="outline">{claim.status.replace("_", " ")}</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Date Created</p>
+                <p className="font-medium">{format(new Date(claim.created_at), "MMM dd, yyyy")}</p>
+              </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-muted-foreground italic">No data available for this section</p>
-      )}
+            {claim.description && (
+              <div>
+                <p className="text-sm text-muted-foreground">Description</p>
+                <p>{claim.description}</p>
+              </div>
+            )}
+          </div>
+        );
 
-      {imageUrls.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 justify-center">
-          {imageUrls.filter(Boolean).map((url: string, i: number) => (
-            <img
-              key={i}
-              src={url}
-              alt={`Section ${section.id} image ${i + 1}`}
-              className="rounded-md object-contain w-[45%] max-h-[40vh] mx-auto"
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+      case "Policy Details": {
+        const standardFields = [
+          "registration_id",
+          "insured_name",
+          "insurer",
+          "assigned_surveyor",
+          "policy_number",
+          "sum_insured",
+          "date_of_loss",
+          "loss_description",
+        ];
+        
+        // Get both standard and custom fields for this section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            // Include standard fields or custom fields (excluding reserved/hidden)
+            const isStandardField = standardFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim);
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
 
+        return (
+          <div className="space-y-3">
+            {allEntries.map(([key, value]) => (
+              <div key={key} className="flex justify-between">
+                <span className="text-muted-foreground capitalize">
+                  {getCustomLabel(key, claim)}:
+                </span>
+                <span className="font-medium">
+                  {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
+                </span>
+              </div>
+            ))}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No policy details available</p>
+            )}
+          </div>
+        );
+      }
+
+      case "Basic Information": {
+        const basicInfoFields = [
+          "consigner_name",
+          "consignee_name",
+          "applicant_survey",
+          "underwriter_name",
+          "cha_name",
+          "certificate_no",
+          "endorsement_no",
+          "invoice_no",
+          "invoice_date",
+          "invoice_value",
+          "invoice_pkg_count",
+          "invoice_gross_wt",
+          "invoice_net_wt",
+        ];
+        
+        // Get both standard and custom fields for basic info section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = basicInfoFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && !key.includes('survey') && !key.includes('transport') && !key.includes('report');
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
+        return (
+          <div className="space-y-3">
+            {allEntries.map(([key, value]) => (
+              <div key={key} className="flex justify-between">
+                <span className="text-muted-foreground capitalize">
+                  {getCustomLabel(key, claim)}:
+                </span>
+                <span className="font-medium">
+                  {typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}
+                </span>
+              </div>
+            ))}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No basic information available</p>
+            )}
+          </div>
+        );
+      }
+
+      case "Survey & Loss Details": {
+        const surveyFields = [
+          "goods_description",
+          "intimation_date",
+          "survey_date_place",
+          "external_condition_review",
+          "packing_nature",
+          "packing_condition",
+          "damage_description",
+          "loss_cause",
+          "joint_survey",
+          "consignee_notice",
+        ];
+        
+        // Get both standard and custom fields for survey section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = surveyFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && (key.includes('survey') || key.includes('loss') || key.includes('damage'));
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
+        return (
+          <div className="space-y-3">
+            {allEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
+
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {getCustomLabel(key, claim)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No survey details available</p>
+            )}
+          </div>
+        );
+      }
+
+      case "Transportation Details": {
+        const transportFields = [
+          "transporter_name",
+          "vehicle_number",
+          "lr_date_issuance",
+          "consignment_note",
+          "delivery_challan",
+          "dispatch_condition",
+        ];
+        
+        // Get both standard and custom fields for transportation section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = transportFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && (key.includes('transport') || key.includes('vehicle') || key.includes('dispatch'));
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
+        return (
+          <div className="space-y-3">
+            {allEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
+
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {labelize(key)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No transportation details available</p>
+            )}
+          </div>
+        );
+      }
+
+      case "Report Text Section": {
+        const reportFields = [
+          "survey_address",
+          "number_packages",
+          "packing_contents",
+          "content_industry_use",
+          "arrival_details",
+          "external_condition_tag",
+        ];
+        
+        // Get both standard and custom fields for report section
+        const allEntries = Object.entries(claim.form_data || {})
+          .filter(([key, value]) => {
+            const isStandardField = reportFields.includes(key);
+            const isCustomField = key.startsWith('custom_') && !isReservedCustomKey(key) && !isHiddenCustomKey(key, claim) && (key.includes('report') || key.includes('text') || key.includes('address') || key.includes('content'));
+            const hasValue = value !== null && value !== undefined && value !== "" && String(value).trim() !== "";
+            
+            return (isStandardField || isCustomField) && hasValue;
+          });
+
+        return (
+          <div className="space-y-3">
+            {allEntries.map(([key, value]) => {
+              const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+              const isLongText = displayValue.length > 50;
+
+              return (
+                <div key={key} className={isLongText ? "space-y-1" : "flex justify-between"}>
+                  <span className="text-muted-foreground capitalize font-medium">
+                    {getCustomLabel(key, claim)}:
+                  </span>
+                  <span className={isLongText ? "text-sm mt-1 block" : "font-medium"}>{displayValue}</span>
+                </div>
+              );
+            })}
+            {allEntries.length === 0 && (
+              <p className="text-muted-foreground italic">No report text available</p>
+            )}
+          </div>
+        );
+      }
+
+
+      case "Financial Summary":
+        return (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Claimed Amount</p>
+                <p className="text-2xl font-bold">
+                  {claim.claim_amount ? `${money(claim.claim_amount)}` : "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge variant={claim.status === "approved" ? "default" : "secondary"}>
+                  {claim.status.replace("_", " ").toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "Timeline":
+        return (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-primary rounded-full" />
+                <span className="text-sm">Claim created on {format(new Date(claim.created_at), "MMM dd, yyyy")}</span>
+              </div>
+              {claim.updated_at !== claim.created_at && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                  <span className="text-sm">Last updated on {format(new Date(claim.updated_at), "MMM dd, yyyy")}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      default:
+        return <p className="text-muted-foreground">Section content not available</p>;
+    }
+  };
 
   return (
     <div ref={setNodeRef} style={style} className={`space-y-2 ${!section.isVisible ? "opacity-50" : ""}`}>
@@ -191,7 +436,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
           <CardHeader>
             <CardTitle className="text-lg">{section.name}</CardTitle>
           </CardHeader>
-          <CardContent>{renderSectionContent(section)}</CardContent>
+          <CardContent>{renderSectionContent()}</CardContent>
         </Card>
       )}
     </div>
@@ -281,58 +526,18 @@ const sectionHasData = (sectionName: string, claim: Claim): boolean => {
         return (isStandardField || isCustomField) && hasValue;
       });
     }
-
+    
+    case "Financial Summary":
+      // Show if there's a claim amount or always show for financial summary
+      return claim.claim_amount !== null && claim.claim_amount !== undefined;
+      
+    case "Timeline":
+      // Always show timeline since it contains creation/update info
+      return true;
+      
     default:
       return false;
   }
-};
-
-const getDynamicSectionsFromClaim = (claim: Claim): ReportSection[] => {
-  const formData = claim.form_data || {};
-  const metadata = claim.form_data?.dynamic_sections_metadata as any[] | undefined;
-
-  
-
-
-
-  // Case 1: dynamic sections defined in metadata
-  if (metadata && metadata.length > 0) {
-    return metadata.map((meta, idx) => ({
-      id: meta.id || `section_${idx + 1}`,
-      name: meta.name || `Section ${idx + 1}`,
-      content: {},
-      isVisible: true,
-      order: idx + 1,
-    }));
-  }
-
-  // Case 2: infer sections from field names
-  const sectionMap: Record<string, ReportSection> = {};
-
-
-
-  Object.keys(formData).forEach((key) => {
-    if (key.endsWith("_images")) return; // handled separately
-    const match = key.match(/^(section\d+|custom_\d+)/);
-    const sectionKey = match ? match[1] : "general";
-
-    if (!sectionMap[sectionKey]) {
-      sectionMap[sectionKey] = {
-        id: sectionKey,
-        name:
-          sectionKey === "general"
-            ? "General Information"
-            : sectionKey.startsWith("custom_")
-            ? `Custom Section ${sectionKey.split("_")[1]}`
-            : `Section ${sectionKey.replace("section", "")}`,
-        content: {},
-        isVisible: true,
-        order: Object.keys(sectionMap).length + 1,
-      };
-    }
-  });
-
-  return Object.values(sectionMap);
 };
 
 const getInitialSections = (claim: Claim): ReportSection[] => [
@@ -342,8 +547,8 @@ const getInitialSections = (claim: Claim): ReportSection[] => [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: sectionHasData("Survey & Loss Details", claim), order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: sectionHasData("Transportation Details", claim), order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: sectionHasData("Report Text Section", claim), order: 6 },
-  // { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 7 },
-  // { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 8 },
+  { id: "financial", name: "Financial Summary", content: {}, isVisible: sectionHasData("Financial Summary", claim), order: 7 },
+  { id: "timeline", name: "Timeline", content: {}, isVisible: sectionHasData("Timeline", claim), order: 8 },
 ];
 
 /* =========================
@@ -357,8 +562,8 @@ const defaultSections: ReportSection[] = [
   { id: "survey-loss-details", name: "Survey & Loss Details", content: {}, isVisible: true, order: 4 },
   { id: "transportation-details", name: "Transportation Details", content: {}, isVisible: true, order: 5 },
   { id: "report-text-section", name: "Report Text Section", content: {}, isVisible: true, order: 6 },
-  // { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 7 },
-  // { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 8 },
+  { id: "financial", name: "Financial Summary", content: {}, isVisible: true, order: 7 },
+  { id: "timeline", name: "Timeline", content: {}, isVisible: true, order: 8 },
 ];
 
 /* =========================
@@ -386,17 +591,17 @@ const paraComponent = (text: string, wrapperClass?: string) => ({
 
 const subheaderComponent = (text: string) => ({ type: "subheader", props: { text } });
 
-// const financialTableComponent = (claim: Claim) => ({
-//   type: "table",
-//   props: {
-//     title: "",
-//     headers: ["Description", "Amount"],
-//     rows: [
-//       ["Claimed Amount", claim.claim_amount ? money(claim.claim_amount) : "Not specified"],
-//       ["Status", (claim.status || "").replace("_", " ").toUpperCase()],
-//     ],
-//   },
-// });
+const financialTableComponent = (claim: Claim) => ({
+  type: "table",
+  props: {
+    title: "",
+    headers: ["Description", "Amount"],
+    rows: [
+      ["Claimed Amount", claim.claim_amount ? money(claim.claim_amount) : "Not specified"],
+      ["Status", (claim.status || "").replace("_", " ").toUpperCase()],
+    ],
+  },
+});
 
 const documentsTableComponent = (grouped: Record<string, ClaimDocument[]>) => {
   const rows: Array<Array<string>> = [];
@@ -409,7 +614,6 @@ const documentsTableComponent = (grouped: Record<string, ClaimDocument[]>) => {
       ]);
     });
   });
-
   return {
     type: "table",
     props: {
@@ -417,34 +621,6 @@ const documentsTableComponent = (grouped: Record<string, ClaimDocument[]>) => {
       headers: ["File", "Details"],
       rows,
       notes: rows.length ? undefined : "No documents uploaded.",
-    }
-  };
-};
-
-const imageGridComponent = (title: string, urls: string[] | null | undefined) => {
-  if (!Array.isArray(urls)) return null;
-
-  // Filter valid URLs
-  const validUrls = urls.filter((u) => typeof u === "string" && u.trim() !== "");
-  if (validUrls.length === 0) return null;
-
-  // Limit to 6 images (3 rows × 2 columns)
-  const limited = validUrls.slice(0, 6);
-
-  // Group into 2 columns per row
-  const rows: string[][] = [];
-  for (let i = 0; i < limited.length; i += 2) {
-    rows.push(limited.slice(i, i + 2));
-  }
-
-  return {
-    type: "image-grid",
-    props: { title, rows },
-    style: {
-      wrapper: "mt-3 mb-6 grid grid-cols-2 gap-2 justify-center items-center",
-      image: "object-cover rounded-md w-full h-auto border-0",
-      title: "text-center text-sm text-muted-foreground mb-2",
-      imgContainer: "flex justify-center",
     },
   };
 };
@@ -455,8 +631,6 @@ function buildReportJson(
   groupedDocuments: Record<string, ClaimDocument[]>
 ) {
   const visibleSections = sections.filter((s) => s.isVisible).sort((a, b) => a.order - b.order);
-
-  console.log(claim.form_data);
 
   const policyFields = [
     "registration_id",
@@ -556,7 +730,9 @@ function buildReportJson(
     }
   });
 
- 
+  for (const s of visibleSections) {
+    switch (s.name) {
+      case "Claim Overview": {
         components.push(subheaderComponent("Claim Overview"));
         components.push(
           kvTableComponent("", [
@@ -567,41 +743,85 @@ function buildReportJson(
           ])
         );
         if (claim.description) components.push(paraComponent(`Description: ${claim.description}`));
-
+        break;
+      }
+      case "Policy Details": {
         components.push(subheaderComponent("Policy Details"));
         const pairs = claim.form_data || {};
         components.push(kvTableComponent("", policyFields.map((k) => [k, (pairs as any)[k]])));
+        break;
+      }
+      case "Basic Information": {
+        components.push(subheaderComponent("Basic Information"));
+        const pairs = claim.form_data || {};
+        components.push(kvTableComponent("", basicInfoFields.map((k) => [k, (pairs as any)[k]])));
+        break;
+      }
+      case "Survey & Loss Details": {
+        components.push(subheaderComponent("Survey & Loss Details"));
+        const pairs = claim.form_data || {};
 
+        const longKeys = surveyFields.filter((k) => String((pairs as any)[k] ?? "").length > 80);
+        const shortKeys = surveyFields.filter((k) => !longKeys.includes(k));
 
-  for (const s of visibleSections) {
-  components.push(subheaderComponent(s.name));
+        if (shortKeys.length) {
+          components.push(kvTableComponent("", shortKeys.map((k) => [k, (pairs as any)[k]])));
+        }
+        longKeys.forEach((k) => {
+          const v = (pairs as any)[k];
+          if (v !== undefined && v !== null && String(v).trim() !== "") {
+            components.push(paraComponent(`${labelize(k)}: ${String(v)}`));
+          }
+        });
+        break;
+      }
+      case "Transportation Details": {
+        components.push(subheaderComponent("Transportation Details"));
+        const pairs = claim.form_data || {};
+        components.push(kvTableComponent("", transportFields.map((k) => [k, (pairs as any)[k]])));
+        break;
+      }
+      case "Report Text Section": {
+        components.push(subheaderComponent("Report Text Section"));
+        const pairs = claim.form_data || {};
 
-  const sectionPrefix = s.id;
-  const sectionFields = Object.entries(claim.form_data || {}).filter(
-    ([key, value]) =>
-      key.startsWith(sectionPrefix) &&
-      !key.endsWith("_images") &&
-      value !== null &&
-      value !== undefined &&
-      String(value).trim() !== ""
-  );
+        const longKeys = reportFields.filter((k) => String((pairs as any)[k] ?? "").length > 80);
+        const shortKeys = reportFields.filter((k) => !longKeys.includes(k));
 
-  if (sectionFields.length) {
-    components.push(
-      kvTableComponent(
-        "",
-        sectionFields.map(([k, v]) => [labelize(k.replace(`${sectionPrefix}_`, "")), v])
-      )
-    );
+        if (shortKeys.length) {
+          components.push(kvTableComponent("", shortKeys.map((k) => [k, (pairs as any)[k]])));
+        }
+        longKeys.forEach((k) => {
+          const v = (pairs as any)[k];
+          if (v !== undefined && v !== null && String(v).trim() !== "") {
+            components.push(paraComponent(`${labelize(k)}: ${String(v)}`));
+          }
+        });
+        break;
+      }
+      case "Financial Summary": {
+        components.push(subheaderComponent("Financial Summary"));
+        components.push(financialTableComponent(claim));
+        break;
+      }
+      case "Timeline": {
+        components.push(subheaderComponent("Timeline"));
+        const rows = [
+          ["Created", format(new Date(claim.created_at), "MMM dd, yyyy")],
+          ...(claim.updated_at && claim.updated_at !== claim.created_at
+            ? [["Last updated", format(new Date(claim.updated_at), "MMM dd, yyyy")]]
+            : []),
+        ];
+        components.push({ type: "table", props: { title: "", headers: ["Event", "When"], rows } });
+        break;
+      }
+      default: {
+        components.push(subheaderComponent(s.name));
+        components.push(paraComponent("Section content not available."));
+        break;
+      }
+    }
   }
-
-  const imageKey = `${sectionPrefix}_images`;
-  if (Array.isArray(claim.form_data?.[imageKey])) {
-    const grid = imageGridComponent("Images", claim.form_data[imageKey]);
-    if (grid) components.push(grid);
-  }
-}
-
 
   // Documents (optional)
   const hasDocs = Object.keys(groupedDocuments || {}).length > 0;
@@ -672,8 +892,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
     }, {} as Record<string, ClaimDocument[]>) || {};
 
   // Sections state - initialize with data-based visibility
-  const [sections, setSections] = useState<ReportSection[]>(() => getDynamicSectionsFromClaim(claim));
-
+  const [sections, setSections] = useState<ReportSection[]>(() => getInitialSections(claim));
 
   // DnD sensors
   const sensors = useSensors(
@@ -702,7 +921,6 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handlePreview = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
-    console.log("Preview Payload:", payload);
     const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -719,7 +937,6 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handleDownload = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
-    console.log("Preview Payload:", payload);
     const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

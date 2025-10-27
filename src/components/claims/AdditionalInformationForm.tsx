@@ -74,8 +74,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
 
     try {
       console.log("Uploading image to backend...");
-      const res = await fetch("http://localhost:5000/upload-image", {
-      // const res = await fetch("https://reports-backend-48dg.onrender.com/upload-image", {
+      // const res = await fetch("http://localhost:5000/upload-image", {
+      const res = await fetch("https://h7ivaeplej.execute-api.ap-south-1.amazonaws.com/default/reports-backend-docker/upload-image", {
         method: "POST",
         body: formData,
       });

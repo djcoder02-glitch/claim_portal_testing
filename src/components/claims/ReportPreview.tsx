@@ -65,8 +65,8 @@ interface ClaimDocument {
    Config
 ========================= */
 
-// const API_BASE = "https://reports-backend-48dg.onrender.com";
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://h7ivaeplej.execute-api.ap-south-1.amazonaws.com/default/reports-backend-docker";
+// const API_BASE = "http://localhost:5000";
 
 /* =========================
    Utilities

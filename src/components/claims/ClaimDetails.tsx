@@ -273,7 +273,7 @@ export const ClaimDetails = () => {
       }
       const base64Data = btoa(binary);
 
-      const response = await fetch('https://reports-backend-48dg.onrender.com/extract-bill-data', {
+      const response = await fetch('https://h7ivaeplej.execute-api.ap-south-1.amazonaws.com/default/reports-backend-docker/extract-bill-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
