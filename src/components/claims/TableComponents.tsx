@@ -48,7 +48,7 @@ const TABLE_LIMITS = {
   MIN_COLS: 1,
   MAX_COLS: 10,
   DEFAULT_ROWS: 5,
-  DEFAULT_COLS: 5,
+  DEFAULT_COLS: 3,
 } as const;
 
 const COLUMN_CONFIG = {
