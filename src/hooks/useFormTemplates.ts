@@ -30,14 +30,16 @@ export interface FormTemplate {
   sections: TemplateSection[];
 }
 
-//Table content
+export interface TableCell {
+  value: string;
+}
+
 export interface TableData {
   id: string;
   name: string;
-  rows: number;
-  cols: number;
-  data: Array<Array<{ value: string }>>;
-  created_at: string;
+  data: TableCell[][];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface DynamicSection {

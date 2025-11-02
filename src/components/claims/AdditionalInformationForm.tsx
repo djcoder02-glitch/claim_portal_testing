@@ -16,13 +16,12 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronUp, X, Info, Check, Edit, Table } from "lucide-react";
 import { SearchableSelect} from "@/components/ui/searchable-select";
 import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
-import { useFormTemplates, useSaveTemplate, type DynamicSection, type FormTemplate, type TemplateField} from "@/hooks/useFormTemplates";
+import { useFormTemplates, useSaveTemplate, type DynamicSection, type FormTemplate, type TemplateField, type TableData} from "@/hooks/useFormTemplates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Save, Plus, Download, Upload, Palette, Trash2 } from "lucide-react";
 import { useSectionTemplates, type SectionTemplate } from "@/hooks/useSectionTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditableTable, TableModal } from './TableComponents';
-import type { TableData } from '@/hooks/useFormTemplates';
 
 
 interface AdditionalInformationFormProps {
@@ -208,6 +207,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
   const [activeTab, setActiveTab] = useState<string>("template");
   const [showTableModal, setShowTableModal] = useState(false);
+  const [selectedSectionForTable, setSelectedSectionForTable] = useState<string>('');
   const [currentTableSectionId, setCurrentTableSectionId] = useState<string | null>(null);
 
   // State for collapsible sections
@@ -268,9 +268,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setHiddenFields(new Set(Array.isArray(savedHiddenFields) ? savedHiddenFields : []));
     setFieldLabels(savedFieldLabels);
 
-     if (savedDynamicSections && savedDynamicSections.length > 0) {
-    setDynamicSections(savedDynamicSections);
+    if (savedDynamicSections && savedDynamicSections.length > 0) {
+    setDynamicSections(savedDynamicSections.map(section => ({
+      ...section,
+      tables: section.tables || []  // ← Restore tables from database
+    })));
   }
+
     
     withSection.forEach((field) => {
       if (claim.form_data?.[field.name] !== undefined) {
@@ -363,7 +367,10 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         custom_fields_metadata: customFields,
         hidden_fields: Array.from(hiddenFields),
         field_labels: fieldLabels,
-        dynamic_sections_metadata:dynamicSections,
+        dynamic_sections_metadata: dynamicSections.map(section => ({
+            ...section,
+            tables: section.tables || []  // ← Explicitly save tables
+          })),
         ...imagesData,
       };
 
@@ -660,46 +667,78 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     setCustomFields(prev => [...prev, newField]);
     setPendingSaves(prev => new Set([...prev, newField.name]));
   }
-  const addTableToSection = (sectionId: string, rows: number, cols: number, name: string) => {
+  const addTableToSection = async (sectionId: string, rows: number, cols: number, name: string) => {
   const newTable: TableData = {
-    id: `table_${Date.now()}`,
-    name: name,
-    rows,
-    cols,
-    data: Array(rows).fill(null).map(() =>
+    id: `table-${Date.now()}`,
+    name,
+    data: Array(rows).fill(null).map(() => 
       Array(cols).fill(null).map(() => ({ value: '' }))
     ),
-    created_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
-
-  setDynamicSections(prev =>
-    prev.map(section =>
-      section.id === sectionId
-        ? { ...section, tables: [...(section.tables || []), newTable] }
-        : section
-    )
+  
+  const updatedSections = dynamicSections.map(section =>
+    section.id === sectionId
+      ? { ...section, tables: [...(section.tables || []), newTable] }
+      : section
   );
-
+  
+  setDynamicSections(updatedSections);
+  
+  // Save to database immediately
+  try {
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates: {
+        form_data: {
+          ...claim.form_data,
+          dynamic_sections_metadata: updatedSections,
+        } as any,
+      },
+    });
+    toast.success(`Table "${name}" created successfully`);
+  } catch (error) {
+    console.error('Failed to save new table:', error);
+    toast.error('Failed to create table');
+  }
+  
   setShowTableModal(false);
-  const sectionName = dynamicSections.find(s => s.id === sectionId)?.name || 'section';
-  toast.success(`Table "${name}" added to ${sectionName}!`);
 };
-  const updateTableData = (sectionId: string, tableId: string, newData: Array<Array<{ value: string }>>) => {
-    setDynamicSections(prev =>
-      prev.map(section =>
-        section.id === sectionId
-          ? {
-              ...section,
-              tables: (section.tables || []).map(table =>
-                table.id === tableId
-                  ? { ...table, data: newData, rows: newData.length, cols: newData[0]?.length || 0 }
-                  : table
-              ),
-            }
-          : section
-      )
-    );
-  };
+
+  const updateTableData = async (sectionId: string, tableId: string, newData: Array<Array<{ value: string }>>) => {
+  // Update local state first
+  const updatedSections = dynamicSections.map(section =>
+    section.id === sectionId
+      ? {
+          ...section,
+          tables: (section.tables || []).map(table =>
+            table.id === tableId 
+              ? { ...table, data: newData, updatedAt: new Date().toISOString() } 
+              : table
+          )
+        }
+      : section
+  );
+  
+  setDynamicSections(updatedSections);
+  
+  // Save to database
+  try {
+    await updateClaimMutation.mutateAsync({
+      id: claim.id,
+      updates: {
+        form_data: {
+          ...claim.form_data,
+          dynamic_sections_metadata: updatedSections,
+        } as any,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to save table update:', error);
+    toast.error('Failed to save table changes');
+  }
+};
 
   const updateTableName = (sectionId: string, tableId: string, newName: string) => {
     setDynamicSections(prev =>
@@ -1624,14 +1663,67 @@ const loadTemplate = (template: FormTemplate) => {
                   <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-gray-700">Data Tables</h4>
                     {section.tables.map((table) => (
+                      // Make sure your EditableTable usage looks EXACTLY like this:
                       <EditableTable
                         key={table.id}
                         tableId={table.id}
                         tableName={table.name}
                         data={table.data}
+                        sectionName={section.name}  // ← This prop must be here
                         onUpdate={(newData) => updateTableData(section.id, table.id, newData)}
-                        onDelete={() => deleteTable(section.id, table.id)}
-                        onNameChange={(newName) => updateTableName(section.id, table.id, newName)}
+                        onDelete={async () => {
+                          if (confirm(`Delete table "${table.name}"?`)) {
+                            const updatedSections = dynamicSections.map(s =>
+                              s.id === section.id
+                                ? { ...s, tables: (s.tables || []).filter(t => t.id !== table.id) }
+                                : s
+                            );
+                            setDynamicSections(updatedSections);
+                            
+                            try {
+                              await updateClaimMutation.mutateAsync({
+                                id: claim.id,
+                                updates: {
+                                  form_data: {
+                                    ...claim.form_data,
+                                    dynamic_sections_metadata: updatedSections,
+                                  } as any,
+                                },
+                              });
+                              toast.success(`Table "${table.name}" deleted`);
+                            } catch (error) {
+                              console.error('Failed to delete table:', error);
+                              toast.error('Failed to delete table');
+                            }
+                          }
+                        }}
+                        onNameChange={async (newName) => {
+                          const updatedSections = dynamicSections.map(s =>
+                            s.id === section.id
+                              ? {
+                                  ...s,
+                                  tables: (s.tables || []).map(t =>
+                                    t.id === table.id ? { ...t, name: newName } : t
+                                  )
+                                }
+                              : s
+                          );
+                          setDynamicSections(updatedSections);
+                          
+                          try {
+                            await updateClaimMutation.mutateAsync({
+                              id: claim.id,
+                              updates: {
+                                form_data: {
+                                  ...claim.form_data,
+                                  dynamic_sections_metadata: updatedSections,
+                                } as any,
+                              },
+                            });
+                          } catch (error) {
+                            console.error('Failed to save table name:', error);
+                          }
+                        }}
                       />
                     ))}
                   </div>
