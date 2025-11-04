@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useAuth } from '../auth/AuthProvider';
 import {SelectiveDocumentExtractor} from "./SelectiveDocumentExtractor"
 import { FeeBillForm } from "./FeeBillForm";
+import { Assessment } from "./Assessment";
 
 
 const statusConfig = {
@@ -146,6 +147,7 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
       "report-preview": "View Report",
       "documents": "Documents",
       "fee-bill": "Fee Bill Details",
+      "assessment": "Assessment",
     };
     
     if (activeTab !== value) {
@@ -620,6 +622,13 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
                     <Upload className="w-4 h-4" />
                     <span>Documents</span>
                   </TabsTrigger>
+                  <TabsTrigger 
+                    value="assessment" 
+                    className="flex items-center space-x-2 data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-200"
+                  >
+                    <Info className="w-4 h-4" />
+                    <span>Assessment</span>
+                  </TabsTrigger>
                 </TabsList>
               </Card>
 
@@ -641,6 +650,9 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
 
               <TabsContent value="documents" className="space-y-6">
                 <DocumentManager claimId={claim.id} />
+              </TabsContent>
+              <TabsContent value="assessment" className="space-y-6">
+                <Assessment claim={claim} />
               </TabsContent>
             </Tabs>
           </div>
