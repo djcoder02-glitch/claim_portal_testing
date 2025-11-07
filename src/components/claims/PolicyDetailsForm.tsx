@@ -31,6 +31,8 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     defaultValues: claim.form_data || {}
   });
 
+  console.log("[PolicyDetailsForm] Initial form data:", claim);
+
   const isMountedRef= useRef(true);
 
 
