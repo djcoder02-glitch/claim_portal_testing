@@ -2,14 +2,18 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   FileText, 
-  DollarSign, 
   Users, 
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
-  Star,
-  Clock
+  Clock,
+  IndianRupee,
+  IndianRupeeIcon, // if you need different naming, adjust accordingly
+  Link         // keep the icon if you still use it somewhere
 } from "lucide-react";
+
+import { Link as RouterLink } from "react-router-dom"; // use the router Link
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useClaims } from "@/hooks/useClaims";
@@ -55,13 +59,14 @@ interface MonthlyData {
  * Colors for the pie chart
  */
 const COLORS = {
-  approved: '#10b981', // green
-  paid: '#10b981',     // green (same as approved)
-  pending: '#f59e0b',  // orange
-  submitted: '#f59e0b', // orange
-  rejected: '#ef4444', // red
-  under_review: '#3b82f6', // blue
+  pending: 'rgb(37, 99, 235)',     // Blue
+  submitted: 'rgb(245, 158, 11)',  // Orange
+  under_review: 'rgb(59, 130, 246)', // Blue
+  approved: 'rgb(16, 185, 129)',   // Green
+  rejected: 'rgb(239, 68, 68)',    // Red
+  paid: 'rgb(16, 185, 129)',       // Green
 };
+
 
 /**
  * Dashboard Component
@@ -82,29 +87,31 @@ const COLORS = {
  */
 export const Dashboard = () => {
   const { data: claims = [], isLoading: claimsLoading } = useClaims();
+  console.log('[Dashboard] claims sample:', claims?.slice?.(0,3));
+
 
   /**
    * Fetch unique surveyors from claims
    * Counts distinct surveyor names that are assigned to claims
    */
-  const { data: surveyorsData, isLoading: surveyorsLoading } = useQuery({
-    queryKey: ['active-surveyors'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('claims')
-        .select('surveyor_name')
-        .not('surveyor_name', 'is', null);
-      
-      if (error) throw error;
-      
-      // Get unique surveyor names
-      const uniqueSurveyors = [...new Set(
-        (data as { surveyor_name: string }[]).map(c => c.surveyor_name).filter(Boolean)
-      )];
-      
-      return uniqueSurveyors.length;
+  const { data: totalSurveyors, isLoading: surveyorsLoading } = useQuery({
+  queryKey: ['total-surveyors'],
+  queryFn: async () => {
+    const res: any = await supabase
+      .from('surveyors')
+      .select('*', { count: 'exact' })
+      .eq('is_active', true);
+
+    if (res?.error) {
+      console.error('[Dashboard] Error fetching surveyors:', res.error);
+      throw res.error;
     }
-  });
+
+    return typeof res.count === 'number' ? res.count : (res.data?.length || 0);
+  }
+});
+
+
 
   /**
    * Calculate monthly trend data from actual claims
@@ -181,41 +188,53 @@ export const Dashboard = () => {
     return {
       totalClaims,
       revenueInLakhs,
-      activeSurveyors: surveyorsData || 0,
+      totalSurveyors: totalSurveyors || 0,
       completionRate,
       claimsGrowth: Number(claimsGrowth),
       revenueGrowth: Number(revenueGrowth),
     };
-  }, [claims, surveyorsData, monthlyTrendData]);
+  }, [claims, monthlyTrendData, totalSurveyors]);
 
   /**
    * Prepare data for status distribution pie chart
    * Uses actual status counts from database
    */
   const statusDistribution = useMemo(() => {
-    return [
-      { 
-        name: 'Approved/Paid', 
-        value: claims.filter(c => c.status === 'approved' || c.status === 'paid').length,
-        color: COLORS.approved
-      },
-      { 
-        name: 'Pending/Submitted', 
-        value: claims.filter(c => c.status === 'pending' || c.status === 'submitted').length,
-        color: COLORS.pending
-      },
-      { 
-        name: 'Under Review', 
-        value: claims.filter(c => c.status === 'under_review').length,
-        color: COLORS.under_review
-      },
-      { 
-        name: 'Rejected', 
-        value: claims.filter(c => c.status === 'rejected').length,
-        color: COLORS.rejected
-      },
-    ].filter(item => item.value > 0); // Only show statuses with data
-  }, [claims]);
+  const statusData = [
+    { 
+      name: 'Approved', 
+      value: claims.filter(c => c.status === 'approved').length,
+      color: COLORS.approved
+    },
+    { 
+      name: 'Paid', 
+      value: claims.filter(c => c.status === 'paid').length,
+      color: COLORS.paid
+    },
+    { 
+      name: 'Pending', 
+      value: claims.filter(c => c.status === 'pending').length,
+      color: COLORS.pending
+    },
+    { 
+      name: 'Submitted', 
+      value: claims.filter(c => c.status === 'submitted').length,
+      color: COLORS.submitted
+    },
+    { 
+      name: 'Under Review', 
+      value: claims.filter(c => c.status === 'under_review').length,
+      color: COLORS.under_review
+    },
+    { 
+      name: 'Rejected', 
+      value: claims.filter(c => c.status === 'rejected').length,
+      color: COLORS.rejected
+    },
+  ];
+  
+  return statusData.filter(item => item.value > 0);
+}, [claims]);
 
   /**
    * Get recent activity - claims from today
@@ -243,7 +262,7 @@ export const Dashboard = () => {
   /**
    * Get recent surveyors (unique surveyors from last 7 days)
    */
-  const recentSurveyors = useMemo(() => {
+  const surveyorsThisWeek = useMemo(() => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
@@ -274,15 +293,15 @@ export const Dashboard = () => {
       change: `${stats.revenueGrowth >= 0 ? '+' : ''}${stats.revenueGrowth}% from last month`,
       isPositive: stats.revenueGrowth >= 0,
       description: 'Total claim amounts',
-      icon: DollarSign,
+      icon: IndianRupeeIcon,
       iconBgColor: 'bg-green-100 text-green-600',
     },
     {
-      title: 'Active Surveyors',
-      value: stats.activeSurveyors,
-      change: `${recentSurveyors} active this week`,
+      title: 'Total Surveyors',
+      value: stats.totalSurveyors,
+      change: `${surveyorsThisWeek} assigned this week`,
       isPositive: true,
-      description: 'Assigned surveyors',
+      description: 'Registered  surveyors',
       icon: Users,
       iconBgColor: 'bg-purple-100 text-purple-600',
     },
@@ -303,7 +322,7 @@ export const Dashboard = () => {
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-64"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
+            {[Array(4)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
           </div>
@@ -375,7 +394,7 @@ export const Dashboard = () => {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-blue-600" />
+              <IndianRupee className="w-5 h-5 text-blue-600" />
               <CardTitle>Revenue & Claims Trend (Last 6 Months)</CardTitle>
             </div>
           </CardHeader>
@@ -528,42 +547,54 @@ export const Dashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {claims.slice(0, 5).map((claim) => (
-              <div 
-                key={claim.id}
-                className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors mb-2"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{claim.title}</p>
-                  <p className="text-sm text-gray-500">
-                    {claim.claim_number} • {format(new Date(claim.created_at), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {claim.claim_amount && (
-                    <span className="text-sm font-semibold text-gray-900">
-                      ₹{(claim.claim_amount / 100000).toFixed(2)}L
+            {[...claims]
+              // ✅ sort by updated_at (fallback to created_at) using a safe comparator
+              .sort((a, b) => {
+                const aDate = new Date(a.updated_at || a.created_at || 0).getTime();
+                const bDate = new Date(b.updated_at || b.created_at || 0).getTime();
+                return bDate - aDate;
+              })
+              // ✅ take only top 5
+              .slice(0, 5)
+              // ✅ render with correct RouterLink and formatted date
+              .map((claim) => (
+                <RouterLink
+                  key={claim.id}
+                  to={`/claims/${claim.id}`}
+                  className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors mb-2"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{claim.title || 'Untitled claim'}</p>
+                    <p className="text-sm text-gray-500">
+                      {(claim.claim_number || '')} • {claim.updated_at ? format(new Date(claim.updated_at), 'MMM dd, yyyy') : '—'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {claim.claim_amount != null && (
+                      <span className="text-sm font-semibold text-gray-900">
+                        ₹{(Number(claim.claim_amount) / 100000).toFixed(2)}L
+                      </span>
+                    )}
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      (claim.status === 'approved' || claim.status === 'paid')
+                        ? 'bg-green-100 text-green-700'
+                        : claim.status === 'rejected'
+                        ? 'bg-red-100 text-red-700'
+                        : claim.status === 'under_review'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {String(claim.status || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                     </span>
-                  )}
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    claim.status === 'approved' || claim.status === 'paid'
-                      ? 'bg-green-100 text-green-700'
-                      : claim.status === 'rejected'
-                      ? 'bg-red-100 text-red-700'
-                      : claim.status === 'under_review'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {claim.status.replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-            ))}
+                  </div>
+                </RouterLink>
+              ))}
             {claims.length === 0 && (
               <p className="text-center text-gray-500 py-4">No recent claims</p>
             )}
           </CardContent>
         </Card>
+
       </div>
     </div>
   );
