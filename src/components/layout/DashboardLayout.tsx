@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "./Navbar";
 
+
 /**
  * Navigation item interface for type safety
  */
@@ -37,66 +38,92 @@ interface NavItem {
 /**
  * Main navigation items shown in the left sidebar
  */
-const mainNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Claims",
-    href: "/claims",
-    icon: FileText,
-  },
-  {
-    title: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-  {
-    title: "Management",
-    href: "/management",
-    icon: Users,
-  },
-];
+const getMainNavItems = (isAdmin: boolean): NavItem[] => {
+  const baseItems = [
+    {
+      title: "Dashboard",
+      href: "/",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Claims",
+      href: "/claims",
+      icon: FileText,
+    },
+  ];
+
+  if (isAdmin) {
+    return [
+      ...baseItems,
+      {
+        title: "Analytics",
+        href: "/analytics",
+        icon: BarChart3,
+      },
+      {
+        title: "Settings",
+        href: "/settings",
+        icon: Settings,
+      },
+      {
+        title: "Management",
+        href: "/management",
+        icon: Users,
+      },
+    ];
+  }
+
+  return baseItems;
+};
 
 /**
  * Secondary navigation items (shown under "Other" section)
  */
-const otherNavItems: NavItem[] = [
-  {
-    title: "Profile",
-    href: "/profile",
-    icon: User,
-  },
-  {
-    title: "Help Center",
-    href: "/help",
-    icon: HelpCircle,
-  },
-  {
-    title: "Employees",
-    href: "/employees",
-    icon: UserCog,
-  },
-  {
-    title: "Customers",
-    href: "/customers",
-    icon: Building2,
-  },
-  {
-    title: "Notifications",
-    href: "/notifications",
-    icon: Bell,
-    badge: 2,
-  },
-];
+const getOtherNavItems = (isAdmin: boolean): NavItem[] => {
+  if (isAdmin) {
+    return [
+      {
+        title: "Profile",
+        href: "/profile",
+        icon: User,
+      },
+      {
+        title: "Help Center",
+        href: "/help",
+        icon: HelpCircle,
+      },
+      {
+        title: "Employees",
+        href: "/employees",
+        icon: UserCog,
+      },
+      {
+        title: "Customers",
+        href: "/customers",
+        icon: Building2,
+      },
+      {
+        title: "Notifications",
+        href: "/notifications",
+        icon: Bell,
+        badge: 2,
+      },
+    ];
+  }
 
+  return [
+    {
+      title: "Profile",
+      href: "/profile",
+      icon: User,
+    },
+     {
+        title: "Help Center",
+        href: "/help",
+        icon: HelpCircle,
+      },
+  ];
+};
 /**
  * Get page title based on current route
  */
@@ -166,6 +193,9 @@ const getPageTitle = (pathname: string): { title: string; subtitle: string } => 
  * 5. Conditional navbar display (hidden on claims page)
  */
 export const DashboardLayout = () => {
+  const {isAdmin} = useAuth();
+  const mainNavItems = getMainNavItems(isAdmin);
+  const otherNavItems = getOtherNavItems(isAdmin);
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -302,16 +332,28 @@ export const DashboardLayout = () => {
           </div>
 
           {/* Other/Secondary Navigation Section */}
-          <div className="space-y-1">
-            {!isCollapsed && (
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">
-                Other
-              </p>
-            )}
-            {otherNavItems.map((item) => (
-              <NavLink key={item.href} item={item} />
-            ))}
-          </div>
+          {isAdmin && otherNavItems.length > 0 && (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">
+                  Other
+                </p>
+              )}
+              {otherNavItems.map((item) => (
+                <NavLink key={item.href} item={item} />
+              ))}
+            </div>
+          )}
+          
+          {/* User Profile Section (when not admin) */}
+          {!isAdmin && otherNavItems.length > 0 && (
+            <div className="space-y-1">
+              {otherNavItems.map((item) => (
+                <NavLink key={item.href} item={item} />
+              ))}
+            </div>
+          )}
+
         </nav>
 
         {/* User Profile Section at Bottom */}
