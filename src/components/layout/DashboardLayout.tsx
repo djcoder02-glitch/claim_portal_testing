@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -193,12 +193,27 @@ const getPageTitle = (pathname: string): { title: string; subtitle: string } => 
  * 5. Conditional navbar display (hidden on claims page)
  */
 export const DashboardLayout = () => {
-  const {isAdmin} = useAuth();
+  const { isAdmin, user } = useAuth();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+useEffect(() => {
+  if (user?.id) {
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.display_name) {
+          setDisplayName(data.display_name);
+        }
+      });
+  }
+}, [user?.id]);
   const mainNavItems = getMainNavItems(isAdmin);
   const otherNavItems = getOtherNavItems(isAdmin);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -367,7 +382,7 @@ export const DashboardLayout = () => {
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.email?.split('@')[0] || 'User'}
+                  {displayName || user?.email?.split('@')[0] || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
                   {user?.email || ''}

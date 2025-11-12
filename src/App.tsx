@@ -12,6 +12,7 @@ import { ClaimsDashboard } from "@/components/claims/ClaimsDashboard";
 import { ClaimDetails } from "./components/claims/ClaimDetails";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import {Profile} from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -93,10 +94,7 @@ const App = () => (
               <Route 
                 path="/profile" 
                 element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile</h1>
-                    <p className="text-gray-600">User profile coming soon...</p>
-                  </div>
+                  <Profile />
                 } 
               />
               
