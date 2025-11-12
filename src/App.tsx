@@ -13,6 +13,8 @@ import { ClaimDetails } from "./components/claims/ClaimDetails";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import {Profile} from "./pages/Profile";
+import {TeamManagement} from "./pages/TeamManagement";
+
 
 const queryClient = new QueryClient();
 
@@ -84,10 +86,7 @@ const App = () => (
               <Route 
                 path="/management" 
                 element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Management</h1>
-                    <p className="text-gray-600">Management tools coming soon...</p>
-                  </div>
+                  <TeamManagement />
                 } 
               />
               
