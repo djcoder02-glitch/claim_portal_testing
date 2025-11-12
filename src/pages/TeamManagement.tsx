@@ -247,8 +247,6 @@ export const TeamManagement = () => {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Employee ID</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -263,8 +261,6 @@ export const TeamManagement = () => {
                         <TableCell>
                           {user.email}
                         </TableCell>
-                        <TableCell>{user.department || 'N/A'}</TableCell>
-                        <TableCell>{user.employee_id || 'N/A'}</TableCell>
                         <TableCell>
                           <Badge 
                             variant={user.role === 'admin' ? 'default' : 'secondary'}

@@ -80,7 +80,9 @@ const App = () => (
               <Route 
                 path="/management" 
                 element={
+                  <ProtectedRoute requireAdmin={true}>
                   <TeamManagement />
+                  </ProtectedRoute>
                 } 
               />
               

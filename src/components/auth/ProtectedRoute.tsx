@@ -4,10 +4,11 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requireAdmin?: boolean;
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+export const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -19,6 +20,20 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
+          <a href="/" className="text-blue-600 hover:text-blue-700 underline">
+            Return to Dashboard
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
