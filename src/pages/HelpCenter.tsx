@@ -13,7 +13,7 @@ interface HelpCategory {
   description: string;
 }
 
-const HelpCenter = () => {
+export const HelpCenter = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
