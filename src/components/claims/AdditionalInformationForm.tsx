@@ -291,7 +291,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     }
   });
 
-    console.log("claim fetched", claim.form_data)
+    console.log("claim fetched", claim)
 
   }, [claim.form_data, setValue, openSections, , setSectionImages]);
 

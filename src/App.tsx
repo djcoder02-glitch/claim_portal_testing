@@ -12,6 +12,8 @@ import { ClaimsDashboard } from "@/components/claims/ClaimsDashboard";
 import { ClaimDetails } from "./components/claims/ClaimDetails";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Analytics from "./pages/Analytics";
+import HelpCenter from "./pages/Helpcenter";
 
 const queryClient = new QueryClient();
 
@@ -60,15 +62,7 @@ const App = () => (
               <Route path="/claims" element={<ClaimsDashboard />} />
               
               {/* Placeholder Routes - Can be implemented later */}
-              <Route 
-                path="/analytics" 
-                element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics</h1>
-                    <p className="text-gray-600">Analytics dashboard coming soon...</p>
-                  </div>
-                } 
-              />
+              <Route path="analytics" element={<Analytics />} />
               
               <Route 
                 path="/settings" 
@@ -100,15 +94,8 @@ const App = () => (
                 } 
               />
               
-              <Route 
-                path="/help" 
-                element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Help Center</h1>
-                    <p className="text-gray-600">Help documentation coming soon...</p>
-                  </div>
-                } 
-              />
+              <Route path="/help" element={<HelpCenter />} />
+              
               
               <Route 
                 path="/employees" 
