@@ -475,7 +475,7 @@ export const AdminDashboard = () => {
                     <Tooltip formatter={(value, name) => [value, name]} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <div className="mt-4 grid grid-cols-2 gap-2 text-m">
                 {statusDistribution.map((entry, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <div 

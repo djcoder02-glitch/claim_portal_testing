@@ -331,7 +331,7 @@ export const UserDashboard = () => {
                 No status data available
               </div>
             )}
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+            <div className="mt-4 grid grid-cols-2 gap-2 text-m">
               {statusDistribution.map((entry, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <div 

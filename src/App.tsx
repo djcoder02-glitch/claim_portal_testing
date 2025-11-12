@@ -14,6 +14,9 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Analytics from "./pages/Analytics";
 import HelpCenter from "./pages/Helpcenter";
+import {Profile} from "./pages/Profile";
+import {TeamManagement} from "./pages/TeamManagement";
+
 
 const queryClient = new QueryClient();
 
@@ -77,20 +80,14 @@ const App = () => (
               <Route 
                 path="/management" 
                 element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Management</h1>
-                    <p className="text-gray-600">Management tools coming soon...</p>
-                  </div>
+                  <TeamManagement />
                 } 
               />
               
               <Route 
                 path="/profile" 
                 element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile</h1>
-                    <p className="text-gray-600">User profile coming soon...</p>
-                  </div>
+                  <Profile />
                 } 
               />
               
