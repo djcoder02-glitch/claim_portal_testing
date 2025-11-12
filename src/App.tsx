@@ -13,7 +13,7 @@ import { ClaimDetails } from "./components/claims/ClaimDetails";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Analytics from "./pages/Analytics";
-import HelpCenter from "./pages/Helpcenter";
+import HelpCenter from "./pages/HelpCenter"
 import {Profile} from "./pages/Profile";
 import {TeamManagement} from "./pages/TeamManagement";
 
