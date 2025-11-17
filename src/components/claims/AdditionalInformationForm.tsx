@@ -916,7 +916,7 @@ const loadTemplate = (template: FormTemplate) => {
       id: 'section2',
       name: 'Section 2 - Survey & Loss Details',
       order_index: 2,
-      color_class: 'bg-warning',
+      color_class: 'bg-gradient-primary',
       fields: section2Fields.map((field, index) => ({
         id: field.name,
         name: field.name,
@@ -932,7 +932,7 @@ const loadTemplate = (template: FormTemplate) => {
       id: 'section3',
       name: 'Section 3 - Transportation Details',
       order_index: 3,
-      color_class: 'bg-success',
+      color_class: 'bg-gradient-primary',
       fields: section3Fields.map((field, index) => ({
         id: field.name,
         name: field.name,
@@ -948,7 +948,7 @@ const loadTemplate = (template: FormTemplate) => {
       id: 'section4',
       name: 'Section 4 - Report Section',
       order_index: 4,
-      color_class: 'bg-info',
+      color_class: 'bg-gradient-primary',
       fields: section4Fields.map((field, index) => ({
         id: field.name,
         name: field.name,

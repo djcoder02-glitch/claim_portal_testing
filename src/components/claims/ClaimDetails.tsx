@@ -586,7 +586,7 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
           <div className="lg:col-span-3">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
               <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
-                <TabsList className="grid w-full grid-cols-5 bg-slate-100 h-14">
+                <TabsList className="grid w-full grid-cols-6 bg-slate-100 h-14">
                   <TabsTrigger 
                     value="policy-details" 
                     className="flex items-center space-x-2 data-[state=active]:bg-slate-700 data-[state=active]:text-white transition-all duration-200"

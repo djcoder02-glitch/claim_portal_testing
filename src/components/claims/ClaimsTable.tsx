@@ -36,6 +36,10 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
   const [sortKey, setSortKey] = useState<SortKey>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [showFilters, setShowFilters] = useState(false);
+  const [policyTypeFilter, setPolicyTypeFilter] = useState("all");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const deleteClaim= useDeleteClaim();
 
   // Filter and sort claims
@@ -47,8 +51,21 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
         (claim.policy_types?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === "all" || claim.status === statusFilter;
+      const matchesPolicyType = policyTypeFilter === "all" || claim.policy_types?.name === policyTypeFilter;
       
-      return matchesSearch && matchesStatus;
+      const matchesDateRange = (() => {
+        if (!dateFromFilter && !dateToFilter) return true;
+        const claimDate = new Date(claim.created_at);
+        const fromDate = dateFromFilter ? new Date(dateFromFilter) : null;
+        const toDate = dateToFilter ? new Date(dateToFilter) : null;
+        
+        if (fromDate && toDate) return claimDate >= fromDate && claimDate <= toDate;
+        if (fromDate) return claimDate >= fromDate;
+        if (toDate) return claimDate <= toDate;
+        return true;
+      })();
+      
+      return matchesSearch && matchesStatus && matchesPolicyType && matchesDateRange;
     });
 
     // Sort claims
@@ -72,7 +89,9 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
     });
 
     return filtered;
-  }, [claims, searchTerm, statusFilter, sortKey, sortOrder]);
+  }, [claims, searchTerm, statusFilter, policyTypeFilter, dateFromFilter, dateToFilter, sortKey, sortOrder]);
+
+  const uniquePolicyTypes = Array.from(new Set(claims.map(claim => claim.policy_types?.name).filter(Boolean)));
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -117,9 +136,13 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm">
+        <Button 
+          variant={showFilters ? "secondary" : "outline"} 
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+        >
           <Filter className="w-4 h-4 mr-2" />
-          Filter
+          {showFilters ? "Hide Filters" : "More Filters"}
         </Button>
       </div>
       <div className="flex items-center space-x-2">
@@ -152,6 +175,60 @@ export const ClaimsTable = ({ claims }: ClaimsTableProps) => {
     <div className="space-y-6">
       {/* Header Controls */}
       {renderHeaderControls()}
+
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <Card className="bg-muted/30">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Policy Type</label>
+                <Select value={policyTypeFilter} onValueChange={setPolicyTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Policy Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Policy Types</SelectItem>
+                    {uniquePolicyTypes.map(type => (
+                      <SelectItem key={type} value={type!}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">From Date</label>
+                <Input 
+                  type="date" 
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">To Date</label>
+                <Input 
+                  type="date" 
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                />
+              </div>
+            </div>
+            {(policyTypeFilter !== "all" || dateFromFilter || dateToFilter) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  setPolicyTypeFilter("all");
+                  setDateFromFilter("");
+                  setDateToFilter("");
+                }}
+                className="mt-4"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {viewMode === 'grid' ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

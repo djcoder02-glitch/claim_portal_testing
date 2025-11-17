@@ -446,7 +446,7 @@ function buildReportJson(
     reportName: `Claim Report - ${claim.claim_number}`,
     assets: {
       backgroundImage:
-        "https://ik.imagekit.io/dgkuuzqgq/reportBG.png?updatedAt=1758726961386",
+        "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20bg.png",
     },
     components,
   };
