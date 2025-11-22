@@ -17,6 +17,7 @@ export interface TemplateSection {
   name: string;
   order_index: number;
   color_class: string;
+  tables?: TableData[];
   fields: TemplateField[];
 }
 
@@ -117,7 +118,9 @@ export const useSaveTemplate = () => {
             template_id: template.id,
             name: section.name,
             order_index: section.order_index,
-            color_class: section.color_class
+            color_class: section.color_class,
+            tables_data: section.tables && section.tables.length > 0 ? section.tables : null
+
           })
           .select()
           .single();

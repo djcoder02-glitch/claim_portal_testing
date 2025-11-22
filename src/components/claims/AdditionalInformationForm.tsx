@@ -195,6 +195,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const updateClaimMutation = useUpdateClaimSilent();
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
+    
   });
 
   const addFieldOptionMutation = useAddFieldOption();
@@ -230,6 +231,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   // Add these new state variables
   const [dynamicSections, setDynamicSections] = useState<DynamicSection[]>([]);
   const [currentTemplate, setCurrentTemplate] = useState<FormTemplate | null>(null);
+  const [isTemplateModified, setIsTemplateModified] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showNewSectionDialog, setShowNewSectionDialog] = useState(false);
   const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
@@ -326,6 +328,16 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     delay: 2000,
     enabled: false,
   });
+
+  useEffect(() => {
+  if (!currentTemplate) return;
+  
+  const subscription = watch(() => {
+    setIsTemplateModified(true);
+  });
+  
+  return () => subscription.unsubscribe();
+}, [watch, currentTemplate]);
 
   const toggleSection = (section : string) => {
     setOpenSections(prev => ({
@@ -769,11 +781,13 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const saveAsTemplate = async () => {
   if (!templateName.trim()) return;
   
+  const isOverwriting = currentTemplate && templateName === currentTemplate.name;
+  
   try {
     // Merge custom fields into their respective sections
-    const sectionsWithCustomFields = dynamicSections.map(section => {
+    const sectionsWithCustomFields = (dynamicSections || []).map(section => {
       // Get custom fields for this section
-      const sectionCustomFields = customFields.filter(f => f.section === section.id);
+      const sectionCustomFields = (customFields || []).filter(f => f.section === section.id);
       
       // Convert custom fields to TemplateField format
       const customTemplateFields: TemplateField[] = sectionCustomFields.map((field, index) => ({
@@ -783,12 +797,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         type: field.type as TemplateField['type'],
         required: field.required,
         options: field.options,
-        order_index: section.fields.length + index + 1
+        order_index: (section.fields?.length || 0) + index + 1
       }));
       
       // Update existing field labels and filter out hidden fields
-      const updatedFields = section.fields
-        .filter(field => !hiddenFields.has(field.name)) // ✅ Exclude hidden fields
+      const updatedFields = (section.fields || [])
+        .filter(field => !hiddenFields.has(field.name))
         .map(field => ({
           ...field,
           label: fieldLabels[field.name] || field.label
@@ -796,7 +810,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       
       return {
         ...section,
-        fields: [...updatedFields, ...customTemplateFields.filter(f => !hiddenFields.has(f.name))] // ✅ Also filter custom fields
+        fields: [...updatedFields, ...customTemplateFields.filter(f => !hiddenFields.has(f.name))],
+        tables: section.tables || []
       };
     });
     
@@ -804,30 +819,30 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       name: templateName,
       description: templateDescription,
       policyTypeId: claim.policy_type_id,
-      sections: sectionsWithCustomFields
+      sections: sectionsWithCustomFields,
+      templateId: isOverwriting ? currentTemplate.id : undefined
     });
     
     setTemplateName('');
     setTemplateDescription('');
+    setIsTemplateModified(false);
     setShowSaveTemplateDialog(false);
-    toast.success("Template saved with current field configuration!");
+    toast.success(isOverwriting ? "Template updated successfully!" : "Template saved with current field configuration!");
   } catch (error) {
     console.error('Failed to save template:', error);
   }
 };
 
-
-
 const loadTemplate = (template: FormTemplate) => {
-  const convertedSections: DynamicSection[] = template.sections.map(section => ({
+  const convertedSections: DynamicSection[] = (template.sections || []).map(section => ({
     id: section.id,
     name: section.name,
     order_index: section.order_index,
     color_class: section.color_class,
-    fields: section.fields,
+    fields: section.fields || [],
+    tables: section.tables || [],
     isCustom: !section.name.startsWith('Section ')
   }));
-  
   // Extract custom fields and field labels from template
   const loadedCustomFields: FormField[] = [];
   const loadedFieldLabels: Record<string, string> = {};
@@ -869,6 +884,7 @@ const loadTemplate = (template: FormTemplate) => {
   });
   
   setCurrentTemplate(template);
+  setIsTemplateModified(false);
   setShowTemplateDialog(false);
   toast.success(`Template "${template.name}" loaded! Your existing data has been preserved.`);
 };
@@ -1776,7 +1792,7 @@ const loadTemplate = (template: FormTemplate) => {
               Additional Information
               {currentTemplate && (
                 <Badge variant="secondary" className="ml-2">
-                  {currentTemplate.name}
+                  {currentTemplate.name}{isTemplateModified && ' - edited (unsaved)'}
                 </Badge>
               )}
             </CardTitle>
@@ -1811,7 +1827,7 @@ const loadTemplate = (template: FormTemplate) => {
                               <p className="text-sm text-muted-foreground">{template.description}</p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              {template.sections.length} sections • {template.sections.reduce((acc, section) => acc + section.fields.length, 0)} fields
+                              {(template.sections || []).length} sections • {(template.sections || []).reduce((acc, section) => acc + (section.fields?.length || 0), 0)} fields
                             </p>
                           </div>
                         </CardContent>
@@ -1833,8 +1849,33 @@ const loadTemplate = (template: FormTemplate) => {
                     <DialogTitle>Save as Template</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
-                    <div>
-                      <Label htmlFor="template-name">Template Name *</Label>
+                    {currentTemplate && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="overwrite-template" className="text-sm font-medium cursor-pointer">
+                          Overwrite existing template "{currentTemplate.name}"
+                        </Label>
+                        <Checkbox
+                          id="overwrite-template"
+                          checked={templateName === currentTemplate.name}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setTemplateName(currentTemplate.name);
+                              setTemplateDescription(currentTemplate.description || '');
+                            } else {
+                              setTemplateName('');
+                              setTemplateDescription('');
+                            }
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Check this to update the current template instead of creating a new one
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                  <Label htmlFor="template-name">Template Name *</Label>
                       <Input
                         id="template-name"
                         value={templateName}
