@@ -267,12 +267,48 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 useEffect(() => {
   if (!currentTemplate) {
     setIsTemplateModified(false);
-    return;
   }
-  
-  // Always show as modified when structure changes
-  setIsTemplateModified(true);
-}, [dynamicSections, customFields, hiddenFields, currentTemplate]);
+}, [currentTemplate]);
+
+// Load saved data including custom fields and hidden fields
+useEffect(() => {
+  if (!claim?.form_data) return;
+
+  const savedCustomFields = (claim.form_data?.custom_fields_metadata || []) as FormField[];
+  const savedHiddenFieldsArray = Array.isArray(claim.form_data?.hidden_fields) ? (claim.form_data!.hidden_fields as string[]) : [];
+  const savedHiddenFields = new Set<string>(savedHiddenFieldsArray);
+  const savedFieldLabels = (claim.form_data?.field_labels || {}) as Record<string, string>;
+
+  // Filter out hidden fields when loading
+  const visibleCustomFields = savedCustomFields.filter(field => !savedHiddenFields.has(field.name));
+
+  setCustomFields(visibleCustomFields);
+  setHiddenFields(savedHiddenFields);
+  setFieldLabels(savedFieldLabels);
+
+  // Load section images
+  const images: Record<string, string[]> = {};
+  Object.entries(claim.form_data).forEach(([key, value]) => {
+    if (key.endsWith('_images') && Array.isArray(value)) {
+      images[key.replace('_images', '')] = value;
+    }
+  });
+  setSectionImages(images);
+
+  // Load form field values, skipping hidden fields
+  Object.entries(claim.form_data).forEach(([key, value]) => {
+    if (savedHiddenFields.has(key)) {
+      return; // Skip hidden fields
+    }
+    
+    if (!key.endsWith('_metadata') && 
+        !key.endsWith('_images') && 
+        !key.includes('hidden_fields') && 
+        !key.includes('field_labels')) {
+      setValue(key, value);
+    }
+  });
+}, [claim?.form_data, setValue]);
 
   // Autosave functionality
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
@@ -305,61 +341,6 @@ useEffect(() => {
     delay: 2000,
     enabled: true,
   });
-
-  useEffect(() => {
-    if (!currentTemplate) return;
-    
-    // Store initial template structure
-    const initialStructure = JSON.stringify({
-      sections: dynamicSections.map(s => ({
-        id: s.id,
-        name: s.name,
-        fields: s.fields.map(f => f.name),
-        tables: s.tables?.map(t => t.id) || []
-      })),
-      customFields: customFields.map(f => f.name),
-      hiddenFields: Array.from(hiddenFields)
-    });
-    
-    // Check for structure changes whenever these change
-    const checkStructureChange = () => {
-      const currentStructure = JSON.stringify({
-        sections: dynamicSections.map(s => ({
-          id: s.id,
-          name: s.name,
-          fields: s.fields.map(f => f.name),
-          tables: s.tables?.map(t => t.id) || []
-        })),
-        customFields: customFields.map(f => f.name),
-        hiddenFields: Array.from(hiddenFields)
-      });
-      
-      setIsTemplateModified(currentStructure !== initialStructure);
-    };
-    
-    checkStructureChange();
-    
-    // Also watch for form value changes
-    const subscription = watch((formValues) => {
-      // If already modified due to structure, don't need to check values
-      if (isTemplateModified) return;
-      
-      // Check if form values changed
-      const hasValueChanged = Object.keys(formValues).some(key => {
-        if (key.endsWith('_metadata') || key.endsWith('_images') || 
-            key.includes('hidden_fields') || key.includes('field_labels')) {
-          return false;
-        }
-        return formValues[key] !== (claim.form_data?.[key] || '');
-      });
-      
-      if (hasValueChanged) {
-        setIsTemplateModified(true);
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [watch, currentTemplate, dynamicSections, customFields, hiddenFields]);
 
   const toggleSection = (section : string) => {
     setOpenSections(prev => ({
@@ -530,6 +511,7 @@ useEffect(() => {
   const removeField = async (fieldName: string) => {
     const updatedHiddenFields = new Set([...hiddenFields, fieldName]);
     setHiddenFields(updatedHiddenFields);
+    setIsTemplateModified(true);
     
     try {
       const currentFormData = watch();
@@ -559,6 +541,7 @@ useEffect(() => {
       newSet.delete(fieldName);
       return newSet;
     });
+    setIsTemplateModified(true);
   };
 
   const updateCustomField = (fieldName: string, updates: Partial<FormField>) => {
@@ -822,6 +805,7 @@ useEffect(() => {
           : section
       )
     );
+
     toast.success('Table deleted');
     setIsTemplateModified(true);
   };
