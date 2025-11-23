@@ -181,3 +181,91 @@ export const useDeleteTemplate = () => {
     },
   });
 };
+
+
+export const useUpdateTemplate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      templateId,
+      name,
+      description,
+      policyTypeId,
+      sections
+    }: {
+      templateId: string;
+      name: string;
+      description?: string;
+      policyTypeId?: string;
+      sections: DynamicSection[];
+    }) => {
+      // Delete old sections and fields
+      const { error: deleteSectionsError } = await supabase
+        .from('template_sections')
+        .delete()
+        .eq('template_id', templateId);
+
+      if (deleteSectionsError) throw deleteSectionsError;
+
+      // Update template name and description
+      const { data: template, error: templateError } = await supabase
+        .from('form_templates')
+        .update({
+          name,
+          description,
+          policy_type_id: policyTypeId,
+        })
+        .eq('id', templateId)
+        .select()
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Insert new sections
+      for (const section of sections) {
+        const { data: templateSection, error: sectionError } = await supabase
+          .from('template_sections')
+          .insert({
+            template_id: template.id,
+            name: section.name,
+            order_index: section.order_index,
+            color_class: section.color_class,
+            tables_data: section.tables && section.tables.length > 0 ? section.tables : null
+          })
+          .select()
+          .single();
+
+        if (sectionError) throw sectionError;
+
+        if (section.fields.length > 0) {
+          const fieldsToInsert = section.fields.map(field => ({
+            section_id: templateSection.id,
+            name: field.name,
+            label: field.label,
+            type: field.type,
+            required: field.required,
+            options: field.options ? field.options : null,
+            order_index: field.order_index
+          }));
+
+          const { error: fieldsError } = await supabase
+            .from('template_fields')
+            .insert(fieldsToInsert);
+
+          if (fieldsError) throw fieldsError;
+        }
+      }
+
+      return template;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form-templates"] });
+      toast.success("Template updated successfully!");
+    },
+    onError: (error) => {
+      console.error('Update template error:', error);
+      toast.error("Failed to update template: " + error.message);
+    },
+  });
+};

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import type { FieldErrors, UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,12 +16,15 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronUp, X, Info, Check, Edit, Table } from "lucide-react";
 import { SearchableSelect} from "@/components/ui/searchable-select";
 import { useFieldOptions, useAddFieldOption } from "@/hooks/useFieldOptions";
-import { useFormTemplates, useSaveTemplate, type DynamicSection, type FormTemplate, type TemplateField, type TableData} from "@/hooks/useFormTemplates";
+import { useFormTemplates, useSaveTemplate, useUpdateTemplate, type DynamicSection, type FormTemplate, type TemplateField, type TableData} from "@/hooks/useFormTemplates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Save, Plus, Download, Upload, Palette, Trash2 } from "lucide-react";
 import { useSectionTemplates, type SectionTemplate } from "@/hooks/useSectionTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditableTable, TableModal } from './TableComponents';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
 
 
 interface AdditionalInformationFormProps {
@@ -193,6 +196,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, cl
 
 export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormProps) => {
   const updateClaimMutation = useUpdateClaimSilent();
+    const queryClient = useQueryClient();
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset, control } = useForm({
     defaultValues: claim.form_data || {}
     
@@ -210,7 +214,8 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [showTableModal, setShowTableModal] = useState(false);
   const [selectedSectionForTable, setSelectedSectionForTable] = useState<string>('');
   const [currentTableSectionId, setCurrentTableSectionId] = useState<string | null>(null);
-
+  const saveTemplateMutation = useSaveTemplate();
+  const updateTemplateMutation = useUpdateTemplate();
   // State for collapsible sections
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({
     section1: false,
@@ -239,7 +244,11 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [newSectionColor, setNewSectionColor] = useState('bg-slate-600');
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
-
+  const initialTemplateState = useRef<{
+    sections: any;
+    customFields: any;
+    hiddenFields: any;
+  } | null>(null);
   //Section editing states
   const [editingSection, setEditingSection]= useState <string |null>(null);
   
@@ -251,51 +260,19 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
 
   const { data: templates = [] } = useFormTemplates(claim.policy_type_id);
-  const saveTemplateMutation = useSaveTemplate();
+  
 
   // Load custom fields from form_data on mount
-  useEffect(() => {
-    const savedCustomFields = (claim.form_data?.custom_fields_metadata || []) as FormField[];
-    const savedHiddenFields = claim.form_data?.hidden_fields || [];
-    const savedFieldLabels = (claim.form_data?.field_labels || {}) as Record<string, string>;
-      const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
-
-
-    const withSection = savedCustomFields.map((field, index) => ({
-      ...field,
-      section: field.section || (['section1','section2','section3','section4'][index % 4] as FormField['section']),
-    }));
-
-    setCustomFields(withSection);
-    setHiddenFields(new Set(Array.isArray(savedHiddenFields) ? savedHiddenFields : []));
-    setFieldLabels(savedFieldLabels);
-
-    if (savedDynamicSections && savedDynamicSections.length > 0) {
-    setDynamicSections(savedDynamicSections.map(section => ({
-      ...section,
-      tables: section.tables || []  // ← Restore tables from database
-    })));
+  // Remove the old useEffect with watch and replace with this:
+useEffect(() => {
+  if (!currentTemplate) {
+    setIsTemplateModified(false);
+    return;
   }
-
-    
-    withSection.forEach((field) => {
-      if (claim.form_data?.[field.name] !== undefined) {
-        setValue(field.name, claim.form_data[field.name]);
-      }
-    });
-
-    Object.entries(claim.form_data || {}).forEach(([key, value]) => {
-    if (key.endsWith("_images") && Array.isArray(value)) {
-      // Normalize to exactly 6 slots
-      const urls = value.slice(0, 6);
-      while (urls.length < 6) urls.push("");
-      sectionImages[key.replace(/_images$/, "")] = urls;
-    }
-  });
-
-    console.log("claim fetched", claim)
-
-  }, [claim.form_data, setValue, openSections, , setSectionImages]);
+  
+  // Always show as modified when structure changes
+  setIsTemplateModified(true);
+}, [dynamicSections, customFields, hiddenFields, currentTemplate]);
 
   // Autosave functionality
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
@@ -326,18 +303,63 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
     control,
     onSave: handleAutosave,
     delay: 2000,
-    enabled: false,
+    enabled: true,
   });
 
   useEffect(() => {
-  if (!currentTemplate) return;
-  
-  const subscription = watch(() => {
-    setIsTemplateModified(true);
-  });
-  
-  return () => subscription.unsubscribe();
-}, [watch, currentTemplate]);
+    if (!currentTemplate) return;
+    
+    // Store initial template structure
+    const initialStructure = JSON.stringify({
+      sections: dynamicSections.map(s => ({
+        id: s.id,
+        name: s.name,
+        fields: s.fields.map(f => f.name),
+        tables: s.tables?.map(t => t.id) || []
+      })),
+      customFields: customFields.map(f => f.name),
+      hiddenFields: Array.from(hiddenFields)
+    });
+    
+    // Check for structure changes whenever these change
+    const checkStructureChange = () => {
+      const currentStructure = JSON.stringify({
+        sections: dynamicSections.map(s => ({
+          id: s.id,
+          name: s.name,
+          fields: s.fields.map(f => f.name),
+          tables: s.tables?.map(t => t.id) || []
+        })),
+        customFields: customFields.map(f => f.name),
+        hiddenFields: Array.from(hiddenFields)
+      });
+      
+      setIsTemplateModified(currentStructure !== initialStructure);
+    };
+    
+    checkStructureChange();
+    
+    // Also watch for form value changes
+    const subscription = watch((formValues) => {
+      // If already modified due to structure, don't need to check values
+      if (isTemplateModified) return;
+      
+      // Check if form values changed
+      const hasValueChanged = Object.keys(formValues).some(key => {
+        if (key.endsWith('_metadata') || key.endsWith('_images') || 
+            key.includes('hidden_fields') || key.includes('field_labels')) {
+          return false;
+        }
+        return formValues[key] !== (claim.form_data?.[key] || '');
+      });
+      
+      if (hasValueChanged) {
+        setIsTemplateModified(true);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [watch, currentTemplate, dynamicSections, customFields, hiddenFields]);
 
   const toggleSection = (section : string) => {
     setOpenSections(prev => ({
@@ -351,8 +373,10 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   }, [claim.form_data, reset]);
 
   const onSubmit = async (data: Record<string, unknown>) => {
-    try {
-          console.log('🔍 Current dynamicSections:', dynamicSections);
+  console.log('🔥 onSubmit called with data:', data);
+  
+  try {
+    console.log('🔍 Current dynamicSections:', dynamicSections);
 
       const pendingFieldNames = Array.from(pendingSaves);
       if (pendingFieldNames.length > 0) {
@@ -375,16 +399,36 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
 
       const dataWithMetadata = {
         ...standardData,
-        ...existingCustomEntries,
-        custom_fields_metadata: customFields,
+        custom_fields_metadata: customFields,  // Current custom fields from state
         hidden_fields: Array.from(hiddenFields),
         field_labels: fieldLabels,
-        dynamic_sections_metadata: dynamicSections.map(section => ({
-            ...section,
-            tables: section.tables || []  // ← Explicitly save tables
-          })),
-        ...imagesData,
-      };
+        dynamic_sections_metadata: dynamicSections.map(section => {
+          // Merge custom fields that belong to this section into section.fields
+          const sectionCustomFields = customFields
+            .filter(f => f.section === section.id)
+            .map(field => ({
+              id: field.name,
+              name: field.name,
+              label: fieldLabels[field.name] || field.label,
+              type: field.type as TemplateField['type'],
+              required: field.required,
+              options: field.options,
+              order_index: (section.fields?.length || 0) + 1
+            }));
+          
+          // Combine existing fields with custom fields, avoiding duplicates
+          const existingFieldNames = new Set(section.fields.map(f => f.name));
+          const newCustomFields = sectionCustomFields.filter(f => !existingFieldNames.has(f.name));
+          
+            return {
+              ...section,
+              fields: [...section.fields, ...newCustomFields],
+              tables: section.tables || []
+            };
+          }),
+                  ...existingCustomEntries,  // ← Move this AFTER to preserve old custom field VALUES
+                  ...imagesData, 
+                };
 
       console.log('💾 Data being saved:', dataWithMetadata);
     console.log('📦 dynamic_sections_metadata:', dataWithMetadata.dynamic_sections_metadata);
@@ -674,10 +718,12 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       required: false,
       isCustom: true,
       section: sectionId as FormField['section'],
+      
     };
     
     setCustomFields(prev => [...prev, newField]);
     setPendingSaves(prev => new Set([...prev, newField.name]));
+    setIsTemplateModified(true); 
   }
   const addTableToSection = async (sectionId: string, rows: number, cols: number, name: string) => {
   const newTable: TableData = {
@@ -697,6 +743,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   );
   
   setDynamicSections(updatedSections);
+  setIsTemplateModified(true);
   
   // Save to database immediately
   try {
@@ -776,20 +823,21 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       )
     );
     toast.success('Table deleted');
+    setIsTemplateModified(true);
   };
-
-  const saveAsTemplate = async () => {
-  if (!templateName.trim()) return;
+const saveAsTemplate = async () => {
+  if (!templateName.trim()) {
+    toast.error("Please enter a template name");
+    return;
+  }
   
-  const isOverwriting = currentTemplate && templateName === currentTemplate.name;
+  // Check if a template with this name already exists
+  const existingTemplate = templates.find(t => t.name === templateName);
   
   try {
-    // Merge custom fields into their respective sections
     const sectionsWithCustomFields = (dynamicSections || []).map(section => {
-      // Get custom fields for this section
       const sectionCustomFields = (customFields || []).filter(f => f.section === section.id);
       
-      // Convert custom fields to TemplateField format
       const customTemplateFields: TemplateField[] = sectionCustomFields.map((field, index) => ({
         id: field.name,
         name: field.name,
@@ -800,7 +848,6 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
         order_index: (section.fields?.length || 0) + index + 1
       }));
       
-      // Update existing field labels and filter out hidden fields
       const updatedFields = (section.fields || [])
         .filter(field => !hiddenFields.has(field.name))
         .map(field => ({
@@ -815,23 +862,53 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
       };
     });
     
-    await saveTemplateMutation.mutateAsync({
+    // If replacing, delete the old template first
+    if (existingTemplate) {
+      await supabase
+        .from('form_templates')
+        .delete()
+        .eq('id', existingTemplate.id);
+      
+      console.log('🗑️ Deleted existing template:', existingTemplate.id);
+    }
+    
+    // Create new template
+    const savedTemplate = await saveTemplateMutation.mutateAsync({
       name: templateName,
       description: templateDescription,
       policyTypeId: claim.policy_type_id,
       sections: sectionsWithCustomFields,
-      templateId: isOverwriting ? currentTemplate.id : undefined
+    });
+    
+    setCurrentTemplate({
+      id: savedTemplate.id,
+      name: templateName,
+      description: templateDescription,
+      policy_type_id: claim.policy_type_id,
+      is_default: false,
+      created_at: savedTemplate.created_at || new Date().toISOString(),
+      sections: sectionsWithCustomFields as any
     });
     
     setTemplateName('');
     setTemplateDescription('');
     setIsTemplateModified(false);
     setShowSaveTemplateDialog(false);
-    toast.success(isOverwriting ? "Template updated successfully!" : "Template saved with current field configuration!");
+    
+    // Update the initial template state ref
+    initialTemplateState.current = {
+      sections: JSON.parse(JSON.stringify(dynamicSections)),
+      customFields: JSON.parse(JSON.stringify(customFields)),
+      hiddenFields: new Set(hiddenFields)
+    };
+    
+    toast.success(existingTemplate ? "Template replaced successfully!" : "Template saved successfully!");
   } catch (error) {
     console.error('Failed to save template:', error);
+    toast.error("Failed to save template. Please try again.");
   }
 };
+
 
 const loadTemplate = (template: FormTemplate) => {
   const convertedSections: DynamicSection[] = (template.sections || []).map(section => ({
@@ -840,41 +917,39 @@ const loadTemplate = (template: FormTemplate) => {
     order_index: section.order_index,
     color_class: section.color_class,
     fields: section.fields || [],
-    tables: section.tables || [],
+    tables: (section.tables || []).map(table => ({
+      ...table,
+      // Reset table data to empty cells while keeping structure
+      data: Array(table.data.length).fill(null).map(() => 
+        Array(table.data[0]?.length || 5).fill(null).map(() => ({ value: '' }))
+      ),
+      updatedAt: new Date().toISOString()
+    })),
     isCustom: !section.name.startsWith('Section ')
   }));
-  // Extract custom fields and field labels from template
+  
+  // Extract ONLY truly custom fields (not in section.fields) and field labels
   const loadedCustomFields: FormField[] = [];
   const loadedFieldLabels: Record<string, string> = {};
   
+  // Collect all field names that are already in section.fields
+  const sectionFieldNames = new Set<string>();
   template.sections.forEach(section => {
     section.fields.forEach(field => {
-      // Store all field labels
+      sectionFieldNames.add(field.name);
       loadedFieldLabels[field.name] = field.label;
-      
-      // Identify custom fields (those not in the default field set)
-      const defaultFieldNames = getAdditionalDetailsFields().map(f => f.name);
-      if (!defaultFieldNames.includes(field.name)) {
-        loadedCustomFields.push({
-          name: field.name,
-          label: field.label,
-          type: field.type as FormField['type'],
-          required: field.required,
-          options: field.options,
-          isCustom: true,
-          section: section.id as FormField['section']
-        });
-      }
     });
   });
   
+  // Note: We don't add anything to loadedCustomFields because all fields are already in section.fields
+  // Custom fields will only come from user adding new fields after loading the template
+  
   setDynamicSections(convertedSections);
-  setCustomFields(loadedCustomFields);
+  setCustomFields([]); // Start with empty custom fields - they're all in section.fields now
   setFieldLabels(loadedFieldLabels);
   
-  // ✅ Preserve existing form data - repopulate all fields with current values
+  // Preserve existing form data
   Object.entries(claim.form_data || {}).forEach(([key, value]) => {
-    // Skip metadata and image fields
     if (!key.endsWith('_metadata') && 
         !key.endsWith('_images') && 
         !key.includes('hidden_fields') && 
@@ -889,6 +964,7 @@ const loadTemplate = (template: FormTemplate) => {
   toast.success(`Template "${template.name}" loaded! Your existing data has been preserved.`);
 };
 
+
   // Initialize dynamic sections from existing structure
   useEffect(() => {
   // Check if we have saved sections in the claim data
@@ -900,11 +976,14 @@ const loadTemplate = (template: FormTemplate) => {
     return;
   }
 
-  // Only create default sections if:
-  // 1. No saved sections exist
-  // 2. We haven't already created sections in state
-  if (dynamicSections.length > 0) return;
+  // CRITICAL FIX: Don't create default sections if we already have sections in state
+  // This prevents duplicate fields when loading templates
+  if (dynamicSections.length > 0) {
+    console.log('⚠️ Skipping default section creation - sections already exist');
+    return;
+  }
 
+  // Only create default sections if no saved sections and no sections in state
   const additionalFields = getAdditionalDetailsFields();
   const section1Fields = additionalFields.slice(0, 13);
   const section2Fields = additionalFields.slice(13, 23);
@@ -912,74 +991,13 @@ const loadTemplate = (template: FormTemplate) => {
   const section4Fields = additionalFields.slice(29);
 
   const defaultSections: DynamicSection[] = [
-    {
-      id: 'section1',
-      name: 'Section 1 - Basic Information',
-      order_index: 1,
-      color_class: 'bg-gradient-primary',
-      fields: section1Fields.map((field, index) => ({
-        id: field.name,
-        name: field.name,
-        label: field.label,
-        type: field.type as TemplateField['type'],
-        required: field.required,
-        options: field.options,
-        order_index: index + 1
-      })),
-      isCustom: false
-    },
-    {
-      id: 'section2',
-      name: 'Section 2 - Survey & Loss Details',
-      order_index: 2,
-      color_class: 'bg-gradient-primary',
-      fields: section2Fields.map((field, index) => ({
-        id: field.name,
-        name: field.name,
-        label: field.label,
-        type: field.type as TemplateField['type'],
-        required: field.required,
-        options: field.options,
-        order_index: index + 1
-      })),
-      isCustom: false
-    },
-    {
-      id: 'section3',
-      name: 'Section 3 - Transportation Details',
-      order_index: 3,
-      color_class: 'bg-gradient-primary',
-      fields: section3Fields.map((field, index) => ({
-        id: field.name,
-        name: field.name,
-        label: field.label,
-        type: field.type as TemplateField['type'],
-        required: field.required,
-        options: field.options,
-        order_index: index + 1
-      })),
-      isCustom: false
-    },
-    {
-      id: 'section4',
-      name: 'Section 4 - Report Section',
-      order_index: 4,
-      color_class: 'bg-gradient-primary',
-      fields: section4Fields.map((field, index) => ({
-        id: field.name,
-        name: field.name,
-        label: field.label,
-        type: field.type as TemplateField['type'],
-        required: field.required,
-        options: field.options,
-        order_index: index + 1
-      })),
-      isCustom: false
-    }
+    // ... rest of the code
   ];
   
+  console.log('✅ Creating default sections');
   setDynamicSections(defaultSections);
-}, [claim.form_data]); 
+}, [claim.form_data]); // IMPORTANT: Remove dynamicSections from dependencies
+
 
   // Now define these after useEffect where getAdditionalDetailsFields is available
   const additionalFields = getAdditionalDetailsFields();
@@ -1590,17 +1608,22 @@ const loadTemplate = (template: FormTemplate) => {
 
   const renderDynamicSection = (section: DynamicSection) => {
     const convertedSectionFields = section.fields.map(field => ({
-      name: field.name,
-      label: field.label,
-      type: field.type as FormField['type'],
-      required: field.required,
-      options: field.options,
-      isCustom: false
-    })).filter(field => !hiddenFields.has(field.name));
-    
-    const sectionCustomFields = customFields.filter(f => f.section === section.id);
-    const allFields = [...convertedSectionFields, ...sectionCustomFields];
-    
+  name: field.name,
+  label: field.label,
+  type: field.type as FormField['type'],
+  required: field.required,
+  options: field.options,
+  isCustom: false
+})).filter(field => !hiddenFields.has(field.name));
+
+const sectionCustomFields = customFields.filter(f => f.section === section.id);
+
+// Remove duplicates - if a field exists in both arrays, keep only the custom one
+const customFieldNames = new Set(sectionCustomFields.map(f => f.name));
+const uniqueConvertedFields = convertedSectionFields.filter(f => !customFieldNames.has(f.name));
+
+const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
+
     const isOpen = section.id in openSections ? openSections[section.id as keyof typeof openSections] : true;
     const isEditing = section.id in sectionEditMode ? sectionEditMode[section.id as keyof typeof sectionEditMode] : false;
 
@@ -1671,8 +1694,12 @@ const loadTemplate = (template: FormTemplate) => {
           
           <CollapsibleContent className="animate-accordion-down">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
-                {allFields.map((field) => renderField(field, isEditing))}
-              </div>
+              {allFields.map((field, index) => (
+                <div key={`${section.id}-${field.name}-${index}`}>
+                  {renderField(field, isEditing)}
+                </div>
+              ))}
+            </div>
               <div className="px-6 pb-6 bg-slate-50/50 space-y-4">
                 {/* Render Tables */}
                 {section.tables && section.tables.length > 0 && (
@@ -1744,7 +1771,7 @@ const loadTemplate = (template: FormTemplate) => {
                     ))}
                   </div>
                 )}
-
+                <div className="flex gap-3">
                 {/* Only Add Field Button */}
                 <Button
                   type="button"
@@ -1756,6 +1783,21 @@ const loadTemplate = (template: FormTemplate) => {
                   <Plus className="h-3 w-3" />
                   Add Field
                 </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedSectionForTable(section.id);
+                    setShowTableModal(true);
+                  }}
+                  className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100"
+                >
+                  <Table className="h-3 w-3" />
+                  Add Table
+                </Button>
+                </div>
               </div>
             <div className="px-6 pb-6 bg-slate-50/50">
               <ImageGrid
@@ -1786,17 +1828,19 @@ const loadTemplate = (template: FormTemplate) => {
     <div className="max-w-4xl mx-auto">
       <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
         <CardHeader className="bg-slate-700 text-white rounded-t-lg">
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <Info className="w-5 h-5" />
-              Additional Information
-              {currentTemplate && (
-                <Badge variant="secondary" className="ml-2">
-                  {currentTemplate.name}{isTemplateModified && ' - edited (unsaved)'}
-                </Badge>
-              )}
-            </CardTitle>
-            
+      <div className="flex justify-between items-center">
+        <CardTitle className="flex items-center gap-2">
+          <Info className="w-5 h-5" />
+          Additional Information
+        </CardTitle>
+        {/* Template Status Badge */}
+        {currentTemplate && (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-white">
+              {isTemplateModified ? `${currentTemplate.name} - EDITED*` : currentTemplate.name}
+            </Badge>
+          </div>
+        )}
             <div className="flex gap-2">
               <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
                 <DialogTrigger asChild>
@@ -1849,33 +1893,35 @@ const loadTemplate = (template: FormTemplate) => {
                     <DialogTitle>Save as Template</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
+                    {/* Show checkbox to overwrite current template */}
                     {currentTemplate && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="overwrite-template" className="text-sm font-medium cursor-pointer">
-                          Overwrite existing template "{currentTemplate.name}"
-                        </Label>
-                        <Checkbox
-                          id="overwrite-template"
-                          checked={templateName === currentTemplate.name}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setTemplateName(currentTemplate.name);
-                              setTemplateDescription(currentTemplate.description || '');
-                            } else {
-                              setTemplateName('');
-                              setTemplateDescription('');
-                            }
-                          }}
-                        />
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="overwrite-template" className="text-sm font-medium cursor-pointer">
+                            Replace existing template "{currentTemplate.name}"
+                          </Label>
+                          <Checkbox
+                            id="overwrite-template"
+                            checked={templateName === currentTemplate.name}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setTemplateName(currentTemplate.name);
+                                setTemplateDescription(currentTemplate.description || '');
+                              } else {
+                                setTemplateName('');
+                                setTemplateDescription('');
+                              }
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Check this to replace the current template instead of creating a new one
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Check this to update the current template instead of creating a new one
-                      </p>
-                    </div>
-                  )}
-                  <div>
-                  <Label htmlFor="template-name">Template Name *</Label>
+                    )}
+                    
+                    <div>
+                      <Label htmlFor="template-name">Template Name *</Label>
                       <Input
                         id="template-name"
                         value={templateName}
@@ -2155,13 +2201,14 @@ const loadTemplate = (template: FormTemplate) => {
         </CardContent>
       </Card>
       <TableModal
-      isOpen={showTableModal}
-      onClose={() => setShowTableModal(false)}
-      onCreateTable={(sectionId, rows, cols, name) => {
-        addTableToSection(sectionId, rows, cols, name);
-      }}
-      sections={dynamicSections.map(s => ({ id: s.id, name: s.name }))}
-    />
+          isOpen={showTableModal}
+          onClose={() => setShowTableModal(false)}
+          onCreateTable={(sectionId, rows, cols, name) => {
+            addTableToSection(sectionId, rows, cols, name);
+          }}
+          preSelectedSectionId={selectedSectionForTable}
+          sections={dynamicSections.map(s => ({ id: s.id, name: s.name }))}
+        />
     </div>
   );
 };

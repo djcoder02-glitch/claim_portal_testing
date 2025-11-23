@@ -34,9 +34,10 @@ interface TableModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateTable: (sectionId: string, rows: number, cols: number, name: string) => void;
-  sections: Section[];
-  preSelectedSection?: string;
+  preSelectedSectionId?: string;  // Make section selection optional
+  sections: { id: string; name: string }[];
 }
+
 
 // ============================================================================
 // CONSTANTS
@@ -305,126 +306,96 @@ export const EditableTable: React.FC<EditableTableProps> = ({
 // ============================================================================
 // TABLE MODAL COMPONENT
 // ============================================================================
-
 export const TableModal: React.FC<TableModalProps> = ({
   isOpen,
   onClose,
   onCreateTable,
+  preSelectedSectionId,
   sections,
-  preSelectedSection,
 }) => {
-  const [rows, setRows] = useState<number>(TABLE_LIMITS.DEFAULT_ROWS);
-  const [cols, setCols] = useState<number>(TABLE_LIMITS.DEFAULT_COLS);
+  const [selectedSection, setSelectedSection] = useState(preSelectedSectionId || '');
+  const [rows, setRows] = useState(5);
+  const [cols, setCols] = useState(5);
   const [tableName, setTableName] = useState('');
-  const [selectedSection, setSelectedSection] = useState<string>(preSelectedSection || '');
 
   useEffect(() => {
-    if (preSelectedSection) {
-      setSelectedSection(preSelectedSection);
+    if (preSelectedSectionId) {
+      setSelectedSection(preSelectedSectionId);
     }
-  }, [preSelectedSection]);
+  }, [preSelectedSectionId]);
 
-  const handleCreate = useCallback(() => {
-    if (!selectedSection || !tableName.trim()) return;
-    onCreateTable(selectedSection, rows, cols, tableName.trim());
-    setRows(TABLE_LIMITS.DEFAULT_ROWS);
-    setCols(TABLE_LIMITS.DEFAULT_COLS);
+  const handleCreate = () => {
+    if (!selectedSection || !tableName.trim()) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    onCreateTable(selectedSection, rows, cols, tableName);
     setTableName('');
-    setSelectedSection('');
-  }, [selectedSection, rows, cols, tableName, onCreateTable]);
-
-  const handleClose = useCallback(() => {
-    setRows(TABLE_LIMITS.DEFAULT_ROWS);
-    setCols(TABLE_LIMITS.DEFAULT_COLS);
-    setTableName('');
-    setSelectedSection('');
-    onClose();
-  }, [onClose]);
-
-  if (!isOpen) return null;
-
-  const isValid = selectedSection && tableName.trim();
+    setRows(5);
+    setCols(5);
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Grid className="w-6 h-6 text-slate-600" />
-            <DialogTitle>Create New Table</DialogTitle>
-          </div>
+          <DialogTitle>Create New Table</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4 mt-4">
+        <div className="space-y-4">
+          {/* Only show section selector if no pre-selected section */}
+          {!preSelectedSectionId && (
+            <div>
+              <Label>Section</Label>
+              <Select value={selectedSection} onValueChange={setSelectedSection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sections.map(section => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div>
-            <Label className="text-sm font-medium">
-              Add to Section <span className="text-red-500">*</span>
-            </Label>
-            <Select value={selectedSection} onValueChange={setSelectedSection}>
-              <SelectTrigger className="mt-1.5">
-                <SelectValue placeholder="Select a section" />
-              </SelectTrigger>
-              <SelectContent>
-                {sections.map((section) => (
-                  <SelectItem key={section.id} value={section.id}>
-                    {section.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">
-              Table Name <span className="text-red-500">*</span>
-            </Label>
+            <Label>Table Name</Label>
             <Input
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
-              placeholder="e.g., 'Damage Assessment'"
-              className="mt-1.5"
+              placeholder="Enter table name"
             />
           </div>
-
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-sm font-medium">Rows</Label>
+              <Label>Rows</Label>
               <Input
                 type="number"
-                min={TABLE_LIMITS.MIN_ROWS}
-                max={TABLE_LIMITS.MAX_ROWS}
+                min="1"
+                max="50"
                 value={rows}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || 1;
-                  const clamped = Math.max(TABLE_LIMITS.MIN_ROWS, Math.min(TABLE_LIMITS.MAX_ROWS, value));
-                  setRows(clamped);
-                }}
-                className="mt-1.5"
+                onChange={(e) => setRows(Number(e.target.value))}
               />
             </div>
             <div>
-              <Label className="text-sm font-medium">Columns</Label>
+              <Label>Columns</Label>
               <Input
                 type="number"
-                min={TABLE_LIMITS.MIN_COLS}
-                max={TABLE_LIMITS.MAX_COLS}
+                min="1"
+                max="26"
                 value={cols}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || TABLE_LIMITS.MIN_COLS;
-                  const clamped = Math.max(TABLE_LIMITS.MIN_COLS, Math.min(TABLE_LIMITS.MAX_COLS, value));
-                  setCols(clamped);
-                }}
-                className="mt-1.5"
+                onChange={(e) => setCols(Number(e.target.value))}
               />
             </div>
           </div>
-
-          <div className="flex gap-2 justify-end pt-4 border-t">
-            <Button variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!isValid}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create
-            </Button>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleCreate}>Create Table</Button>
           </div>
         </div>
       </DialogContent>
