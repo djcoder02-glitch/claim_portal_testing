@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   const [selectedMainType, setSelectedMainType] = useState<string>("");
   const [selectedPolicyType, setSelectedPolicyType] = useState<string>("");
   const navigate = useNavigate();
-
+  const [dynamicFields, setDynamicFields] = useState<any[]>([]);
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<ClaimFormData>({
     defaultValues: {
       title: "",
@@ -81,8 +81,34 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
     setStep("claim-details");
   };
 
+  // ADD THIS ENTIRE BLOCK HERE ⬇️
+  useEffect(() => {
+    if (selectedPolicyType && policyTypes) {
+      const policyType = policyTypes.find(pt => pt.id === selectedPolicyType);
+      if (policyType?.fields?.new_claim_fields) {
+        setDynamicFields(
+          policyType.fields.new_claim_fields
+            .filter((f: any) => f.visible)
+            .sort((a: any, b: any) => a.order - b.order)
+        );
+      } else {
+        // Default fields if none configured
+        setDynamicFields([
+          { id: "title", name: "title", label: "Claim Title", type: "text", required: true, placeholder: "Brief description of your claim" },
+          { id: "claim_amount", name: "claim_amount", label: "Estimated Claim Amount (Rs.)", type: "number", required: false, placeholder: "0.00" },
+          { id: "intimation_date", name: "intimation_date", label: "Intimation Date", type: "date", required: false },
+          { id: "registration_id", name: "registration_id", label: "Registration ID", type: "text", required: true, placeholder: "Enter registration ID" },
+          { id: "insured_name", name: "insured_name", label: "Insured Name", type: "text", required: true, placeholder: "Enter insured name" },
+          { id: "insurer", name: "insurer", label: "Insurer", type: "select", required: false, placeholder: "Select or add insurer..." },
+          { id: "assigned_surveyor", name: "assigned_surveyor", label: "Assigned Surveyor", type: "select", required: false, placeholder: "Select surveyor..." },
+        ]);
+      }
+    }
+  }, [selectedPolicyType, policyTypes]);
+  // ⬆️ END OF NEW CODE
+
   const onSubmit = async (data: ClaimFormData) => {
-    if (!selectedPolicyType) return;
+      if (!selectedPolicyType) return;
 
     try {
       const claim = await createClaimMutation.mutateAsync({
@@ -106,6 +132,8 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
 
       onOpenChange(false);
       reset();
+
+      
       setStep("select-policy");
       setSelectedPolicyType("");
 
@@ -140,6 +168,171 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
       </Dialog>
     );
   }
+
+  const renderDynamicField = (field: any) => {
+    switch (field.type) {
+      case "text":
+        return (
+          <div key={field.name} className="space-y-2">
+            <Label htmlFor={field.name}>
+              {field.label} {field.required && "*"}
+            </Label>
+            <Input
+              id={field.name}
+              placeholder={field.placeholder}
+              {...register(field.name, {
+                required: field.required ? `${field.label} is required` : false,
+              })}
+            />
+            {errors[field.name] && (
+              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
+            )}
+          </div>
+        );
+
+      case "number":
+        return (
+          <div key={field.name} className="space-y-2">
+            <Label htmlFor={field.name}>
+              {field.label} {field.required && "*"}
+            </Label>
+            <Input
+              id={field.name}
+              type="number"
+              step="0.01"
+              placeholder={field.placeholder}
+              {...register(field.name, {
+                required: field.required ? `${field.label} is required` : false,
+                valueAsNumber: true,
+                min: { value: 0, message: "Amount must be positive" },
+              })}
+            />
+            {errors[field.name] && (
+              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
+            )}
+          </div>
+        );
+
+      case "date":
+        return (
+          <div key={field.name} className="space-y-2">
+            <Label htmlFor={field.name}>
+              {field.label} {field.required && "*"}
+            </Label>
+            <Input
+              id={field.name}
+              type="date"
+              {...register(field.name, {
+                required: field.required ? `${field.label} is required` : false,
+                validate: (value) => {
+                  if (!value) return true;
+                  const selectedDate = new Date(value);
+                  const today = new Date();
+                  today.setHours(23, 59, 59, 999);
+                  if (selectedDate > today) {
+                    return `${field.label} cannot be in the future`;
+                  }
+                  return true;
+                },
+              })}
+            />
+            {errors[field.name] && (
+              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
+            )}
+          </div>
+        );
+
+      case "textarea":
+        return (
+          <div key={field.name} className="space-y-2">
+            <Label htmlFor={field.name}>
+              {field.label} {field.required && "*"}
+            </Label>
+            <Textarea
+              id={field.name}
+              placeholder={field.placeholder}
+              rows={4}
+              {...register(field.name, {
+                required: field.required ? `${field.label} is required` : false,
+              })}
+            />
+            {errors[field.name] && (
+              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
+            )}
+          </div>
+        );
+
+      case "select":
+        if (field.name === "insurer") {
+          return (
+            <div key={field.name} className="space-y-2">
+              <Label>{field.label}</Label>
+              <SearchableSelect
+                options={insurers.map((i) => i.name)}
+                value={watch(field.name) || ""}
+                placeholder={field.placeholder}
+                onValueChange={(val) => setValue(field.name, val)}
+                allowClear
+                allowCreate
+                onCreateOption={async (val) => {
+                  await addInsurerMutation.mutateAsync(val);
+                }}
+                disabled={insurersLoading || addInsurerMutation.isPending}
+              />
+              {insurersLoading && <p className="text-xs text-muted-foreground">Loading insurers...</p>}
+            </div>
+          );
+        }
+
+        if (field.name === "assigned_surveyor") {
+          return (
+            <div key={field.name} className="space-y-2">
+              <Label>{field.label}</Label>
+              <SearchableSelect
+                options={surveyors.map((s) => s.name)}
+                value={watch(field.name) || ""}
+                placeholder={field.placeholder}
+                onValueChange={(val) => setValue(field.name, val)}
+                disabled={surveyorsLoading}
+                allowClear
+              />
+              {surveyorsLoading && <p className="text-xs text-muted-foreground">Loading surveyors...</p>}
+            </div>
+          );
+        }
+
+        // Generic select field
+        return (
+          <div key={field.name} className="space-y-2">
+            <Label htmlFor={field.name}>
+              {field.label} {field.required && "*"}
+            </Label>
+            <select
+              id={field.name}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              {...register(field.name, {
+                required: field.required ? `${field.label} is required` : false,
+              })}
+            >
+              <option value="">{field.placeholder || "Select..."}</option>
+              {field.options?.map((opt: string) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            {errors[field.name] && (
+              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -234,101 +427,20 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
         {/* Step 2: Claim Details */}
         {step === "claim-details" && (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">Claim Title *</Label>
-             <Input id="title" placeholder="Brief description of your claim" {...register("title", { required: "Claim title is required" })} />
-              {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
-            </div>
-
-            {/* Description
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" placeholder="Provide more details about your claim" rows={4} {...register("description")} />
-            </div> */}
-
-            {/* Claim Amount */}
-            <div className="space-y-2">
-              <Label htmlFor="claim_amount">Estimated Claim Amount (Rs.)</Label>
-              <Input id="claim_amount" type="number" step="0.01" placeholder="0.00" {...register("claim_amount", { valueAsNumber: true, min: { value: 0, message: "Amount must be positive" } })} />
-              {errors.claim_amount && <p className="text-sm text-destructive">{errors.claim_amount.message}</p>}
-            </div>
-
-            {/* Intimation Date - ADD THIS FIELD */}
-            <div className="space-y-2">
-              <Label htmlFor="intimation_date">Intimation Date</Label>
-              <Input 
-                id="intimation_date" 
-                type="date"
-                {...register("intimation_date", { 
-                  validate: (value) => {
-                    if (!value) return true; // Optional field
-                    const selectedDate = new Date(value);
-                    const today = new Date();
-                    today.setHours(23, 59, 59, 999); // End of today
-                    
-                    if (selectedDate > today) {
-                      return "Intimation date cannot be in the future";
-                    }        
-                    return true;
-                  }
-                })} 
-              />
-              <p className="text-xs text-muted-foreground">
-                Date when the claim was first reported or intimated
-              </p>
-              {errors.intimation_date && <p className="text-sm text-destructive">{errors.intimation_date.message}</p>}
-            </div>
-
-            {/* Registration ID */}
-            <div className="space-y-2">
-              <Label htmlFor="registration_id">Registration ID *</Label>
-              <Input id="registration_id" placeholder="Enter registration ID" {...register("registration_id", { required: "Registration ID is required", minLength: { value: 3, message: "Registration ID must be at least 3 characters" } })} />
-              {errors.registration_id && <p className="text-sm text-destructive">{errors.registration_id.message}</p>}
-            </div>
-
-            {/* Insured Name */}
-            <div className="space-y-2">
-              <Label htmlFor="insured_name">Insured Name *</Label>
-              <Input id="insured_name" placeholder="Enter insured name" {...register("insured_name", { required: "Insured name is required", minLength: { value: 2, message: "Insured name must be at least 2 characters" } })} />
-              {errors.insured_name && <p className="text-sm text-destructive">{errors.insured_name.message}</p>}
-            </div>
-
-
-
-            {/* Insurer */}
-            <div className="space-y-2">
-              <Label>Insurer</Label>
-              <SearchableSelect
-                options={insurers.map((i) => i.name)}
-                value={watch("insurer") || ""}
-                placeholder="Select or add insurer..."
-                onValueChange={(val) => setValue("insurer", val)}
-                allowClear
-                allowCreate
-                onCreateOption={async (val) => { await addInsurerMutation.mutateAsync(val); }}
-                disabled={insurersLoading || addInsurerMutation.isPending}
-              />
-              {insurersLoading && <p className="text-xs text-muted-foreground">Loading insurers...</p>}
-            </div>
-
-            {/* Surveyor */}
-            <div className="space-y-2">
-              <Label>Assigned Surveyor</Label>
-              <SearchableSelect
-                options={surveyors.map((s) => s.name)}
-                value={watch("assigned_surveyor") || ""}
-                placeholder="Select surveyor..."
-                onValueChange={(val) => setValue("assigned_surveyor", val)}
-                disabled={surveyorsLoading}
-                allowClear
-              />
-              {surveyorsLoading && <p className="text-xs text-muted-foreground">Loading surveyors...</p>}
-            </div>
+            {/* Render dynamic fields */}
+            {dynamicFields.map((field) => renderDynamicField(field))}
 
             {/* Buttons */}
             <div className="flex justify-between pt-4">
-              <Button type="button" variant="outline" onClick={() => { setStep("select-policy"); setSelectedPolicyType(""); setSelectedMainType(""); }}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setStep("select-policy");
+                  setSelectedPolicyType("");
+                  setSelectedMainType("");
+                }}
+              >
                 Back
               </Button>
               <Button type="submit" disabled={createClaimMutation.isPending}>
@@ -337,6 +449,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
             </div>
           </form>
         )}
+        
       </DialogContent>
     </Dialog>
   );

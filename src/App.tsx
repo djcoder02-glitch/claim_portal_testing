@@ -16,6 +16,7 @@ import Analytics from "./pages/Analytics";
 import HelpCenter from "./pages/HelpCenter";
 import {Profile} from "./pages/Profile";
 import {TeamManagement} from "./pages/TeamManagement";
+import Setting from "./pages/Settings";
 
 
 const queryClient = new QueryClient();
@@ -69,11 +70,7 @@ const App = () => (
               
               <Route 
                 path="/settings" 
-                element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Settings</h1>
-                    <p className="text-gray-600">Settings page coming soon...</p>
-                  </div>
+                element={<Setting />
                 } 
               />
               

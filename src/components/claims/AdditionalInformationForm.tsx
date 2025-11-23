@@ -1841,27 +1841,52 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
                   Select a saved template to load its field structure
                 </DialogDescription>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    {templates.map(template => (
-                      <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => loadTemplate(template)}>
-                        <CardContent className="p-4">
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-medium">{template.name}</h3>
-                              {template.is_default && (
-                                <Badge variant="outline" className="text-xs">Default</Badge>
-                              )}
-                            </div>
-                            {template.description && (
-                              <p className="text-sm text-muted-foreground">{template.description}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              {(template.sections || []).length} sections • {(template.sections || []).reduce((acc, section) => acc + (section.fields?.length || 0), 0)} fields
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+  {templates.map(template => (
+    <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => loadTemplate(template)}>
+      <CardContent className="p-4">
+        <div className="space-y-3">
+          <div className="flex justify-between items-start">
+            <h3 className="font-medium">{template.name}</h3>
+            {template.is_default && (
+              <Badge variant="outline" className="text-xs">Default</Badge>
+            )}
+          </div>
+          {template.description && (
+            <p className="text-sm text-muted-foreground">{template.description}</p>
+          )}
+          
+          {/* Summary line */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{(template.sections || []).length} sections</span>
+            <span>•</span>
+            <span>{(template.sections || []).reduce((acc, section) => acc + (section.fields?.length || 0), 0)} fields total</span>
+          </div>
+
+          {/* Expandable details */}
+          <details 
+            className="group" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-700 list-none flex items-center gap-1">
+              <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
+              View sections & fields
+            </summary>
+            <div className="mt-2 space-y-2 pl-4 max-h-40 overflow-y-auto">
+              {(template.sections || []).map((section, index) => (
+                <div key={index} className="text-xs">
+                  <p className="font-semibold text-gray-700">{section.name}</p>
+                  <p className="text-muted-foreground text-[11px] ml-2">
+                    {(section.fields || []).map(f => f.label).join(', ')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      </CardContent>
+    </Card>
+  ))}
+</div>
                 </DialogContent>
               </Dialog>
 

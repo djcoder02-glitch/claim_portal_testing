@@ -64,7 +64,12 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   const updateClaimSilent = useUpdateClaimSilent();
   const updateClaimMutation = useUpdateClaim();
 
-  const fields = (claim.policy_types?.fields || []) as FormField[];
+  const fields = (() => {
+    const fieldsProp = claim.policy_types?.fields;
+    if (Array.isArray(fieldsProp)) return fieldsProp as FormField[];
+    const newClaimFields = (fieldsProp as any)?.new_claim_fields;
+    return Array.isArray(newClaimFields) ? (newClaimFields as FormField[]) : [];
+  })();
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
   const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
   const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
