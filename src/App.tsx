@@ -17,7 +17,7 @@ import HelpCenter from "./pages/HelpCenter";
 import {Profile} from "./pages/Profile";
 import {TeamManagement} from "./pages/TeamManagement";
 import Setting from "./pages/Settings";
-
+import Brokers from "./pages/Brokers";
 import Customers from "./pages/Customers";
 
 const queryClient = new QueryClient();
@@ -95,13 +95,9 @@ const App = () => (
               
               
               <Route 
-                path="/employees" 
+                path="/agents-brokers" 
                 element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Employees</h1>
-                    <p className="text-gray-600">Employee management coming soon...</p>
-                  </div>
-                } 
+                  <Brokers />}
               />
               
               <Route 

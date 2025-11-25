@@ -93,8 +93,8 @@ const getOtherNavItems = (isAdmin: boolean): NavItem[] => {
         icon: HelpCircle,
       },
       {
-        title: "Employees",
-        href: "/employees",
+        title: "Agents and Brokers",
+        href: "/agents-brokers",
         icon: UserCog,
       },
       {

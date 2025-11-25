@@ -13,7 +13,16 @@ import { useSurveyors } from "@/hooks/useSurveyors";
 import { useAddInsurer, useInsurers } from "@/hooks/useInsurers";
 import { useAutosave } from "@/hooks/useAutosave";
 import { toast } from "sonner";
-import { Save, Check } from "lucide-react";
+import { Save, Check, Briefcase, Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+
 
 interface PolicyDetailsFormProps {
   claim: Claim;
@@ -74,6 +83,17 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
   const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
 
+  const [brokers, setBrokers] = useState<Array<{ id: string; name: string; email: string | null; contact: string | null; company: string | null }>>([]);
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string>("");
+  const [showBrokerDialog, setShowBrokerDialog] = useState(false);
+  const [newBrokerData, setNewBrokerData] = useState({
+    name: "",
+    email: "",
+    contact: "",
+    company: "",
+  });
+
+
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
     await updateClaimMutation.mutateAsync({
       id: claim.id,
@@ -91,6 +111,29 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   reset(allFormData);
   setFieldLabels((claim.form_data?.field_labels || {}) as Record<string, string>);
 }, [claim.form_data, claim.intimation_date, reset]);
+
+  // Fetch brokers
+  useEffect(() => {
+    const fetchBrokers = async () => {
+      const { data, error } = await supabase
+        .from('brokers')
+        .select('*')
+        .order('name');
+      
+      if (!error && data) {
+        setBrokers(data);
+      }
+    };
+    fetchBrokers();
+  }, []);
+
+  // Load saved broker from claim
+  useEffect(() => {
+    if (claim.broker_id) {
+      setSelectedBrokerId(claim.broker_id);
+    }
+  }, [claim.broker_id]);
+
 
   const saveLabel = async (fieldName: string) => {
     try {
@@ -397,6 +440,60 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     }
   };
 
+  const handleBrokerChange = async (brokerId: string) => {
+    if (brokerId === "new") {
+      setShowBrokerDialog(true);
+      return;
+    }
+
+    setSelectedBrokerId(brokerId);
+
+    try {
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: { broker_id: brokerId || null },
+      });
+      toast.success("Broker assigned successfully");
+    } catch (error) {
+      console.error("Error updating broker:", error);
+      toast.error("Failed to assign broker");
+    }
+  };
+
+  const handleCreateBroker = async () => {
+    if (!newBrokerData.name.trim()) {
+      toast.error("Broker name is required");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('brokers')
+        .insert([newBrokerData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setBrokers([...brokers, data]);
+      setSelectedBrokerId(data.id);
+      
+      await updateClaimMutation.mutateAsync({
+        id: claim.id,
+        updates: { broker_id: data.id },
+      });
+
+      toast.success("Broker created and assigned successfully");
+      setShowBrokerDialog(false);
+      setNewBrokerData({ name: "", email: "", contact: "", company: "" });
+    } catch (error) {
+      console.error("Error creating broker:", error);
+      toast.error("Failed to create broker");
+    }
+  };
+
+
+
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-lg">
@@ -430,9 +527,180 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
                 {updateClaimMutation.isPending ? "Saving..." : "Save Policy Details"}
               </Button>
             </div>
+            
+            {/* Broker/Agent Details Section */}
+            <div className="space-y-6 pt-6 border-t border-border/50">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-6 bg-purple-500 rounded-full"></div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Agent/Broker Details
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Broker Selection Dropdown */}
+                <div className="space-y-2">
+                  <Label htmlFor="broker-select">Select Broker / Agent</Label>
+                  <Select 
+                    value={selectedBrokerId} 
+                    onValueChange={handleBrokerChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select broker..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">
+                        <div className="flex items-center gap-2">
+                          <Plus className="w-4 h-4" />
+                          <span>Add New Broker</span>
+                        </div>
+                      </SelectItem>
+                      {brokers.map((broker) => (
+                        <SelectItem key={broker.id} value={broker.id}>
+                          {broker.name} {broker.company ? `(${broker.company})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Show broker details fields when a broker is selected */}
+                {selectedBrokerId && selectedBrokerId !== "new" && (() => {
+                  const broker = brokers.find(b => b.id === selectedBrokerId);
+                  return broker ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Name</Label>
+                        <Input 
+                          value={broker.name} 
+                          disabled 
+                          className="bg-gray-50"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Company</Label>
+                        <Input 
+                          value={broker.company || ''} 
+                          disabled 
+                          placeholder="No company"
+                          className="bg-gray-50"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Contact Number</Label>
+                        <Input 
+                          value={broker.contact || ''} 
+                          disabled 
+                          placeholder="No contact"
+                          className="bg-gray-50"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input 
+                          value={broker.email || ''} 
+                          disabled 
+                          placeholder="No email"
+                          className="bg-gray-50"
+                        />
+                      </div>
+                    </>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Empty state when no broker selected */}
+              {!selectedBrokerId && (
+                <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  <Briefcase className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm">No broker selected</p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-border/50">
+              <Button
+                type="submit"
+                disabled={updateClaimMutation.isPending}
+                className="w-full bg-slate-700 hover:bg-slate-800 text-white shadow-sm transition-all duration-200"
+              >
+                {updateClaimMutation.isPending ? "Saving..." : "Save Policy Details"}
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
+
+      {/* New Broker Dialog */}
+      <Dialog open={showBrokerDialog} onOpenChange={setShowBrokerDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5" />
+              Add New Broker / Agent
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-broker-name">Name *</Label>
+              <Input
+                id="new-broker-name"
+                placeholder="Enter broker name"
+                value={newBrokerData.name}
+                onChange={(e) => setNewBrokerData({ ...newBrokerData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-broker-company">Company</Label>
+              <Input
+                id="new-broker-company"
+                placeholder="Enter company name"
+                value={newBrokerData.company}
+                onChange={(e) => setNewBrokerData({ ...newBrokerData, company: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-broker-contact">Contact Number</Label>
+              <Input
+                id="new-broker-contact"
+                placeholder="+91 98765 43210"
+                value={newBrokerData.contact}
+                onChange={(e) => setNewBrokerData({ ...newBrokerData, contact: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-broker-email">Email</Label>
+              <Input
+                id="new-broker-email"
+                type="email"
+                placeholder="broker@example.com"
+                value={newBrokerData.email}
+                onChange={(e) => setNewBrokerData({ ...newBrokerData, email: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowBrokerDialog(false);
+                setNewBrokerData({ name: "", email: "", contact: "", company: "" });
+                setSelectedBrokerId("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateBroker}>
+              Create Broker
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
+export default PolicyDetailsForm;

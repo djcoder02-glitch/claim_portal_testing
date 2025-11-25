@@ -225,7 +225,6 @@ export const Customers = () => {
       toast.error("Failed to save contact: " + error.message);
     },
   });
-
   const resetContactForm = () => {
     setContactFormData({
       phone: "",
@@ -248,20 +247,34 @@ export const Customers = () => {
         notes: contact.notes || "",
       });
     } else {
-      resetContactForm();
+      setContactFormData({
+        phone: "",
+        email: "",
+        address: "",
+        notes: "",
+      });
     }
     
     setContactDialogOpen(true);
   };
 
-  const handleSaveContact = () => {
-    if (!selectedCustomerName) return;
+  const handleSaveContact = async () => {
+    if (!selectedCustomerName) {
+      toast.error("Customer name is required");
+      return;
+    }
     
-    saveContactMutation.mutate({
-      customerName: selectedCustomerName,
-      data: contactFormData,
-    });
+    try {
+      await saveContactMutation.mutateAsync({
+        customerName: selectedCustomerName,
+        data: contactFormData,
+      });
+    } catch (error) {
+      // Error already handled in mutation's onError
+      console.error("Save contact error:", error);
+    }
   };
+
 
   return (
     <div className="p-8 space-y-6">
@@ -439,6 +452,7 @@ export const Customers = () => {
                     <TableHead>Claim Number</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Policy Type</TableHead>
+                    <TableHead>Assigned Surveyor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                   </TableRow>
@@ -458,6 +472,9 @@ export const Customers = () => {
                       </TableCell>
                       <TableCell>{claim.title}</TableCell>
                       <TableCell>{claim.policy_types?.name || '—'}</TableCell>
+                      <TableCell>
+                        {claim.form_data?.assigned_surveyor || '—'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(claim.status)}>
                           {claim.status.replace('_', ' ')}
