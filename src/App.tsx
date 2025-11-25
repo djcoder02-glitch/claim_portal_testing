@@ -18,6 +18,7 @@ import {Profile} from "./pages/Profile";
 import {TeamManagement} from "./pages/TeamManagement";
 import Setting from "./pages/Settings";
 
+import Customers from "./pages/Customers";
 
 const queryClient = new QueryClient();
 
@@ -106,11 +107,7 @@ const App = () => (
               <Route 
                 path="/customers" 
                 element={
-                  <div className="p-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Customers</h1>
-                    <p className="text-gray-600">Customer management coming soon...</p>
-                  </div>
-                } 
+                  <Customers />} 
               />
               
               <Route 
