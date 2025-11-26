@@ -90,27 +90,31 @@ export const AdminDashboard = () => {
   console.log('[Dashboard] claims sample:', claims?.slice?.(0,3));
 
 
-  /**
- * Fetch total survey assignments from claims
- * Counts all claims that have been assigned to surveyors
+/**
+ * Fetch total surveys assigned to this admin
+ * Counts claims where the admin is the assigned user
  */
 const { data: totalSurveys, isLoading: surveysLoading } = useQuery({
-  queryKey: ['total-surveys'],
+  queryKey: ['admin-surveys'],
   queryFn: async () => {
-    // Count all claims (total surveys processed)
+    // Get current user ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+
+    // Count claims assigned to this admin
     const { count, error } = await supabase
       .from('claims')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
 
     if (error) {
-      console.error('[Dashboard] Error fetching surveys:', error);
+      console.error('[Dashboard] Error fetching admin surveys:', error);
       throw error;
     }
 
     return count || 0;
   }
 });
-
 
 
   /**
@@ -279,7 +283,7 @@ const { data: totalSurveys, isLoading: surveysLoading } = useQuery({
    */
   const statCards: StatCard[] = [
     {
-      title: 'Total Claims',
+      title: 'All Claims',
       value: stats.totalClaims.toLocaleString(),
       change: `${stats.claimsGrowth >= 0 ? '+' : ''}${stats.claimsGrowth}% from last month`,
       isPositive: stats.claimsGrowth >= 0,
@@ -297,13 +301,13 @@ const { data: totalSurveys, isLoading: surveysLoading } = useQuery({
       iconBgColor: 'bg-green-100 text-green-600',
     },
     {
-      title: 'Total Surveys',
-      value: stats.totalSurveys,
-      change: `${surveyorsThisWeek} assigned this week`,
-      isPositive: true,
-      description: 'Total survey processed',
-      icon: Users,
-      iconBgColor: 'bg-purple-100 text-purple-600',
+    title: 'Total Surveys',
+    value: stats.totalSurveys,
+    change: `${surveyorsThisWeek} assigned this week`,
+    isPositive: true,
+    description: 'Claims assigned to you',
+    icon: Users,
+    iconBgColor: 'bg-purple-100 text-purple-600',
     },
     {
       title: 'Completion Rate',
