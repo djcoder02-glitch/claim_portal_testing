@@ -41,6 +41,14 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   });
 
   console.log("[PolicyDetailsForm] Initial form data:", claim);
+  console.log("[PolicyDetailsForm] Broker ID from claim:", claim.broker_id);
+  
+  // ADD THESE NEW LOGS
+  useEffect(() => {
+    console.log("[PolicyDetailsForm] Claim changed! New broker_id:", claim.broker_id);
+    console.log("[PolicyDetailsForm] Full claim object:", claim);
+  }, [claim]);
+
 
   const isMountedRef= useRef(true);
 
@@ -84,7 +92,8 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   const [editingLabels, setEditingLabels] = useState<Set<string>>(new Set());
 
   const [brokers, setBrokers] = useState<Array<{ id: string; name: string; email: string | null; contact: string | null; company: string | null }>>([]);
-  const [selectedBrokerId, setSelectedBrokerId] = useState<string>("");
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string>(claim.broker_id || "");
+
   const [showBrokerDialog, setShowBrokerDialog] = useState(false);
   const [newBrokerData, setNewBrokerData] = useState({
     name: "",
@@ -103,7 +112,8 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
   useAutosave({ control, onSave: handleAutosave, delay: 2000, enabled: false });
 
-  useEffect(() => {
+  // Reset form data when it changes
+useEffect(() => {
   const allFormData = { 
     ...claim.form_data,
     intimation_date: claim.intimation_date || claim.form_data?.intimation_date || '',
@@ -112,9 +122,17 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   setFieldLabels((claim.form_data?.field_labels || {}) as Record<string, string>);
 }, [claim.form_data, claim.intimation_date, reset]);
 
+// Reset broker ONLY when navigating to a different claim
+useEffect(() => {
+  setSelectedBrokerId(claim.broker_id || "");
+}, [claim.id]); // CRITICAL: Only depends on claim.id, not broker_id!
+
+
+
+
   // Fetch brokers
   useEffect(() => {
-    const fetchBrokers = async () => {
+    const fetchBrokers = async() => {
       const { data, error } = await supabase
         .from('brokers')
         .select('*')
@@ -126,13 +144,6 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
     };
     fetchBrokers();
   }, []);
-
-  // Load saved broker from claim
-  useEffect(() => {
-    if (claim.broker_id) {
-      setSelectedBrokerId(claim.broker_id);
-    }
-  }, [claim.broker_id]);
 
 
   const saveLabel = async (fieldName: string) => {
@@ -429,10 +440,17 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
   const onSubmit = async (data: Record<string, any>) => {
     try {
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: { form_data: { ...data, field_labels: fieldLabels } },
-      });
+      // Use direct Supabase to ensure broker_id is preserved
+      const { error } = await supabase
+        .from("claims")
+        .update({
+          form_data: { ...data, field_labels: fieldLabels },
+          // Don't touch broker_id - leave it as is in database
+        })
+        .eq("id", claim.id);
+
+      if (error) throw error;
+      
       toast.success("Policy details updated successfully!");
     } catch (error) {
       console.error("Failed to update claim:", error);
@@ -441,26 +459,36 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
   };
 
   const handleBrokerChange = async (brokerId: string) => {
-    if (brokerId === "new") {
-      setShowBrokerDialog(true);
-      return;
-    }
+  if (brokerId === "new") {
+    setShowBrokerDialog(true);
+    return;
+  }
 
-    setSelectedBrokerId(brokerId);
+  // Optimistically update UI immediately
+  const previousBrokerId = selectedBrokerId;
+  setSelectedBrokerId(brokerId);
 
-    try {
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: { broker_id: brokerId || null },
-      });
-      toast.success("Broker assigned successfully");
-    } catch (error) {
-      console.error("Error updating broker:", error);
-      toast.error("Failed to assign broker");
-    }
-  };
+  try {
+    // Save to database
+    const { error } = await supabase
+      .from("claims")
+      .update({ broker_id: brokerId || null })
+      .eq("id", claim.id);
 
-  const handleCreateBroker = async () => {
+    if (error) throw error;
+    
+    toast.success("Broker assigned successfully");
+  } catch (error) {
+    // Rollback on error
+    console.error("[handleBrokerChange] Error:", error);
+    setSelectedBrokerId(previousBrokerId);
+    toast.error("Failed to assign broker");
+  }
+};
+
+
+
+const handleCreateBroker = async () => {
     if (!newBrokerData.name.trim()) {
       toast.error("Broker name is required");
       return;
@@ -478,10 +506,13 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
       setBrokers([...brokers, data]);
       setSelectedBrokerId(data.id);
       
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: { broker_id: data.id },
-      });
+      // Use direct Supabase update
+      const { error: updateError } = await supabase
+        .from("claims")
+        .update({ broker_id: data.id })
+        .eq("id", claim.id);
+
+      if (updateError) throw updateError;
 
       toast.success("Broker created and assigned successfully");
       setShowBrokerDialog(false);
@@ -539,8 +570,8 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Broker Selection Dropdown */}
-                <div className="space-y-2">
-                  <Label htmlFor="broker-select">Select Broker / Agent</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="broker-select">Select Broker / Agent</Label>
                   <Select 
                     value={selectedBrokerId} 
                     onValueChange={handleBrokerChange}

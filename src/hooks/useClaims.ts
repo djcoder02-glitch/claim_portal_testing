@@ -13,13 +13,13 @@ export interface Claim {
   policy_type_id: string;
   claim_number: string;
   title: string;
-  // description?: string;
   intimation_date: string|null;
   status: 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'paid';
   claim_amount?: number;
   form_data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  broker_id?: string | null;  // ← MAKE IT OPTIONAL WITH ?
   policy_types?: {
     name: string;
     description: string;
@@ -28,6 +28,7 @@ export interface Claim {
   insurer_name?:string;
   surveyor_name?:string;
 }
+
 
 export interface PolicyType {
   id: string;
@@ -45,13 +46,13 @@ interface DatabaseClaimRow {
   policy_type_id: string;
   claim_number: string;
   title: string;
-  // description: string | null;
   status: string;
   intimation_date:string | null;
   claim_amount: number | null;
   form_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  broker_id?: string | null;  // ← MAKE IT OPTIONAL WITH ?
   policy_type_name?: string;
   policy_type_description?: string;
   policy_type_fields?: unknown[];
@@ -63,8 +64,9 @@ export const useClaims = () => {
   console.log('[UseClaims] isAdmin : ', isAdmin);
   
   return useQuery({
-    queryKey: ["claims", isAdmin ? "admin" : "user"],
-    queryFn: async () => {
+  queryKey: ["claims", isAdmin ? "admin" : "user"],
+  staleTime: 0, // Always fetch fresh data
+  queryFn: async () => {
       let data, error;
       
       console.log('[useClaims] Fetching claims for:', isAdmin ? 'admin' : 'user');
@@ -81,8 +83,9 @@ export const useClaims = () => {
       }
       console.log('[useClaims] Fetched claims count:', data?.length);
 
-      return data.map((row: DatabaseClaimRow) => ({
+      return data.map((row: any) => ({
         ...row,
+        form_data: typeof row.form_data === 'string' ? JSON.parse(row.form_data) : row.form_data,
         policy_types: row.policy_type_name ? {
           name: row.policy_type_name,
           description: row.policy_type_description || '',
@@ -227,29 +230,32 @@ export const useClaimById = (id: string) => {
   
   return useQuery({
     queryKey: ["claim", id, isAdmin ? "admin" : "user"],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
-      // console.log('[useClaimById] isAdmin:', isAdmin, 'claimId:', id);
-      
       if (isAdmin) {
-          // Get all claims via admin function, then filter for the specific one
-          const { data, error } = await supabase.rpc('get_all_claims_admin', null);
+        // Fetch the specific claim directly instead of fetching all claims
+        const { data, error } = await supabase
+          .from("claims")
+          .select(`
+            *,
+            policy_types:policy_type_id (
+              name,
+              description,
+              fields
+            )
+          `)
+          .eq("id", id)
+          .single();
 
-          // force type because RPC isn’t in generated types
-          const allClaims = (data ?? []) as DatabaseClaimRow[];
-
-          if (error) throw error;
-          if (!allClaims.length) throw new Error('No claims returned');
-
-          const claim = allClaims.find(c => c.id === id);
-          if (!claim) throw new Error('Claim not found');
-
+        if (error) throw error;
+        
         // Transform to match expected format
         const transformedData = {
-          ...claim,
-          policy_types: claim.policy_type_name ? {
-            name: claim.policy_type_name,
-            description: claim.policy_type_description || '',
-            fields: claim.policy_type_fields || []
+          ...data,
+          policy_types: data.policy_types ? {
+            name: data.policy_types.name,
+            description: data.policy_types.description || '',
+            fields: data.policy_types.fields || []
           } : null
         };
 
@@ -276,6 +282,7 @@ export const useClaimById = (id: string) => {
     enabled: !!id,
   });
 };
+
 
 export const useDeleteClaim = () => {
   const queryClient = useQueryClient();
