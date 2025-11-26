@@ -6,7 +6,7 @@ import {
   CheckCircle,
   AlertCircle,
   TrendingUp,
-  Calendar
+  Calendar,Users
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClaims } from "@/hooks/useClaims";
@@ -163,11 +163,11 @@ export const UserDashboard = () => {
   // Stat cards configuration
   const statCards: StatCard[] = [
     {
-      title: 'My Active Claims',
+      title: 'My Total0 Surveys',
       value: stats.activeClaims.toLocaleString(),
-      change: `${stats.totalClaims} total claims`,
-      description: 'Claims in progress',
-      icon: FileText,
+      change: `${stats.totalClaims} active surveys`,
+      description: 'Your total surveys',
+      icon: Users ,
       iconBgColor: 'bg-blue-100 text-blue-600',
     },
     {

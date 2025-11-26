@@ -91,23 +91,23 @@ export const AdminDashboard = () => {
 
 
   /**
-   * Fetch unique surveyors from claims
-   * Counts distinct surveyor names that are assigned to claims
-   */
-  const { data: totalSurveyors, isLoading: surveyorsLoading } = useQuery({
-  queryKey: ['total-surveyors'],
+ * Fetch total survey assignments from claims
+ * Counts all claims that have been assigned to surveyors
+ */
+const { data: totalSurveys, isLoading: surveysLoading } = useQuery({
+  queryKey: ['total-surveys'],
   queryFn: async () => {
-    const res: any = await supabase
-      .from('surveyors')
-      .select('*', { count: 'exact' })
-      .eq('is_active', true);
+    // Count all claims (total surveys processed)
+    const { count, error } = await supabase
+      .from('claims')
+      .select('*', { count: 'exact', head: true });
 
-    if (res?.error) {
-      console.error('[Dashboard] Error fetching surveyors:', res.error);
-      throw res.error;
+    if (error) {
+      console.error('[Dashboard] Error fetching surveys:', error);
+      throw error;
     }
 
-    return typeof res.count === 'number' ? res.count : (res.data?.length || 0);
+    return count || 0;
   }
 });
 
@@ -188,12 +188,12 @@ export const AdminDashboard = () => {
     return {
       totalClaims,
       revenueInLakhs,
-      totalSurveyors: totalSurveyors || 0,
+      totalSurveys: totalSurveys || 0,
       completionRate,
       claimsGrowth: Number(claimsGrowth),
       revenueGrowth: Number(revenueGrowth),
     };
-  }, [claims, monthlyTrendData, totalSurveyors]);
+  }, [claims, monthlyTrendData, totalSurveys]);
 
   /**
    * Prepare data for status distribution pie chart
@@ -297,11 +297,11 @@ export const AdminDashboard = () => {
       iconBgColor: 'bg-green-100 text-green-600',
     },
     {
-      title: 'Total Surveyors',
-      value: stats.totalSurveyors,
+      title: 'Total Surveys',
+      value: stats.totalSurveys,
       change: `${surveyorsThisWeek} assigned this week`,
       isPositive: true,
-      description: 'Registered  surveyors',
+      description: 'Total survey processed',
       icon: Users,
       iconBgColor: 'bg-purple-100 text-purple-600',
     },
@@ -316,7 +316,7 @@ export const AdminDashboard = () => {
     },
   ];
 
-  if (claimsLoading || surveyorsLoading) {
+  if (claimsLoading || surveysLoading) {
     return (
       <div className="p-8">
         <div className="animate-pulse space-y-6">
