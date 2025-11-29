@@ -310,6 +310,25 @@ useEffect(() => {
   });
 }, [claim?.form_data, setValue]);
 
+// Auto-load DEFAULT template for new claims
+useEffect(() => {
+  const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
+  
+  // Only auto-load if:
+  // 1. No saved sections exist
+  // 2. Templates are loaded
+  // 3. No sections currently in state (prevents overwriting)
+  if (!savedDynamicSections && templates.length > 0 && dynamicSections.length === 0) {
+    const defaultTemplate = templates.find(t => t.is_default);
+    if (defaultTemplate) {
+      console.log('🎯 Auto-loading DEFAULT template for new claim');
+      loadTemplate(defaultTemplate);
+    }
+  }
+}, [templates, claim.form_data?.dynamic_sections_metadata, dynamicSections.length]);
+
+
+
   // Autosave functionality
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
     const standardData = Object.fromEntries(
@@ -338,9 +357,10 @@ useEffect(() => {
   useAutosave({
     control,
     onSave: handleAutosave,
-    delay: 2000,
-    enabled: true,
+    delay: 10000,  // 10 seconds - very long
+    enabled: false,  // Disable automatic saving while typing
   });
+  
 
   const toggleSection = (section : string) => {
     setOpenSections(prev => ({
@@ -348,10 +368,15 @@ useEffect(() => {
       [section]: !prev[section]
     }));
   };
+const isInitialMount = useRef(true);
 
   useEffect(() => {
-    reset(claim.form_data || {});
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      reset(claim.form_data || {});
+    }
   }, [claim.form_data, reset]);
+
 
   const onSubmit = async (data: Record<string, unknown>) => {
   console.log('🔥 onSubmit called with data:', data);
@@ -941,6 +966,9 @@ const loadTemplate = (template: FormTemplate) => {
       setValue(key, value);
     }
   });
+
+  setPendingSaves(new Set())
+
   
   setCurrentTemplate(template);
   setIsTemplateModified(false);
@@ -949,38 +977,21 @@ const loadTemplate = (template: FormTemplate) => {
 };
 
 
-  // Initialize dynamic sections from existing structure
+// Initialize dynamic sections from existing structure
   useEffect(() => {
-  // Check if we have saved sections in the claim data
-  const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
-  
-  if (savedDynamicSections && savedDynamicSections.length > 0) {
-    // Load saved sections
-    setDynamicSections(savedDynamicSections);
-    return;
-  }
+    // Check if we have saved sections in the claim data
+    const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
+    
+    if (savedDynamicSections && savedDynamicSections.length > 0) {
+      // Load saved sections
+      setDynamicSections(savedDynamicSections);
+      return;
+    }
 
-  // CRITICAL FIX: Don't create default sections if we already have sections in state
-  // This prevents duplicate fields when loading templates
-  if (dynamicSections.length > 0) {
-    console.log('⚠️ Skipping default section creation - sections already exist');
-    return;
-  }
-
-  // Only create default sections if no saved sections and no sections in state
-  const additionalFields = getAdditionalDetailsFields();
-  const section1Fields = additionalFields.slice(0, 13);
-  const section2Fields = additionalFields.slice(13, 23);
-  const section3Fields = additionalFields.slice(23, 29);
-  const section4Fields = additionalFields.slice(29);
-
-  const defaultSections: DynamicSection[] = [
-    // ... rest of the code
-  ];
-  
-  console.log('✅ Creating default sections');
-  setDynamicSections(defaultSections);
-}, [claim.form_data]); // IMPORTANT: Remove dynamicSections from dependencies
+    // Don't create fallback sections - let the DEFAULT template auto-load instead
+    // The new useEffect will handle loading the DEFAULT template
+    console.log('⏳ Waiting for DEFAULT template to auto-load...');
+  }, [claim.form_data]);
 
 
   // Now define these after useEffect where getAdditionalDetailsFields is available
