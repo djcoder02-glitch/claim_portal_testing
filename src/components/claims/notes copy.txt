@@ -1,0 +1,357 @@
+[
+    {
+        "id": "d3d791de-ea36-4f73-99ac-d427a4c6012e",
+        "name": "Section 1 - Basic Information",
+        "fields": [
+            {
+                "id": "1710d9f1-8717-4ca8-9ada-361a869323e5",
+                "name": "consigner_name",
+                "type": "text",
+                "label": "Name of Consigner of Goods (Exporter)",
+                "options": null,
+                "required": false,
+                "order_index": 1
+            },
+            {
+                "id": "b97b73d4-65bd-44d9-a46c-f8ff288415da",
+                "name": "consignee_name",
+                "type": "text",
+                "label": "Name of Consignee of Goods (Importer)",
+                "options": null,
+                "required": false,
+                "order_index": 2
+            },
+            {
+                "id": "28721c3c-9d2d-4b9c-973a-16edc680fc44",
+                "name": "applicant_survey",
+                "type": "text",
+                "label": "Applicant of Survey",
+                "options": null,
+                "required": false,
+                "order_index": 3
+            },
+            {
+                "id": "24409d25-7a33-4b12-b0a2-684b7d25e363",
+                "name": "underwriter_name",
+                "type": "text",
+                "label": "Name of Underwriter / Insurer",
+                "options": null,
+                "required": false,
+                "order_index": 4
+            },
+            {
+                "id": "92f6d213-4e5a-4303-bd55-c20b49d53025",
+                "name": "cha_name",
+                "type": "text",
+                "label": "Name of CHA / Clearing Agent / Forwarder",
+                "options": null,
+                "required": false,
+                "order_index": 5
+            },
+            {
+                "id": "2aeea705-05ea-4ca2-a07a-2b4b2c0724db",
+                "name": "certificate_no",
+                "type": "text",
+                "label": "Certificate No (if Applicable)",
+                "options": null,
+                "required": false,
+                "order_index": 6
+            },
+            {
+                "id": "9814b66f-e4c0-472e-b8cb-5f3701c7d5f3",
+                "name": "endorsement_no",
+                "type": "text",
+                "label": "Endorsement No (if Any)",
+                "options": null,
+                "required": false,
+                "order_index": 7
+            },
+            {
+                "id": "539172ac-1476-498d-b03c-987490f6170f",
+                "name": "invoice_no",
+                "type": "text",
+                "label": "Invoice Details Invoice No",
+                "options": null,
+                "required": false,
+                "order_index": 8
+            },
+            {
+                "id": "bc22cc7c-2928-4970-8d69-e3c78237dc70",
+                "name": "invoice_date",
+                "type": "date",
+                "label": "Invoice Details Invoice Date",
+                "options": null,
+                "required": false,
+                "order_index": 9
+            },
+            {
+                "id": "c682aea7-8536-481d-b3d4-e246decacf66",
+                "name": "invoice_value",
+                "type": "number",
+                "label": "Invoice Details Invoice Value",
+                "options": null,
+                "required": false,
+                "order_index": 10
+            },
+            {
+                "id": "ab69e7ad-fe12-4027-80bb-294b031b7c23",
+                "name": "invoice_pkg_count",
+                "type": "number",
+                "label": "Invoice Details No of PKG",
+                "options": null,
+                "required": false,
+                "order_index": 11
+            },
+            {
+                "id": "41361db6-0f4e-40c0-82e0-4239b262a99a",
+                "name": "invoice_gross_wt",
+                "type": "text",
+                "label": "Invoice Details Gross WT",
+                "options": null,
+                "required": false,
+                "order_index": 12
+            },
+            {
+                "id": "fa78ca8a-6b92-4206-9eea-0f1f59419fd1",
+                "name": "invoice_net_wt",
+                "type": "text",
+                "label": "Invoice Details Net WT",
+                "options": null,
+                "required": false,
+                "order_index": 13
+            }
+        ],
+        "tables": [],
+        "isCustom": false,
+        "color_class": "bg-gradient-primary",
+        "order_index": 1
+    },
+    {
+        "id": "e3236166-3acf-4424-b084-cf81f90c1b0c",
+        "name": "Section 2 - Survey & Loss Details",
+        "fields": [
+            {
+                "id": "e4a85a97-2a58-4c42-bf57-cd863141e164",
+                "name": "goods_description",
+                "type": "textarea",
+                "label": "Description of Goods",
+                "options": null,
+                "required": false,
+                "order_index": 1
+            },
+            {
+                "id": "7d944b4d-e6de-4d11-9b3c-0f7293a94896",
+                "name": "intimation_date",
+                "type": "date",
+                "label": "Date of Intimation of Survey",
+                "options": null,
+                "required": false,
+                "order_index": 2
+            },
+            {
+                "id": "288f5dd6-88b4-43a4-a4b1-ad6d38d1fd78",
+                "name": "survey_date_place",
+                "type": "textarea",
+                "label": "Date and Place of Survey",
+                "options": null,
+                "required": false,
+                "order_index": 3
+            },
+            {
+                "id": "e549157c-c6a7-40e1-8bb1-8f54d3eab56e",
+                "name": "external_condition_review",
+                "type": "textarea",
+                "label": "External Condition Upon Reviewing the Consignment as per Consignee",
+                "options": null,
+                "required": false,
+                "order_index": 4
+            },
+            {
+                "id": "bf89a9e4-df9e-4007-ae70-7cd5da4ba39c",
+                "name": "packing_nature",
+                "type": "textarea",
+                "label": "Nature of Packing",
+                "options": null,
+                "required": false,
+                "order_index": 5
+            },
+            {
+                "id": "72bf2838-901b-4313-baf9-6f5dff35136b",
+                "name": "packing_condition",
+                "type": "textarea",
+                "label": "External Condition of Packing at the Time of Survey",
+                "options": null,
+                "required": false,
+                "order_index": 6
+            },
+            {
+                "id": "a4b30c97-3668-4f7f-8bc4-54cc5b221e25",
+                "name": "damage_description",
+                "type": "textarea",
+                "label": "Description of Loss / Damage",
+                "options": null,
+                "required": false,
+                "order_index": 7
+            },
+            {
+                "id": "f058788d-5ab1-4209-8ba0-8c523e43ddba",
+                "name": "loss_cause",
+                "type": "textarea",
+                "label": "Cause of Loss",
+                "options": null,
+                "required": false,
+                "order_index": 8
+            },
+            {
+                "id": "98879f60-d539-465e-b277-1b8b081767b8",
+                "name": "joint_survey",
+                "type": "textarea",
+                "label": "Was Any Joint Survey Held",
+                "options": null,
+                "required": false,
+                "order_index": 9
+            },
+            {
+                "id": "27595ad1-131c-49bc-93ab-b203c337fadc",
+                "name": "consignee_notice",
+                "type": "textarea",
+                "label": "Has Consignee Given Notice of Loss / Damage to or Made Claim Against Carriers?",
+                "options": null,
+                "required": false,
+                "order_index": 10
+            }
+        ],
+        "tables": [],
+        "isCustom": false,
+        "color_class": "bg-warning",
+        "order_index": 2
+    },
+    {
+        "id": "12bd7d60-6b73-43f9-b399-6e1b4ecfbd6b",
+        "name": "Section 3 - Transportation Details",
+        "fields": [
+            {
+                "id": "d8f5b931-2ca8-4bf9-822e-9db3641d01b1",
+                "name": "transporter_name",
+                "type": "text",
+                "label": "Name of the Transporter",
+                "options": null,
+                "required": false,
+                "order_index": 1
+            },
+            {
+                "id": "b627f572-ff54-45ad-aede-f83d13279dd2",
+                "name": "vehicle_number",
+                "type": "text",
+                "label": "Vehicle Number",
+                "options": null,
+                "required": false,
+                "order_index": 2
+            },
+            {
+                "id": "5eca0c20-2ec3-465d-ba40-5805635e0469",
+                "name": "lr_date_issuance",
+                "type": "text",
+                "label": "LR & Date of Issuance",
+                "options": null,
+                "required": false,
+                "order_index": 3
+            },
+            {
+                "id": "92773427-c94e-43fc-bb4f-8a81e6436751",
+                "name": "consignment_note",
+                "type": "text",
+                "label": "Consignment Note No / Docket No & Date",
+                "options": null,
+                "required": false,
+                "order_index": 4
+            },
+            {
+                "id": "7876c89a-93d0-4519-9a61-ea67aa0d8d64",
+                "name": "delivery_challan",
+                "type": "text",
+                "label": "Delivery Challan No",
+                "options": null,
+                "required": false,
+                "order_index": 5
+            },
+            {
+                "id": "1e19d7ac-216d-49d7-b790-3cd610e5bb8a",
+                "name": "dispatch_condition",
+                "type": "textarea",
+                "label": "External Condition While Dispatching the Consignment from Port / CFS / Warehouse",
+                "options": null,
+                "required": false,
+                "order_index": 6
+            }
+        ],
+        "tables": [],
+        "isCustom": false,
+        "color_class": "bg-success",
+        "order_index": 3
+    },
+    {
+        "id": "a37b3239-9215-42a8-8b35-447d46bdbd98",
+        "name": "Section 4 - Report Section",
+        "fields": [
+            {
+                "id": "0784c4f1-d1db-4b9c-a866-945f1365a335",
+                "name": "survey_address",
+                "type": "textarea",
+                "label": "Address of Survey",
+                "options": null,
+                "required": false,
+                "order_index": 1
+            },
+            {
+                "id": "f78a519f-d73c-453b-9381-41087a4bf0d4",
+                "name": "number_packages",
+                "type": "select",
+                "label": "Number of Packages",
+                "options": null,
+                "required": false,
+                "order_index": 2
+            },
+            {
+                "id": "27fe3e10-6385-4ed9-a04b-7b231d05b982",
+                "name": "packing_contents",
+                "type": "textarea",
+                "label": "Whats Inside Packing Consignment",
+                "options": null,
+                "required": false,
+                "order_index": 3
+            },
+            {
+                "id": "3a7b4278-d402-43b5-a196-81aa0a2ed1fe",
+                "name": "content_industry_use",
+                "type": "select",
+                "label": "Use of Content Industry it is Utilised in",
+                "options": null,
+                "required": false,
+                "order_index": 4
+            },
+            {
+                "id": "0d1e4d04-745d-4713-9811-a2f2b0151ca1",
+                "name": "arrival_details",
+                "type": "select",
+                "label": "How Did it Arrive to the Premises Spot of Survey Mention Container No and or Vehicle No if Applicable",
+                "options": null,
+                "required": false,
+                "order_index": 5
+            },
+            {
+                "id": "09ab9374-3744-4b44-a5fa-ea59007744e2",
+                "name": "external_condition_tag",
+                "type": "textarea",
+                "label": "External Condition Tag",
+                "options": null,
+                "required": false,
+                "order_index": 6
+            }
+        ],
+        "tables": [],
+        "isCustom": false,
+        "color_class": "bg-info",
+        "order_index": 4
+    }
+]

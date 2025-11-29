@@ -348,6 +348,8 @@ function buildReportJson(
   const visibleSections = sections.filter((s) => s.isVisible).sort((a, b) => a.order - b.order);
   const components: any[] = [];
 
+  console.log("claim in buildReportJson:", claim);
+
   components.push({
     type: "header",
     style: { wrapper: "px-0 py-2", title: "text-3xl font-extrabold tracking-wide text-black center" },
