@@ -59,6 +59,10 @@ interface ClaimDocument {
   uploaded_by: string;
   created_at: string;
   field_label?: string;
+  upload_token?: string;
+  token_expires_at?: string;
+  is_selected?: boolean;
+  uploaded_via_link?: boolean;
 }
 
 /* =========================
@@ -96,6 +100,53 @@ const money = (v: any) => {
 };
 
 /* =========================
+   Helper: Check if Section Has Content
+========================= */
+
+const sectionHasContent = (section: ReportSection, claim: Claim): boolean => {
+  const formData = claim.form_data || {};
+  const metas = (claim.form_data?.dynamic_sections_metadata as any[]) || [];
+
+  // Overview always has content
+  if (section.id === "overview") {
+    return true;
+  }
+
+  // Check policy details
+  if (section.id === "policy-details") {
+    const policyFields = [
+      "registration_id", "insured_name", "insurer", "assigned_surveyor",
+      "policy_number", "sum_insured", "date_of_loss", "loss_description",
+    ];
+    return policyFields.some(k => {
+      const val = (formData as any)[k];
+      return val != null && String(val).trim() !== "";
+    });
+  }
+
+  // Check dynamic sections
+  const meta = metas.find((m) => m.id === section.id);
+  if (!meta) return false;
+
+  // Check if has fields with data
+  const hasFields = meta.fields?.some((f: any) => {
+    const val = formData[f.name];
+    return val != null && String(val).trim() !== "";
+  });
+
+  // Check if has images
+  const imageKey = `${section.id}_images`;
+  const hasImages = Array.isArray(formData[imageKey]) && formData[imageKey].some(Boolean);
+
+  // Check if has tables with data
+  const hasTables = meta.tables?.some((table: any) => 
+    Array.isArray(table.data) && table.data.length > 0
+  );
+
+  return hasFields || hasImages || hasTables;
+};
+
+/* =========================
    SortableSection
 ========================= */
 
@@ -129,12 +180,6 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
               <p className="font-medium">{format(new Date(claim.created_at), "MMM dd, yyyy")}</p>
             </div>
           </div>
-          {claim.description && (
-            <div>
-              <p className="text-sm text-muted-foreground">Description</p>
-              <p>{claim.description}</p>
-            </div>
-          )}
         </div>
       );
     }
@@ -155,7 +200,9 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         .map((k) => [k, (formData as any)[k]] as const)
         .filter(([_, v]) => v != null && String(v).trim() !== "");
 
-      return rows.length ? (
+      if (rows.length === 0) return null;
+
+      return (
         <div className="space-y-2">
           {rows.map(([k, v]) => (
             <div key={k} className="flex justify-between">
@@ -164,16 +211,12 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
             </div>
           ))}
         </div>
-      ) : (
-        <p className="text-muted-foreground italic">No policy details available</p>
       );
     }
 
     // --- Dynamic Sections ---
     const meta = metas.find((m) => m.id === section.id);
-    if (!meta) {
-      return <p className="text-muted-foreground italic">Section content not available</p>;
-    }
+    if (!meta) return null;
 
     const entries =
       (meta.fields || [])
@@ -183,9 +226,16 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
     const imageKey = `${section.id}_images`;
     const imageUrls = Array.isArray(formData[imageKey]) ? formData[imageKey].filter(Boolean) : [];
 
+    const hasTables = meta?.tables && meta.tables.length > 0;
+
+    // If no content at all, return null
+    if (entries.length === 0 && imageUrls.length === 0 && !hasTables) {
+      return null;
+    }
+
     return (
       <div className="space-y-4">
-        {entries.length ? (
+        {entries.length > 0 && (
           <div className="space-y-2">
             {entries.map(({ label, value }) => (
               <div key={label} className="flex justify-between">
@@ -194,8 +244,6 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-muted-foreground italic">No data available for this section</p>
         )}
 
         {imageUrls.length > 0 && (
@@ -212,7 +260,7 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
         )}
 
         {/* --- TABLES: Render dynamic tables from metadata --- */}
-        {meta?.tables && meta.tables.length > 0 && (
+        {hasTables && (
           <div className="space-y-4 mt-4">
             <h4 className="text-sm font-semibold text-gray-700">Data Tables</h4>
             {meta.tables.map((table: any) => (
@@ -245,99 +293,87 @@ const SortableSection = ({ section, onVisibilityChange, claim }: SortableSection
     );
   };
 
+  // Check if section has content before rendering
+  const hasContent = sectionHasContent(section, claim);
+
   return (
-    <div ref={setNodeRef} style={style} className={`space-y-2 ${!section.isVisible ? "opacity-50" : ""}`}>
-      <div className="flex items-center justify-between p-2 bg-muted rounded-lg">
-        <div className="flex items-center space-x-2">
-          <div {...attributes} {...listeners} className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-background">
-            <GripVertical className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <Label className="font-medium">{section.name}</Label>
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 bg-white shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-3">
+          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+            <GripVertical className="w-5 h-5 text-muted-foreground" />
+          </button>
+          <h3 className="font-semibold">{section.name}</h3>
+          <Badge variant={section.isVisible ? "default" : "secondary"}>
+            {section.isVisible ? "Visible" : "Hidden"}
+          </Badge>
+          {!hasContent && (
+            <Badge variant="outline" className="text-muted-foreground">
+              No Data
+            </Badge>
+          )}
         </div>
         <div className="flex items-center space-x-2">
-          <Switch checked={section.isVisible} onCheckedChange={(checked) => onVisibilityChange(section.id, checked)} />
-          {section.isVisible ? <Eye className="w-4 h-4 text-muted-foreground" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+          <Label htmlFor={`visibility-${section.id}`} className="text-sm text-muted-foreground">
+            {section.isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </Label>
+          <Switch
+            id={`visibility-${section.id}`}
+            checked={section.isVisible}
+            onCheckedChange={(checked) => onVisibilityChange(section.id, checked)}
+          />
         </div>
       </div>
-
-      {section.isVisible && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{section.name}</CardTitle>
-          </CardHeader>
-          <CardContent>{renderSectionContent(section)}</CardContent>
-        </Card>
+      {section.isVisible && hasContent && (
+        <div className="mt-3">{renderSectionContent(section)}</div>
+      )}
+      {section.isVisible && !hasContent && (
+        <p className="text-sm text-muted-foreground italic mt-3">
+          No data available for this section
+        </p>
       )}
     </div>
   );
 };
 
 /* =========================
-   Dynamic Sections Builder
+   getDynamicSectionsFromClaim
 ========================= */
 
-const getDynamicSectionsFromClaim = (claim: Claim): ReportSection[] => {
-  const formData = claim.form_data || {};
-  const metadata = claim.form_data?.dynamic_sections_metadata as any[] | undefined;
-  const sections: ReportSection[] = [];
-
-  sections.push({
-    id: "overview",
-    name: "Claim Overview",
-    content: {},
-    isVisible: true,
-    order: 1,
-  });
-
-  const policyFields = [
-    "registration_id",
-    "insured_name",
-    "insurer",
-    "assigned_surveyor",
-    "policy_number",
-    "sum_insured",
-    "date_of_loss",
-    "loss_description",
+function getDynamicSectionsFromClaim(claim: Claim): ReportSection[] {
+  const sections: ReportSection[] = [
+    { id: "overview", name: "Overview", content: null, isVisible: true, order: 1 },
+    { 
+      id: "policy-details", 
+      name: "Policy Details", 
+      content: null, 
+      isVisible: sectionHasContent({ id: "policy-details", name: "Policy Details", content: null, isVisible: true, order: 2 }, claim), 
+      order: 2 
+    },
   ];
-  const hasPolicyData = Object.entries(formData).some(([k, v]) => policyFields.includes(k) && v);
 
-  sections.push({
-    id: "policy-details",
-    name: "Policy Details",
-    content: {},
-    isVisible: hasPolicyData,
-    order: 2,
+  const metas = (claim.form_data?.dynamic_sections_metadata as any[]) || [];
+  metas.forEach((meta, idx) => {
+    const section: ReportSection = {
+      id: meta.id,
+      name: meta.name || `Section ${idx + 1}`,
+      content: null,
+      isVisible: true, // temp value
+      order: 3 + idx,
+    };
+    
+    // Set visibility based on whether section has content
+    section.isVisible = sectionHasContent(section, claim);
+    
+    sections.push(section);
   });
 
-  if (metadata && metadata.length > 0) {
-    const OFFSET = 2;
-    metadata.forEach((meta, idx) => {
-      const sectionId = meta.id;
-      const imageKey = `${sectionId}_images`;
-      const imageUrls = Array.isArray(formData[imageKey]) ? formData[imageKey].filter(Boolean) : [];
+  return sections;
+}
 
-      const hasFieldData = (meta.fields || []).some((f: any) => {
-        const v = formData[f.name];
-        return v != null && String(v).trim() !== "";
-      });
-
-      const hasImages = imageUrls.length > 0;
-
-      sections.push({
-        id: sectionId,
-        name: meta.name || sectionId,
-        content: {},
-        isVisible: hasFieldData || hasImages,
-        order: (meta.order_index ?? idx + 1) + OFFSET,
-      });
-    });
-  }
-
-  return sections.sort((a, b) => a.order - b.order);
-};
 
 /* =========================
-   buildReportJson (RESTORED)
+   buildReportJson
 ========================= */
 
 function buildReportJson(
@@ -345,7 +381,9 @@ function buildReportJson(
   sections: ReportSection[],
   groupedDocuments: Record<string, ClaimDocument[]>
 ) {
-  const visibleSections = sections.filter((s) => s.isVisible).sort((a, b) => a.order - b.order);
+  const visibleSections = sections
+    .filter((s) => s.isVisible && sectionHasContent(s, claim))
+    .sort((a, b) => a.order - b.order);
   const components: any[] = [];
 
   console.log("claim in buildReportJson:", claim);
@@ -467,8 +505,15 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
         .select("*")
         .eq("claim_id", claim.id)
         .order("created_at", { ascending: false });
+      
       if (error) throw error;
-      return data as ClaimDocument[];
+      
+      // Filter out token placeholders and only show selected documents
+      const filteredDocs = (data as ClaimDocument[]).filter(
+        doc => !doc.file_name.startsWith("__TOKEN_PLACEHOLDER_") && doc.is_selected === true
+      );
+      
+      return filteredDocs;
     },
   });
 
