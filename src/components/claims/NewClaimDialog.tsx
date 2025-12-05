@@ -169,11 +169,11 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
     const errorMsg = errors[field.name]?.message as string;
 
     const wrapper = (children: JSX.Element) => (
-      <div key={field.name} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+      <div key={field.name} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
         <Label htmlFor={field.name} className="md:text-right pt-2">
           {field.label} {field.required && "*"}
         </Label>
-        <div className="md:col-span-2 space-y-1">
+        <div className="md:col-span-2">
           {children}
           {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
         </div>
@@ -313,7 +313,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
         </DialogHeader>
 
         {step === "select-policy" && (
-          <div className="space-y-6 py-4">
+          <div className="space-y-3 py-4">
             {!selectedMainType ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {policyTypes
@@ -343,7 +343,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                   })}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">
                     Select {policyTypes.find((p) => p.id === selectedMainType)?.name} Subtype
@@ -390,7 +390,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
         )}
 
         {step === "claim-details" && (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 py-4">
             {dynamicFields.map((field) => renderDynamicField(field))}
 
             <div className="flex justify-between pt-4">

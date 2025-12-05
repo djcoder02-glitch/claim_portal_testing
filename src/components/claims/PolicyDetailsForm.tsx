@@ -583,7 +583,7 @@ const handleCreateBroker = async () => {
                   Policy Details
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-2">
                 {standardFields.map(renderField)}
                 {/* Add any additional dynamic fields from policy type */}
                 {fields.map(renderField)}

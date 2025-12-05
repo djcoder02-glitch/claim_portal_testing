@@ -1829,7 +1829,7 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
           </div>
           
           <CollapsibleContent className="animate-accordion-down">
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 p-6 bg-slate-50/50">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-2 p-6 bg-slate-50/50">
               {allFields.map((field, index) => (
                 <div key={`${section.id}-${field.name}-${index}`}>
                   {renderField(field, isEditing)}
