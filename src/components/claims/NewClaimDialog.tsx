@@ -27,12 +27,11 @@ interface NewClaimDialogProps {
 
 interface ClaimFormData {
   title: string;
-  //description: string;
   claim_amount?: number;
   registration_id: string;
   insured_name: string;
   assigned_surveyor?: string;
-  insurer?: string; 
+  insurer?: string;
   intimation_date?: string;
 }
 
@@ -53,26 +52,29 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   const [selectedPolicyType, setSelectedPolicyType] = useState<string>("");
   const navigate = useNavigate();
   const [dynamicFields, setDynamicFields] = useState<any[]>([]);
-  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<ClaimFormData>({
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<ClaimFormData>({
     defaultValues: {
       title: "",
-    //  description: "",
       registration_id: "",
       insured_name: "",
       assigned_surveyor: "",
       insurer: "",
-      intimation_date:"",
+      intimation_date: "",
     },
   });
 
-  // --- Policy types & claim creation ---
   const { data: policyTypes = [], isLoading: policyTypesLoading } = usePolicyTypes();
   const createClaimMutation = useCreateClaim();
 
-  // --- Surveyors: fixed list ---
   const { data: surveyors = [], isLoading: surveyorsLoading } = useSurveyors();
-
-  // --- Insurers: dynamic list (insert supported) ---
   const { data: insurers = [], isLoading: insurersLoading } = useInsurers();
   const addInsurerMutation = useAddInsurer();
 
@@ -81,10 +83,10 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
     setStep("claim-details");
   };
 
-  // ADD THIS ENTIRE BLOCK HERE ⬇️
   useEffect(() => {
     if (selectedPolicyType && policyTypes) {
-      const policyType = policyTypes.find(pt => pt.id === selectedPolicyType);
+      const policyType = policyTypes.find((pt) => pt.id === selectedPolicyType);
+
       if (policyType?.fields?.new_claim_fields) {
         setDynamicFields(
           policyType.fields.new_claim_fields
@@ -92,7 +94,6 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
             .sort((a: any, b: any) => a.order - b.order)
         );
       } else {
-        // Default fields if none configured
         setDynamicFields([
           { id: "title", name: "title", label: "Claim Title", type: "text", required: true, placeholder: "Brief description of your claim" },
           { id: "claim_amount", name: "claim_amount", label: "Estimated Claim Amount (Rs.)", type: "number", required: false, placeholder: "0.00" },
@@ -105,16 +106,14 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
       }
     }
   }, [selectedPolicyType, policyTypes]);
-  // ⬆️ END OF NEW CODE
 
   const onSubmit = async (data: ClaimFormData) => {
-      if (!selectedPolicyType) return;
+    if (!selectedPolicyType) return;
 
     try {
       const claim = await createClaimMutation.mutateAsync({
         policy_type_id: selectedPolicyType,
         title: data.title,
-     //   description: data.description,
         claim_amount: data.claim_amount,
         intimation_date: data.intimation_date,
         form_data: {
@@ -122,7 +121,6 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
           insured_name: data.insured_name,
           assigned_surveyor: data.assigned_surveyor,
           insurer: data.insurer,
-
         },
       });
 
@@ -132,8 +130,6 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
 
       onOpenChange(false);
       reset();
-
-      
       setStep("select-policy");
       setSelectedPolicyType("");
 
@@ -170,103 +166,81 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   }
 
   const renderDynamicField = (field: any) => {
+    const errorMsg = errors[field.name]?.message as string;
+
+    const wrapper = (children: JSX.Element) => (
+      <div key={field.name} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <Label htmlFor={field.name} className="md:text-right pt-2">
+          {field.label} {field.required && "*"}
+        </Label>
+        <div className="md:col-span-2 space-y-1">
+          {children}
+          {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
+        </div>
+      </div>
+    );
+
     switch (field.type) {
       case "text":
-        return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Input
-              id={field.name}
-              placeholder={field.placeholder}
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
-            )}
-          </div>
+        return wrapper(
+          <Input
+            id={field.name}
+            placeholder={field.placeholder}
+            {...register(field.name, {
+              required: field.required ? `${field.label} is required` : false,
+            })}
+          />
         );
 
       case "number":
-        return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Input
-              id={field.name}
-              type="number"
-              step="0.01"
-              placeholder={field.placeholder}
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-                valueAsNumber: true,
-                min: { value: 0, message: "Amount must be positive" },
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
-            )}
-          </div>
+        return wrapper(
+          <Input
+            id={field.name}
+            type="number"
+            step="0.01"
+            placeholder={field.placeholder}
+            {...register(field.name, {
+              required: field.required ? `${field.label} is required` : false,
+              valueAsNumber: true,
+              min: { value: 0, message: "Amount must be positive" },
+            })}
+          />
         );
 
       case "date":
-        return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Input
-              id={field.name}
-              type="date"
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-                validate: (value) => {
-                  if (!value) return true;
-                  const selectedDate = new Date(value);
-                  const today = new Date();
-                  today.setHours(23, 59, 59, 999);
-                  if (selectedDate > today) {
-                    return `${field.label} cannot be in the future`;
-                  }
-                  return true;
-                },
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
-            )}
-          </div>
+        return wrapper(
+          <Input
+            id={field.name}
+            type="date"
+            {...register(field.name, {
+              required: field.required ? `${field.label} is required` : false,
+              validate: (value) => {
+                if (!value) return true;
+                const selected = new Date(value);
+                const now = new Date();
+                now.setHours(23, 59, 59, 999);
+                return selected <= now || `${field.label} cannot be in the future`;
+              },
+            })}
+          />
         );
 
       case "textarea":
-        return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Textarea
-              id={field.name}
-              placeholder={field.placeholder}
-              rows={4}
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
-            )}
-          </div>
+        return wrapper(
+          <Textarea
+            id={field.name}
+            placeholder={field.placeholder}
+            rows={4}
+            {...register(field.name, {
+              required: field.required ? `${field.label} is required` : false,
+            })}
+          />
         );
 
       case "select":
         if (field.name === "insurer") {
-          return (
-            <div key={field.name} className="space-y-2">
-              <Label>{field.label}</Label>
+          return wrapper(
+            <>
               <SearchableSelect
                 options={insurers.map((i) => i.name)}
                 value={watch(field.name) || ""}
@@ -279,15 +253,16 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                 }}
                 disabled={insurersLoading || addInsurerMutation.isPending}
               />
-              {insurersLoading && <p className="text-xs text-muted-foreground">Loading insurers...</p>}
-            </div>
+              {insurersLoading && (
+                <p className="text-xs text-muted-foreground">Loading insurers...</p>
+              )}
+            </>
           );
         }
 
         if (field.name === "assigned_surveyor") {
-          return (
-            <div key={field.name} className="space-y-2">
-              <Label>{field.label}</Label>
+          return wrapper(
+            <>
               <SearchableSelect
                 options={surveyors.map((s) => s.name)}
                 value={watch(field.name) || ""}
@@ -296,35 +271,28 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                 disabled={surveyorsLoading}
                 allowClear
               />
-              {surveyorsLoading && <p className="text-xs text-muted-foreground">Loading surveyors...</p>}
-            </div>
+              {surveyorsLoading && (
+                <p className="text-xs text-muted-foreground">Loading surveyors...</p>
+              )}
+            </>
           );
         }
 
-        // Generic select field
-        return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <select
-              id={field.name}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-              })}
-            >
-              <option value="">{field.placeholder || "Select..."}</option>
-              {field.options?.map((opt: string) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>
-            )}
-          </div>
+        return wrapper(
+          <select
+            id={field.name}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            {...register(field.name, {
+              required: field.required ? `${field.label} is required` : false,
+            })}
+          >
+            <option value="">{field.placeholder || "Select..."}</option>
+            {field.options?.map((opt: string) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
         );
 
       default:
@@ -332,15 +300,11 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
     }
   };
 
-  
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {step === "select-policy" ? "Select Policy Type" : "Claim Details"}
-          </DialogTitle>
+          <DialogTitle>{step === "select-policy" ? "Select Policy Type" : "Claim Details"}</DialogTitle>
           <DialogDescription>
             {step === "select-policy"
               ? "Choose the type of insurance policy for your claim"
@@ -348,7 +312,6 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Step 1: Select Policy */}
         {step === "select-policy" && (
           <div className="space-y-6 py-4">
             {!selectedMainType ? (
@@ -389,6 +352,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                     Back to Categories
                   </Button>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {policyTypes
                     .filter((type) => type.parent_id === selectedMainType)
@@ -397,6 +361,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
                         policyIcons[
                           policyTypes.find((p) => p.id === selectedMainType)?.name as keyof typeof policyIcons
                         ] || FileText;
+
                       return (
                         <Card
                           key={subType.id}
@@ -424,13 +389,10 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
           </div>
         )}
 
-        {/* Step 2: Claim Details */}
         {step === "claim-details" && (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
-            {/* Render dynamic fields */}
             {dynamicFields.map((field) => renderDynamicField(field))}
 
-            {/* Buttons */}
             <div className="flex justify-between pt-4">
               <Button
                 type="button"
@@ -443,13 +405,13 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
               >
                 Back
               </Button>
+
               <Button type="submit" disabled={createClaimMutation.isPending}>
                 {createClaimMutation.isPending ? "Creating..." : "Create Claim"}
               </Button>
             </div>
           </form>
         )}
-        
       </DialogContent>
     </Dialog>
   );

@@ -1107,7 +1107,7 @@ const loadTemplate = (template: FormTemplate) => {
   const section3Custom = customFields.filter((f) => f.section === 'section3');
   const section4Custom = customFields.filter((f) => f.section === 'section4');
 
-  const renderField = (field: FormField, isEditing = false) => {
+ const renderField = (field: FormField, isEditing = false) => {
     const showActions = isEditing || pendingSaves.has(field.name); 
     const fieldValue = watch(field.name);
     const displayedLabel = fieldLabels[field.name] ?? field.label;
@@ -1120,391 +1120,407 @@ const loadTemplate = (template: FormTemplate) => {
     switch (field.type) {
       case 'text':
         return (
-          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+          <div key={field.name} className={`relative transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
               : 'py-1'
           }`}>
-            <div className="flex items-center justify-between">
-              {field.isCustom ? (
-  <Input
-    value={field.name}
-    onChange={(e) => updateCustomField(field.name, { name: e.target.value })}
-    onBlur={() => {
-      // Save when done editing the name
-      if (pendingSaves.has(field.name)) {
-        saveCustomField(field.name);
-      }
-    }}
-    className="text-sm font-medium w-auto max-w-xs"
-    placeholder="Field name"
-  />
-              ) : isEditingLabel ? (
-                <div className="flex items-center gap-2">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-between w-[250px] flex-shrink-0 pt-2">
+                {field.isCustom ? (
                   <Input
-                    value={fieldLabels[field.name] ?? displayedLabel}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveFieldLabel(field.name)}
+                    value={field.name}
+                    onChange={(e) => updateCustomField(field.name, { name: e.target.value })}
+                    onBlur={() => {
+                      // Save when done editing the name
+                      if (pendingSaves.has(field.name)) {
+                        saveCustomField(field.name);
+                      }
+                    }}
                     className="text-sm font-medium w-auto max-w-xs"
-                    placeholder="Field label"
+                    placeholder="Field name"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveFieldLabel(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save label"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label 
-                  htmlFor={field.name} 
-                  className={isEditing ? "cursor-pointer" : ""}
-                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
-                >
-                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {showActions && (
-                <div className="flex items-center gap-1">
-                  {pendingSaves.has(field.name) && (
+                ) : isEditingLabel ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fieldLabels[field.name] ?? displayedLabel}
+                      onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                      onBlur={() => saveFieldLabel(field.name)}
+                      className="text-sm font-medium w-auto max-w-xs"
+                      placeholder="Field label"
+                    />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => saveCustomField(field.name)}
+                      onClick={() => saveFieldLabel(field.name)}
                       className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Save field"
+                      title="Save label"
                     >
                       <Check className="h-3 w-3" />
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  </div>
+                ) : (
+                  <Label 
+                    htmlFor={field.name} 
+                    className={isEditing ? "cursor-pointer" : ""}
+                    onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+                    {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+                  </Label>
+                )}
+                {showActions && (
+                  <div className="flex items-center gap-1">
+                    {pendingSaves.has(field.name) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveCustomField(field.name)}
+                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Save field"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 max-w-full">
+                <Input
+                  id={field.name}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  {...register(field.name, { 
+                    required: field.required ? `${field.label} is required` : false,
+                    onChange: (e) => {
+                      if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                        setPendingSaves(prev => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: (e) => {
+                      if (pendingSaves.has(field.name)) {
+                        saveCustomField(field.name);
+                      }
+                    }
+                  })}
+                />
+                {errors[field.name] && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors[field.name]?.message as string}
+                  </p>
+                )}
+              </div>
             </div>
-            <Input
-              id={field.name}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
-                onChange: (e) => {
-                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
-                    setPendingSaves(prev => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: (e) => {
-                  if (pendingSaves.has(field.name)) {
-                    saveCustomField(field.name);
-                  }
-                }
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
           </div>
         );
 
       case 'number':
         return (
-          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+          <div key={field.name} className={`relative transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
               : 'py-1'
           }`}>
-            <div className="flex items-center justify-between">
-              {field.isCustom ? (
-                <Input
-                  value={field.label}
-                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-                  className="text-sm font-medium w-auto max-w-xs"
-                  placeholder="Field label"
-                />
-              ) : isEditingLabel ? (
-                <div className="flex items-center gap-2">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-between w-[250px] flex-shrink-0 pt-2">
+                {field.isCustom ? (
                   <Input
-                    value={fieldLabels[field.name] ?? displayedLabel}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveFieldLabel(field.name)}
+                    value={field.label}
+                    onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
                     className="text-sm font-medium w-auto max-w-xs"
                     placeholder="Field label"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveFieldLabel(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save label"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label 
-                  htmlFor={field.name} 
-                  className={isEditing ? "cursor-pointer" : ""}
-                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
-                >
-                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {showActions && (
-                <div className="flex items-center gap-1">
-                  {pendingSaves.has(field.name) && (
+                ) : isEditingLabel ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fieldLabels[field.name] ?? displayedLabel}
+                      onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                      onBlur={() => saveFieldLabel(field.name)}
+                      className="text-sm font-medium w-auto max-w-xs"
+                      placeholder="Field label"
+                    />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => saveCustomField(field.name)}
+                      onClick={() => saveFieldLabel(field.name)}
                       className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Save field"
+                      title="Save label"
                     >
                       <Check className="h-3 w-3" />
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  </div>
+                ) : (
+                  <Label 
+                    htmlFor={field.name} 
+                    className={isEditing ? "cursor-pointer" : ""}
+                    onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+                    {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+                  </Label>
+                )}
+                {showActions && (
+                  <div className="flex items-center gap-1">
+                    {pendingSaves.has(field.name) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveCustomField(field.name)}
+                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Save field"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 max-w-full">
+                <Input
+                  id={field.name}
+                  type="number"
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  {...register(field.name, { 
+                    required: field.required ? `${field.label} is required` : false,
+                    valueAsNumber: true,
+                    onChange: (e) => {
+                      const newValue = e.target.valueAsNumber || e.target.value;
+                      if (newValue !== (claim.form_data?.[field.name] || '')) {
+                        setPendingSaves(prev => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: (e) => {
+                      if (pendingSaves.has(field.name)) {
+                        saveCustomField(field.name);
+                      }
+                    }
+                  })}
+                />
+                {errors[field.name] && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors[field.name]?.message as string}
+                  </p>
+                )}
+              </div>
             </div>
-            <Input
-              id={field.name}
-              type="number"
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
-                valueAsNumber: true,
-                onChange: (e) => {
-                  const newValue = e.target.valueAsNumber || e.target.value;
-                  if (newValue !== (claim.form_data?.[field.name] || '')) {
-                    setPendingSaves(prev => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: (e) => {
-                  if (pendingSaves.has(field.name)) {
-                    saveCustomField(field.name);
-                  }
-                }
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
           </div>
         );
 
       case 'date':
         return (
-          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+          <div key={field.name} className={`relative transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
               : 'py-1'
           }`}>
-            <div className="flex items-center justify-between">
-              {field.isCustom ? (
-                <Input
-                  value={field.label}
-                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-                  className="text-sm font-medium w-auto max-w-xs"
-                  placeholder="Field label"
-                />
-              ) : isEditingLabel ? (
-                <div className="flex items-center gap-2">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-between w-[250px] flex-shrink-0 pt-2">
+                {field.isCustom ? (
                   <Input
-                    value={fieldLabels[field.name] ?? displayedLabel}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveFieldLabel(field.name)}
+                    value={field.label}
+                    onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
                     className="text-sm font-medium w-auto max-w-xs"
                     placeholder="Field label"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveFieldLabel(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save label"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label 
-                  htmlFor={field.name} 
-                  className={isEditing ? "cursor-pointer" : ""}
-                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
-                >
-                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {showActions && (
-                <div className="flex items-center gap-1">
-                  {pendingSaves.has(field.name) && (
+                ) : isEditingLabel ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fieldLabels[field.name] ?? displayedLabel}
+                      onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                      onBlur={() => saveFieldLabel(field.name)}
+                      className="text-sm font-medium w-auto max-w-xs"
+                      placeholder="Field label"
+                    />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => saveCustomField(field.name)}
+                      onClick={() => saveFieldLabel(field.name)}
                       className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Save field"
+                      title="Save label"
                     >
                       <Check className="h-3 w-3" />
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  </div>
+                ) : (
+                  <Label 
+                    htmlFor={field.name} 
+                    className={isEditing ? "cursor-pointer" : ""}
+                    onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+                    {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+                  </Label>
+                )}
+                {showActions && (
+                  <div className="flex items-center gap-1">
+                    {pendingSaves.has(field.name) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveCustomField(field.name)}
+                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Save field"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 max-w-full">
+                <Input
+                  id={field.name}
+                  type="date"
+                  {...register(field.name, { 
+                    required: field.required ? `${field.label} is required` : false,
+                    onChange: (e) => {
+                      if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                        setPendingSaves(prev => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: (e) => {
+                      if (pendingSaves.has(field.name)) {
+                        saveCustomField(field.name);
+                      }
+                    }
+                  })}
+                />
+                {errors[field.name] && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors[field.name]?.message as string}
+                  </p>
+                )}
+              </div>
             </div>
-            <Input
-              id={field.name}
-              type="date"
-              {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
-                onChange: (e) => {
-                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
-                    setPendingSaves(prev => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: (e) => {
-                  if (pendingSaves.has(field.name)) {
-                    saveCustomField(field.name);
-                  }
-                }
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
           </div>
         );
 
       case 'textarea':
         return (
-          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+          <div key={field.name} className={`relative transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
               : 'py-1'
           }`}>
-            <div className="flex items-center justify-between">
-              {field.isCustom ? (
-                <Input
-                  value={field.label}
-                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-                  className="text-sm font-medium w-auto max-w-xs"
-                  placeholder="Field label"
-                />
-              ) : isEditingLabel ? (
-                <div className="flex items-center gap-2">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-between w-[250px] flex-shrink-0 pt-2">
+                {field.isCustom ? (
                   <Input
-                    value={fieldLabels[field.name] ?? displayedLabel}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveFieldLabel(field.name)}
+                    value={field.label}
+                    onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
                     className="text-sm font-medium w-auto max-w-xs"
                     placeholder="Field label"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveFieldLabel(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save label"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label 
-                  htmlFor={field.name} 
-                  className={isEditing ? "cursor-pointer" : ""}
-                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
-                >
-                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {showActions && (
-                <div className="flex items-center gap-1">
-                  {pendingSaves.has(field.name) && (
+                ) : isEditingLabel ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fieldLabels[field.name] ?? displayedLabel}
+                      onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                      onBlur={() => saveFieldLabel(field.name)}
+                      className="text-sm font-medium w-auto max-w-xs"
+                      placeholder="Field label"
+                    />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => saveCustomField(field.name)}
+                      onClick={() => saveFieldLabel(field.name)}
                       className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Save field"
+                      title="Save label"
                     >
                       <Check className="h-3 w-3" />
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  </div>
+                ) : (
+                  <Label 
+                    htmlFor={field.name} 
+                    className={isEditing ? "cursor-pointer" : ""}
+                    onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+                    {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+                  </Label>
+                )}
+                {showActions && (
+                  <div className="flex items-center gap-1">
+                    {pendingSaves.has(field.name) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveCustomField(field.name)}
+                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Save field"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 max-w-full">
+                <Textarea
+                  id={field.name}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  rows={4}
+                  {...register(field.name, { 
+                    required: field.required ? `${field.label} is required` : false,
+                    onChange: (e) => {
+                      if (e.target.value !== (claim.form_data?.[field.name] || '')) {
+                        setPendingSaves(prev => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: (e) => {
+                      if (pendingSaves.has(field.name)) {
+                        saveCustomField(field.name);
+                      }
+                    }
+                  })}
+                />
+                {errors[field.name] && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors[field.name]?.message as string}
+                  </p>
+                )}
+              </div>
             </div>
-            <Textarea
-              id={field.name}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              rows={4}
-              {...register(field.name, { 
-                required: field.required ? `${field.label} is required` : false,
-                onChange: (e) => {
-                  if (e.target.value !== (claim.form_data?.[field.name] || '')) {
-                    setPendingSaves(prev => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: (e) => {
-                  if (pendingSaves.has(field.name)) {
-                    saveCustomField(field.name);
-                  }
-                }
-              })}
-            />
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
           </div>
         );
 
@@ -1540,166 +1556,176 @@ const loadTemplate = (template: FormTemplate) => {
         }
 
         return (
-          <div key={field.name} className={`relative space-y-2 transition-all duration-200 rounded-lg ${
+          <div key={field.name} className={`relative transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
               : 'py-1'
           }`}>
-            <div className="flex items-center justify-between">
-              {field.isCustom ? (
-                <Input
-                  value={field.label}
-                  onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-                  className="text-sm font-medium w-auto max-w-xs"
-                  placeholder="Field label"
-                />
-              ) : isEditingLabel ? (
-                <div className="flex items-center gap-2">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-between w-[250px] flex-shrink-0 pt-2">
+                {field.isCustom ? (
                   <Input
-                    value={fieldLabels[field.name] ?? displayedLabel}
-                    onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    onBlur={() => saveFieldLabel(field.name)}
+                    value={field.label}
+                    onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
                     className="text-sm font-medium w-auto max-w-xs"
                     placeholder="Field label"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveFieldLabel(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save label"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Label 
-                  htmlFor={field.name} 
-                  className={isEditing ? "cursor-pointer" : ""}
-                  onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
-                >
-                  {displayedLabel} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-              )}
-              {showActions && (
-                <div className="flex items-center gap-1">
-                  {pendingSaves.has(field.name) && (
+                ) : isEditingLabel ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fieldLabels[field.name] ?? displayedLabel}
+                      onChange={(e) => setFieldLabels(prev => ({ ...prev, [field.name]: e.target.value }))}
+                      onBlur={() => saveFieldLabel(field.name)}
+                      className="text-sm font-medium w-auto max-w-xs"
+                      placeholder="Field label"
+                    />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => saveCustomField(field.name)}
+                      onClick={() => saveFieldLabel(field.name)}
                       className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Save field"
+                      title="Save label"
                     >
                       <Check className="h-3 w-3" />
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  </div>
+                ) : (
+                  <Label 
+                    htmlFor={field.name} 
+                    className={isEditing ? "cursor-pointer" : ""}
+                    onClick={isEditing ? () => setEditingLabels(prev => { const next = new Set(prev); next.add(field.name); return next; }) : undefined}
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+                    {displayedLabel} {field.required && <span className="text-destructive">*</span>}
+                  </Label>
+                )}
+                {showActions && (
+                  <div className="flex items-center gap-1">
+                    {pendingSaves.has(field.name) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveCustomField(field.name)}
+                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Save field"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <Select
+                  value={typeof fieldValue === "string" ? fieldValue : ""}
+                  onValueChange={(value) => {
+                    setValue(field.name, value);
+                    if (value !== (claim.form_data?.[field.name] || '')) {
+                      setPendingSaves(prev => new Set([...prev, field.name]));
+                    }
+                  }}
+                  onOpenChange={(open) => {
+                    if (!open && pendingSaves.has(field.name)) {
+                      setTimeout(() => saveCustomField(field.name), 100);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {field.options?.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors[field.name] && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors[field.name]?.message as string}
+                  </p>
+                )}
+              </div>
             </div>
-            <Select
-              value={typeof fieldValue === "string" ? fieldValue : ""}
-              onValueChange={(value) => {
-                setValue(field.name, value);
-                if (value !== (claim.form_data?.[field.name] || '')) {
-                  setPendingSaves(prev => new Set([...prev, field.name]));
-                }
-              }}
-              onOpenChange={(open) => {
-                if (!open && pendingSaves.has(field.name)) {
-                  setTimeout(() => saveCustomField(field.name), 100);
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors[field.name] && (
-              <p className="text-sm text-destructive">
-                {errors[field.name]?.message as string}
-              </p>
-            )}
           </div>
         );
 
       case 'checkbox':
         return (
-          <div key={field.name} className={`relative flex items-center space-x-2 transition-all duration-200 rounded-lg ${
+          <div key={field.name} className={`relative transition-all duration-200 rounded-lg ${
             isEditing 
               ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
               : 'py-1'
           }`}>
-            <Checkbox
-              id={field.name}
-              checked={typeof fieldValue === "boolean" ? fieldValue : false}
-              onCheckedChange={(checked) => {
-                setValue(field.name, checked);
-                if (checked !== (claim.form_data?.[field.name] || false)) {
-                  setPendingSaves(prev => new Set([...prev, field.name]));
-                  setTimeout(() => {
-                    if (pendingSaves.has(field.name)) {
-                      saveCustomField(field.name);
-                    }
-                  }, 500);
-                }
-              }}
-            />
-            {field.isCustom ? (
-              <Input
-                value={field.label}
-                onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
-                className="text-sm font-normal w-auto max-w-xs"
-                placeholder="Field label"
-              />
-            ) : (
-              <Label htmlFor={field.name} className="text-sm font-normal">
-                {field.label}
-              </Label>
-            )}
-            {showActions && (
-              <div className="flex items-center gap-1">
-                {pendingSaves.has(field.name) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => saveCustomField(field.name)}
-                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title="Save field"
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between w-[250px] flex-shrink-0">
+                {field.isCustom ? (
+                  <Input
+                    value={field.label}
+                    onChange={(e) => updateCustomField(field.name, { label: e.target.value })}
+                    className="text-sm font-medium w-auto max-w-xs"
+                    placeholder="Field label"
+                  />
+                ) : (
+                  <Label htmlFor={field.name} className="text-sm font-normal">
+                    {field.label}
+                  </Label>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
-                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                {showActions && (
+                  <div className="flex items-center gap-1">
+                    {pendingSaves.has(field.name) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveCustomField(field.name)}
+                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Save field"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => field.isCustom ? removeCustomField(field.name) : removeField(field.name)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
+              <div className="flex-1">
+                <Checkbox
+                  id={field.name}
+                  checked={typeof fieldValue === "boolean" ? fieldValue : false}
+                  onCheckedChange={(checked) => {
+                    setValue(field.name, checked);
+                    if (checked !== (claim.form_data?.[field.name] || false)) {
+                      setPendingSaves(prev => new Set([...prev, field.name]));
+                      setTimeout(() => {
+                        if (pendingSaves.has(field.name)) {
+                          saveCustomField(field.name);
+                        }
+                      }, 500);
+                    }
+                  }}
+                />
+              </div>
+            </div>
           </div>
         );
 
@@ -1795,7 +1821,7 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
           </div>
           
           <CollapsibleContent className="animate-accordion-down">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 p-6 bg-slate-50/50">
               {allFields.map((field, index) => (
                 <div key={`${section.id}-${field.name}-${index}`}>
                   {renderField(field, isEditing)}
@@ -2400,8 +2426,13 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
   ];
 
   return (
-    <div className="relative space-y-2">
-      <div className="flex items-center justify-between">
+    <div className={`relative transition-all duration-200 rounded-lg ${
+      isEditing 
+        ? 'border-l-4 border-blue-400 pl-4 pr-2 py-3 bg-gradient-to-r from-blue-50/50 to-transparent hover:from-blue-50/80' 
+        : 'py-1'
+    }`}>
+      <div className="flex items-start gap-4">
+        <div className="flex items-center justify-between w-[250px] flex-shrink-0 pt-2">
         {field.isCustom ? (
           <Input
             value={field.label}
@@ -2464,9 +2495,9 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
             </Button>
           </div>
         )}
-      </div>
-
-      {isLoading && (
+        </div>
+        <div className="flex-1 max-w-[67%]">
+          {isLoading && (
         <div className="flex items-center space-x-2 text-xs text-muted-foreground">
           <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full"></div>
           <span>Loading options...</span>
@@ -2507,10 +2538,12 @@ const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
       )}
 
       {errors[field.name] && (
-        <p className="text-sm text-destructive">
-          {errors[field.name]?.message as string}
-        </p>
-      )}
+            <p className="text-sm text-destructive mt-1">
+              {errors[field.name]?.message as string}
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

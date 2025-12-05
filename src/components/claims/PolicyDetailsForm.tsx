@@ -209,88 +209,112 @@ useEffect(() => {
     switch (field.type) {
       case "text":
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            <Input
-              id={field.name}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-                onChange: (e) => {
-                  if (e.target.value !== (claim.form_data?.[field.name] || "")) {
-                    setPendingSaves((prev) => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
-              })}
-            />
-            {errors[field.name] && <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
+              </div>
+              <div className="flex-1 max-w-full">
+                <Input
+                  id={field.name}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  {...register(field.name, {
+                    required: field.required ? `${field.label} is required` : false,
+                    onChange: (e) => {
+                      if (e.target.value !== (claim.form_data?.[field.name] || "")) {
+                        setPendingSaves((prev) => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
+                  })}
+                />
+                {errors[field.name] && <p className="text-sm text-destructive mt-1">{errors[field.name]?.message as string}</p>}
+              </div>
+            </div>
           </div>
         );
 
       case "number":
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            <Input
-              id={field.name}
-              type="number"
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-                valueAsNumber: true,
-                onChange: (e) => {
-                  if (e.target.value !== String(claim.form_data?.[field.name] ?? "")) {
-                    setPendingSaves((prev) => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
-              })}
-            />
-            {errors[field.name] && <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
+              </div>
+              <div className="flex-1 max-w-full">
+                <Input
+                  id={field.name}
+                  type="number"
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  {...register(field.name, {
+                    required: field.required ? `${field.label} is required` : false,
+                    valueAsNumber: true,
+                    onChange: (e) => {
+                      if (e.target.value !== String(claim.form_data?.[field.name] ?? "")) {
+                        setPendingSaves((prev) => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
+                  })}
+                />
+                {errors[field.name] && <p className="text-sm text-destructive mt-1">{errors[field.name]?.message as string}</p>}
+              </div>
+            </div>
           </div>
         );
 
       case "date":
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            <Input
-              id={field.name}
-              type="date"
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-                onChange: (e) => {
-                  if (e.target.value !== (claim.form_data?.[field.name] || "")) {
-                    setPendingSaves((prev) => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
-              })}
-            />
-            {errors[field.name] && <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
+              </div>
+              <div className="flex-1 max-w-full">
+                <Input
+                  id={field.name}
+                  type="date"
+                  {...register(field.name, {
+                    required: field.required ? `${field.label} is required` : false,
+                    onChange: (e) => {
+                      if (e.target.value !== (claim.form_data?.[field.name] || "")) {
+                        setPendingSaves((prev) => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
+                  })}
+                />
+                {errors[field.name] && <p className="text-sm text-destructive mt-1">{errors[field.name]?.message as string}</p>}
+              </div>
+            </div>
           </div>
         );
 
       case "textarea":
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            <Textarea
-              id={field.name}
-              placeholder={`Enter ${field.label.toLowerCase()}`}
-              rows={4}
-              {...register(field.name, {
-                required: field.required ? `${field.label} is required` : false,
-                onChange: (e) => {
-                  if (e.target.value !== (claim.form_data?.[field.name] || "")) {
-                    setPendingSaves((prev) => new Set([...prev, field.name]));
-                  }
-                },
-                onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
-              })}
-            />
-            {errors[field.name] && <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
+              </div>
+              <div className="flex-1 max-w-full">
+                <Textarea
+                  id={field.name}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  rows={4}
+                  {...register(field.name, {
+                    required: field.required ? `${field.label} is required` : false,
+                    onChange: (e) => {
+                      if (e.target.value !== (claim.form_data?.[field.name] || "")) {
+                        setPendingSaves((prev) => new Set([...prev, field.name]));
+                      }
+                    },
+                    onBlur: () => pendingSaves.has(field.name) && saveField(field.name)
+                  })}
+                />
+                {errors[field.name] && <p className="text-sm text-destructive mt-1">{errors[field.name]?.message as string}</p>}
+              </div>
+            </div>
           </div>
         );
 
@@ -298,33 +322,36 @@ useEffect(() => {
       // Special handling for surveyor field
       if (field.name === "assigned_surveyor") {
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            
-            {/* Show error if data fetching failed */}
-            {surveyorsError && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                Failed to load surveyors: {surveyorsError.message}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
               </div>
-            )}
-            
-            <SearchableSelect
-              options={surveyors.map((s) => s.name)}
-              value={fieldValue || ""}
-              placeholder={surveyorsLoading ? "Loading surveyors..." : "Select surveyor..."}
-              searchPlaceholder="Search surveyors..."
-              onValueChange={(val) => {
-                setValue(field.name, val);
-                if (val !== (claim.form_data?.[field.name] || "")) {
-                  setPendingSaves((prev) => new Set([...prev, field.name]));
-                  setTimeout(() => saveField(field.name), 500);
-                }
-              }}
-              disabled={surveyorsLoading || !!surveyorsError}
-              allowClear
-              allowCreate={false}
-              className="w-full"
-            />
+              <div className="flex-1 max-w-full">
+                {surveyorsError && (
+                  <div className="text-sm text-red-600 bg-red-50 p-2 rounded mb-2">
+                    Failed to load surveyors: {surveyorsError.message}
+                  </div>
+                )}
+                <SearchableSelect
+                  options={surveyors.map((s) => s.name)}
+                  value={fieldValue || ""}
+                  placeholder={surveyorsLoading ? "Loading surveyors..." : "Select surveyor..."}
+                  searchPlaceholder="Search surveyors..."
+                  onValueChange={(val) => {
+                    setValue(field.name, val);
+                    if (val !== (claim.form_data?.[field.name] || "")) {
+                      setPendingSaves((prev) => new Set([...prev, field.name]));
+                      setTimeout(() => saveField(field.name), 500);
+                    }
+                  }}
+                  disabled={surveyorsLoading || !!surveyorsError}
+                  allowClear
+                  allowCreate={false}
+                  className="w-full"
+                />
+              </div>
+            </div>
           </div>
         );
       }
@@ -332,90 +359,103 @@ useEffect(() => {
       // Special handling for insurer field
       if (field.name === "insurer") {
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            
-            {/* Show error if data fetching failed */}
-            {insurersError && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                Failed to load insurers: {insurersError.message}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
               </div>
-            )}
-            
-            <SearchableSelect
-              options={insurers.map((i) => i.name)}
-              value={fieldValue || ""}
-              placeholder={insurersLoading ? "Loading insurers..." : "Select or add insurer..."}
-              searchPlaceholder="Search or add insurer..."
-              onValueChange={(val) => {
-                setValue(field.name, val);
-                if (val !== (claim.form_data?.[field.name] || "")) {
-                  setPendingSaves((prev) => new Set([...prev, field.name]));
-                  setTimeout(() => saveField(field.name), 500);
-                }
-              }}
-              allowClear
-              allowCreate
-              onCreateOption={async (val) => {
-                await addInsurerMutation.mutateAsync(val);
-              }}
-              createOptionText="Add insurer"
-              disabled={insurersLoading || addInsurerMutation.isPending || !!insurersError}
-              className="w-full"
-            />
+              <div className="flex-1 max-w-full">
+                {insurersError && (
+                  <div className="text-sm text-red-600 bg-red-50 p-2 rounded mb-2">
+                    Failed to load insurers: {insurersError.message}
+                  </div>
+                )}
+                <SearchableSelect
+                  options={insurers.map((i) => i.name)}
+                  value={fieldValue || ""}
+                  placeholder={insurersLoading ? "Loading insurers..." : "Select or add insurer..."}
+                  searchPlaceholder="Search or add insurer..."
+                  onValueChange={(val) => {
+                    setValue(field.name, val);
+                    if (val !== (claim.form_data?.[field.name] || "")) {
+                      setPendingSaves((prev) => new Set([...prev, field.name]));
+                      setTimeout(() => saveField(field.name), 500);
+                    }
+                  }}
+                  allowClear
+                  allowCreate
+                  onCreateOption={async (val) => {
+                    await addInsurerMutation.mutateAsync(val);
+                  }}
+                  createOptionText="Add insurer"
+                  disabled={insurersLoading || addInsurerMutation.isPending || !!insurersError}
+                  className="w-full"
+                />
+              </div>
+            </div>
           </div>
         );
       }
 
         // Regular select for other fields
         return (
-          <div key={field.name} className="space-y-2">
-            <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
-            <Select
-              value={typeof fieldValue === "string" ? fieldValue : ""}
-              onValueChange={(value) => {
-                setValue(field.name, value);
-                if (value !== (claim.form_data?.[field.name] || "")) {
-                  setPendingSaves((prev) => new Set([...prev, field.name]));
-                }
-              }}
-              onOpenChange={(open) => {
-                if (!open && pendingSaves.has(field.name)) {
-                  setTimeout(() => saveField(field.name), 100);
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors[field.name] && <p className="text-sm text-destructive">{errors[field.name]?.message as string}</p>}
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-start gap-4">
+              <div className="w-[250px] flex-shrink-0 pt-2">
+                <Label>{field.label}{field.required && <span className="text-destructive">*</span>}</Label>
+              </div>
+              <div className="flex-1 max-w-full">
+                <Select
+                  value={typeof fieldValue === "string" ? fieldValue : ""}
+                  onValueChange={(value) => {
+                    setValue(field.name, value);
+                    if (value !== (claim.form_data?.[field.name] || "")) {
+                      setPendingSaves((prev) => new Set([...prev, field.name]));
+                    }
+                  }}
+                  onOpenChange={(open) => {
+                    if (!open && pendingSaves.has(field.name)) {
+                      setTimeout(() => saveField(field.name), 100);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {field.options?.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors[field.name] && <p className="text-sm text-destructive mt-1">{errors[field.name]?.message as string}</p>}
+              </div>
+            </div>
           </div>
         );
 
       case "checkbox":
         return (
-          <div key={field.name} className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id={field.name}
-                checked={fieldValue || false}
-                onCheckedChange={(checked) => {
-                  setValue(field.name, !!checked);
-                  if (checked !== (claim.form_data?.[field.name] || false)) {
-                    setPendingSaves((prev) => new Set([...prev, field.name]));
-                    setTimeout(() => pendingSaves.has(field.name) && saveField(field.name), 500);
-                  }
-                }}
-              />
-              <Label htmlFor={field.name}>{field.label}</Label>
+          <div key={field.name} className="relative transition-all duration-200 rounded-lg py-1">
+            <div className="flex items-center gap-4">
+              <div className="w-[250px] flex-shrink-0">
+                <Label htmlFor={field.name}>{field.label}</Label>
+              </div>
+              <div className="flex-1 max-w-full">
+                <Checkbox
+                  id={field.name}
+                  checked={fieldValue || false}
+                  onCheckedChange={(checked) => {
+                    setValue(field.name, !!checked);
+                    if (checked !== (claim.form_data?.[field.name] || false)) {
+                      setPendingSaves((prev) => new Set([...prev, field.name]));
+                      setTimeout(() => pendingSaves.has(field.name) && saveField(field.name), 500);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
         );
@@ -543,13 +583,13 @@ const handleCreateBroker = async () => {
                   Policy Details
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                 {standardFields.map(renderField)}
                 {/* Add any additional dynamic fields from policy type */}
                 {fields.map(renderField)}
               </div>
             </div>
-            <div className="pt-4 border-t border-border/50">
+            {/* <div className="pt-4 border-t border-border/50">
               <Button
                 type="submit"
                 disabled={updateClaimMutation.isPending}
@@ -557,7 +597,7 @@ const handleCreateBroker = async () => {
               >
                 {updateClaimMutation.isPending ? "Saving..." : "Save Policy Details"}
               </Button>
-            </div>
+            </div> */}
             
             {/* Broker/Agent Details Section */}
             <div className="space-y-6 pt-6 border-t border-border/50">
