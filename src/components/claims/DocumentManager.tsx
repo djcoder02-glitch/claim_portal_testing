@@ -12,11 +12,15 @@ import {
   File, 
   Trash2, 
   Download,
-  Plus
+  Plus,
+  ExternalLink, Eye, CheckCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { generateUploadToken, getDocumentPublicUrl } from "@/lib/uploadTokens"; 
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 
 interface ClaimDocument {
   id: string;
@@ -28,6 +32,12 @@ interface ClaimDocument {
   uploaded_by: string;
   created_at: string;
   field_label?: string;
+  upload_token?: string;            
+  token_expires_at?: string;         
+  is_selected?: boolean;             
+  uploaded_via_link?: boolean;   
+  signedUrl?: string;
+    
 }
 
 interface DocumentManagerProps {
@@ -54,6 +64,8 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
   const [editingSection, setEditingSection] = useState<number | null>(null);
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   const queryClient = useQueryClient();
+  const [generatingLink, setGeneratingLink] = useState(false);          
+  const [viewingDocument, setViewingDocument] = useState<ClaimDocument | null>(null); 
 
   // Fetch documents for this claim
   const { data: documents, isLoading } = useQuery({
@@ -66,7 +78,13 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as ClaimDocument[];
+      
+      // Filter out token placeholders
+      const realDocs = (data as ClaimDocument[]).filter(
+        doc => !doc.file_name.startsWith("__TOKEN_PLACEHOLDER_")
+      );
+      
+      return realDocs;
     },
   });
 
@@ -143,6 +161,67 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
       toast.error("Failed to delete document: " + error.message);
     },
   });
+
+  const generateLinkMutation = useMutation({
+    mutationFn: async (fieldLabel: string) => {
+      const tokenData = await generateUploadToken(claimId, fieldLabel, 7);
+      return tokenData.uploadUrl;
+    },
+    onSuccess: (url) => {
+      navigator.clipboard.writeText(url);
+      toast.success("Upload link copied to clipboard! Valid for 7 days.");
+    },
+    onError: (error) => {
+      toast.error("Failed to generate link: " + error.message);
+    },
+  });
+
+  // Select document as primary
+  const selectDocumentMutation = useMutation({
+    mutationFn: async (document: ClaimDocument) => {
+      // First, unselect all documents with same field_label
+      await supabase
+        .from("claim_documents")
+        .update({ is_selected: false })
+        .eq("claim_id", claimId)
+        .eq("field_label", document.field_label || 'Document');
+
+      // Then select this document
+      const { error } = await supabase
+        .from("claim_documents")
+        .update({ is_selected: true })
+        .eq("id", document.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claim-documents", claimId] });
+      toast.success("Document selected as primary!");
+    },
+    onError: (error) => {
+      toast.error("Failed to select document: " + error.message);
+    },
+  });
+
+  const handleGenerateLink = async (sectionLabel: string) => {
+    setGeneratingLink(true);
+    try {
+      await generateLinkMutation.mutateAsync(sectionLabel);
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
+  const handleViewDocument = async (document: ClaimDocument) => {
+    try {
+      const url = await getDocumentPublicUrl(document.file_path);
+      setViewingDocument({ ...document, signedUrl: url });
+    } catch (error) {
+      toast.error("Failed to load document preview");
+      console.error(error);
+    }
+  };
+  
 
   const handleFileUpload = async (files: FileList | null, sectionId: number) => {
     if (!files || files.length === 0) return;
@@ -243,39 +322,53 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
           {uploadSections.map((section) => (
             <div key={section.id} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
-                {editingSection === section.id ? (
-                  <Input
-                    defaultValue={section.label}
-                    onBlur={(e) => updateSectionLabel(section.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        updateSectionLabel(section.id, e.currentTarget.value);
-                      } else if (e.key === 'Escape') {
-                        setEditingSection(null);
-                      }
-                    }}
-                    className="text-base font-medium"
-                    autoFocus
-                  />
-                ) : (
-                  <Label 
-                    className="text-base font-medium cursor-pointer hover:text-primary"
-                    onClick={() => setEditingSection(section.id)}
-                  >
-                    {section.label}
-                  </Label>
-                )}
-                {uploadSections.length > 1 && (
+                <div className="flex-1">
+                  {editingSection === section.id ? (
+                    <Input
+                      defaultValue={section.label}
+                      onBlur={(e) => updateSectionLabel(section.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          updateSectionLabel(section.id, e.currentTarget.value);
+                        } else if (e.key === 'Escape') {
+                          setEditingSection(null);
+                        }
+                      }}
+                      className="text-base font-medium"
+                      autoFocus
+                    />
+                  ) : (
+                    <Label 
+                      className="text-base font-medium cursor-pointer hover:text-primary"
+                      onClick={() => setEditingSection(section.id)}
+                    >
+                      {section.label}
+                    </Label>
+                  )}
+                </div>
+                
+                <div className="flex items-center space-x-2">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={() => removeUploadSection(section.id)}
+                    onClick={() => handleGenerateLink(section.label)}
+                    disabled={generatingLink}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    {generatingLink ? "Generating..." : "Share Link"}
                   </Button>
-                )}
+                  {uploadSections.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeUploadSection(section.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              
+
               <div className="flex items-center space-x-4">
                 <Input
                   ref={(el) => { fileInputRefs.current[section.id] = el; }}
@@ -345,19 +438,54 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
                             </div>
                           </div>
                           
-                          <div className="flex items-center space-x-2">
+                           <div className="flex items-center space-x-2">
+                            {/* Badges for status */}
+                            {document.is_selected && (
+                              <Badge variant="default" className="bg-green-600">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Selected
+                              </Badge>
+                            )}
+                            {document.uploaded_via_link && (
+                              <Badge variant="secondary" className="text-xs">
+                                Via Link
+                              </Badge>
+                            )}
+                            
+                            {/* Action buttons */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDocument(document)}
+                              title="View document"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDownload(document)}
+                              title="Download document"
                             >
                               <Download className="w-4 h-4" />
                             </Button>
+                            {!document.is_selected && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => selectDocumentMutation.mutate(document)}
+                                disabled={selectDocumentMutation.isPending}
+                                title="Mark as selected"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => deleteDocumentMutation.mutate(document)}
                               disabled={deleteDocumentMutation.isPending}
+                              title="Delete document"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -380,6 +508,45 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
           )}
         </CardContent>
       </Card>
+      {/* Document Viewer Dialog */}
+      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+        <DialogContent className="max-w-7xl h-[95vh] p-0 flex flex-col gap-0">
+          {/* Custom header with minimal spacing */}
+          <div className="px-4 py-2 border-b shrink-0">
+            <h2 className="text-sm font-semibold">{viewingDocument?.file_name}</h2>
+          </div>
+          
+          {/* Document viewer - takes remaining space */}
+          <div className="flex-1 min-h-0">
+            {viewingDocument && (
+              viewingDocument.file_type.startsWith('image/') ? (
+                <img 
+                  src={viewingDocument.signedUrl || ''}
+                  alt={viewingDocument.file_name}
+                  className="w-full h-full object-contain"
+                />
+              ) : viewingDocument.file_type.includes('pdf') ? (
+                <iframe
+                  src={viewingDocument.signedUrl || ''}
+                  className="w-full h-full border-0"
+                  title={viewingDocument.file_name}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">Preview not available for this file type</p>
+                    <Button onClick={() => handleDownload(viewingDocument)} variant="outline">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download to View
+                    </Button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

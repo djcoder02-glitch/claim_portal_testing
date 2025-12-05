@@ -334,12 +334,13 @@ useEffect(() => {
       },
     });
   }, [claim.id, updateClaimMutation, claim.form_data]);
-
+// IMPORTANT: Keep delay high and enabled: false to prevent saving while typing
+  // Data saves automatically on blur (clicking outside field) and on tick button
   useAutosave({
     control,
     onSave: handleAutosave,
-    delay: 2000,
-    enabled: true,
+    delay: 10000,
+    enabled: false,
   });
 
   const toggleSection = (section : string) => {
@@ -349,8 +350,13 @@ useEffect(() => {
     }));
   };
 
+const isInitialMount = useRef(true);
+
   useEffect(() => {
-    reset(claim.form_data || {});
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      reset(claim.form_data || {});
+    }
   }, [claim.form_data, reset]);
 
   const onSubmit = async (data: Record<string, unknown>) => {
@@ -1042,6 +1048,8 @@ const loadTemplate = (template: FormTemplate) => {
   setDynamicSections(convertedSections);
   setCustomFields([]); // Start with empty custom fields - they're all in section.fields now
   setFieldLabels(loadedFieldLabels);
+    setPendingSaves(new Set());  // ← ADD THIS LINE
+
   
   // Preserve existing form data
   Object.entries(claim.form_data || {}).forEach(([key, value]) => {
@@ -1050,7 +1058,7 @@ const loadTemplate = (template: FormTemplate) => {
         !key.includes('hidden_fields') && 
         !key.includes('field_labels')) {
       setValue(key, value);
-    }
+    } 
   });
   
   setCurrentTemplate(template);

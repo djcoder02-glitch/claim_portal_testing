@@ -19,6 +19,7 @@ import {TeamManagement} from "./pages/TeamManagement";
 import Setting from "./pages/Settings";
 import Brokers from "./pages/Brokers";
 import Customers from "./pages/Customers";
+import { PublicUpload } from "./pages/PublicUpload"; 
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,8 @@ const App = () => (
           <Routes>
             {/* Public Route */}
             <Route path="/auth" element={<Auth />} />
+            {/* Public Upload Route - No Authentication Required */}
+            <Route path="/public-upload" element={<PublicUpload />} />
             
             {/* Protected Routes with Dashboard Layout */}
             <Route 
