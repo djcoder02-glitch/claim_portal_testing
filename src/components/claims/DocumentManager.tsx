@@ -35,7 +35,9 @@ interface ClaimDocument {
   upload_token?: string;            
   token_expires_at?: string;         
   is_selected?: boolean;             
-  uploaded_via_link?: boolean;       
+  uploaded_via_link?: boolean;   
+  signedUrl?: string;
+    
 }
 
 interface DocumentManagerProps {
@@ -210,9 +212,16 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
     }
   };
 
-  const handleViewDocument = (document: ClaimDocument) => {
-    setViewingDocument(document);
+  const handleViewDocument = async (document: ClaimDocument) => {
+    try {
+      const url = await getDocumentPublicUrl(document.file_path);
+      setViewingDocument({ ...document, signedUrl: url });
+    } catch (error) {
+      toast.error("Failed to load document preview");
+      console.error(error);
+    }
   };
+  
 
   const handleFileUpload = async (files: FileList | null, sectionId: number) => {
     if (!files || files.length === 0) return;
@@ -499,35 +508,39 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
           )}
         </CardContent>
       </Card>
-
       {/* Document Viewer Dialog */}
       <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-        <DialogContent className="max-w-4xl h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>{viewingDocument?.file_name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto">
+        <DialogContent className="max-w-7xl h-[95vh] p-0 flex flex-col gap-0">
+          {/* Custom header with minimal spacing */}
+          <div className="px-4 py-2 border-b shrink-0">
+            <h2 className="text-sm font-semibold">{viewingDocument?.file_name}</h2>
+          </div>
+          
+          {/* Document viewer - takes remaining space */}
+          <div className="flex-1 min-h-0">
             {viewingDocument && (
               viewingDocument.file_type.startsWith('image/') ? (
                 <img 
-                  src={getDocumentPublicUrl(viewingDocument.file_path)}
+                  src={viewingDocument.signedUrl || ''}
                   alt={viewingDocument.file_name}
-                  className="w-full h-auto"
+                  className="w-full h-full object-contain"
                 />
               ) : viewingDocument.file_type.includes('pdf') ? (
                 <iframe
-                  src={getDocumentPublicUrl(viewingDocument.file_path)}
+                  src={viewingDocument.signedUrl || ''}
                   className="w-full h-full border-0"
                   title={viewingDocument.file_name}
                 />
               ) : (
-                <div className="text-center p-8">
-                  <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">Preview not available for this file type</p>
-                  <Button onClick={() => handleDownload(viewingDocument)} variant="outline">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download to View
-                  </Button>
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">Preview not available for this file type</p>
+                    <Button onClick={() => handleDownload(viewingDocument)} variant="outline">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download to View
+                    </Button>
+                  </div>
                 </div>
               )
             )}

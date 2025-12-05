@@ -89,15 +89,15 @@ export const validateUploadToken = async (token: string) => {
     fieldLabel: data.field_label,
   };
 };
-
 /**
- * Get public URL for a document
+ * Get signed URL for a document (works with private buckets)
  * @param filePath - The file path in storage
  */
-export const getDocumentPublicUrl = (filePath: string): string => {
-  const { data } = supabase.storage
+export const getDocumentPublicUrl = async (filePath: string): Promise<string> => {
+  const { data, error } = await supabase.storage
     .from("claim-documents")
-    .getPublicUrl(filePath);
+    .createSignedUrl(filePath, 3600); // URL valid for 1 hour
   
-  return data.publicUrl;
+  if (error) throw error;
+  return data.signedUrl;
 };
