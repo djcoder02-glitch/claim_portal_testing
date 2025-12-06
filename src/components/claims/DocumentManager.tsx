@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ interface ClaimDocument {
 
 interface DocumentManagerProps {
   claimId: string;
+  policyTypeId?: string;
 }
 
 const getFileIcon = (fileType: string) => {
@@ -60,12 +61,59 @@ const formatFileSize = (bytes: number) => {
 
 export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadSections, setUploadSections] = useState([{ id: 1, label: 'Primary Documents' }]);
+  const [uploadSections, setUploadSections] = useState<{ id: number; label: string; isSpecial?: boolean }[]>([]);
+  const [sectionsInitialized, setSectionsInitialized] = useState(false);
   const [editingSection, setEditingSection] = useState<number | null>(null);
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   const queryClient = useQueryClient();
   const [generatingLink, setGeneratingLink] = useState(false);          
   const [viewingDocument, setViewingDocument] = useState<ClaimDocument | null>(null); 
+
+  // Fetch claim to get policy_type_id
+  const { data: claim } = useQuery({
+    queryKey: ["claim", claimId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("claims")
+        .select("*, policy_types(required_documents)")
+        .eq("id", claimId)
+        .single();
+      
+      if (error) throw error;
+      return data as any; // Add type assertion here
+    },
+  });
+
+
+// Initialize sections from required_documents
+  useEffect(() => {
+    if (claim && !sectionsInitialized) {
+      const requiredDocs = ((claim as any)?.policy_types?.required_documents as string[] || []);
+      
+      // Check if this claim needs BOE (Bill of Entry)
+      const needsBOE = requiredDocs.some(doc => 
+        doc.toLowerCase().includes('boe') || 
+        doc.toLowerCase().includes('bill of entry')
+      );
+      
+      if (requiredDocs.length > 0) {
+        // Create sections from required documents
+        const sections = requiredDocs.map((docName: string, index: number) => ({
+          id: index + 1,
+          label: docName,
+          // Mark BOE as special if it exists
+          isSpecial: docName.toLowerCase().includes('boe') || 
+                     docName.toLowerCase().includes('bill of entry'),
+        }));
+        setUploadSections(sections);
+      } else {
+        // Fallback to default section
+        setUploadSections([{ id: 1, label: 'Primary Documents' }]);
+      }
+      
+      setSectionsInitialized(true);
+    }
+  }, [claim, sectionsInitialized]);
 
   // Fetch documents for this claim
   const { data: documents, isLoading } = useQuery({
@@ -301,6 +349,7 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
             ))}
           </div>
         </CardContent>
+        
       </Card>
     );
   }
@@ -310,40 +359,74 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
       {/* Upload Sections */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <CardTitle>Upload Documents</CardTitle>
-            <Button variant="outline" size="sm" onClick={addUploadSection}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Section
-            </Button>
+              {((claim as any)?.policy_types?.required_documents as string[] || []).length > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  These are suggested document types. Upload what you have available.
+                </p>
+              )}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {uploadSections.map((section) => (
-            <div key={section.id} className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex-1">
+          {uploadSections.map((section) => {
+            const isRecommended = ((claim as any)?.policy_types?.required_documents as string[] || []).includes(section.label);
+            const isBOE = section.isSpecial || 
+                         section.label.toLowerCase().includes('boe') || 
+                         section.label.toLowerCase().includes('b/l') ||
+                         section.label.toLowerCase().includes('bill of entry');
+            
+            return (
+              <div 
+                key={section.id} 
+                className={`border rounded-lg p-4 space-y-4 ${
+                  isBOE ? 'border-primary bg-primary/5' : ''
+                }`}
+              >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
                   {editingSection === section.id ? (
                     <Input
+                      autoFocus
                       defaultValue={section.label}
-                      onBlur={(e) => updateSectionLabel(section.id, e.target.value)}
-                      onKeyDown={(e) => {
+                      onBlur={(e) => {
+                        updateSectionLabel(section.id, e.target.value);
+                        setEditingSection(null);
+                      }}
+                      onKeyPress={(e) => {
                         if (e.key === 'Enter') {
-                          updateSectionLabel(section.id, e.currentTarget.value);
-                        } else if (e.key === 'Escape') {
+                          updateSectionLabel(section.id, (e.target as HTMLInputElement).value);
                           setEditingSection(null);
                         }
                       }}
-                      className="text-base font-medium"
-                      autoFocus
+                      className="w-64"
                     />
                   ) : (
-                    <Label 
-                      className="text-base font-medium cursor-pointer hover:text-primary"
-                      onClick={() => setEditingSection(section.id)}
-                    >
-                      {section.label}
-                    </Label>
+                    <>
+                      {/* Add icon for BOE */}
+                      {isBOE && <FileText className="w-5 h-5 text-primary" />}
+                      
+                      <h3 
+                        className="text-lg font-semibold cursor-pointer hover:text-primary"
+                        onClick={() => {
+                          const isRequiredDoc = ((claim as any)?.policy_types?.required_documents as string[] || [])
+                            .includes(section.label);
+                          if (!isRequiredDoc) {
+                            setEditingSection(section.id);
+                          }
+                        }}
+                      >
+                        {section.label}
+                      </h3>
+                      
+                      {/* Show badges */}
+                      {isRecommended && (
+                        <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                      )}
+                      {isBOE && (
+                        <Badge variant="default" className="text-xs">PDF Required for Analysis</Badge>
+                      )}
+                    </>
                   )}
                 </div>
                 
@@ -357,7 +440,9 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
                     <ExternalLink className="w-4 h-4 mr-2" />
                     {generatingLink ? "Generating..." : "Share Link"}
                   </Button>
-                  {uploadSections.length > 1 && (
+                  {uploadSections.length > 1 && 
+                   // Don't allow removing required document sections
+                   !(claim?.policy_types?.required_documents as string[] || []).includes(section.label) && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -392,7 +477,8 @@ export const DocumentManager = ({ claimId }: DocumentManagerProps) => {
                 Supported formats: PDF, DOC, DOCX, JPG, PNG, GIF (Max 10MB per file)
               </p>
             </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 

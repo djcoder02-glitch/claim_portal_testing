@@ -1070,39 +1070,119 @@ const loadTemplate = (template: FormTemplate) => {
 
   // Initialize dynamic sections from existing structure
   useEffect(() => {
-  // Check if we have saved sections in the claim data
-  const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
-  console.log('🔄 Initializing dynamic sections from claim data:', savedDynamicSections);
+    // Check if we have saved sections in the claim data
+    const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
+    console.log('🔄 Initializing dynamic sections from claim data:', savedDynamicSections);
+    
+    if (savedDynamicSections && savedDynamicSections.length > 0) {
+      // Load saved sections
+      console.log('✅ Loading saved sections from claim data');
+      setDynamicSections(savedDynamicSections);
+      return;
+    }
+
+    // Check if there's a DEFAULT template for this policy type
+    const defaultTemplate = templates.find(t => t.is_default && t.policy_type_id === claim.policy_type_id);
+    
+    if (defaultTemplate && defaultTemplate.sections && defaultTemplate.sections.length > 0) {
+      console.log('✅ Loading DEFAULT template:', defaultTemplate.name);
+      const convertedSections: DynamicSection[] = defaultTemplate.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        order_index: section.order_index,
+        color_class: section.color_class,
+        fields: section.fields || [],
+        tables: section.tables || [],
+        isCustom: false
+      }));
+      setDynamicSections(convertedSections);
+      setCurrentTemplate(defaultTemplate);
+      return;
+    }
+
+    // Create default sections if no saved sections and no default template
+    console.log('✅ Creating default sections (no saved data or template found)');
+    const additionalFields = getAdditionalDetailsFields();
+    const section1Fields = additionalFields.slice(0, 13);
+    const section2Fields = additionalFields.slice(13, 23);
+    const section3Fields = additionalFields.slice(23, 29);
+    const section4Fields = additionalFields.slice(29);
+
+    const defaultSections: DynamicSection[] = [
+      {
+        id: 'section1',
+        name: 'Section 1 - Basic Information',
+        order_index: 1,
+        color_class: 'bg-gradient-primary',
+        fields: section1Fields.map((f, idx) => ({
+          id: f.name,
+          name: f.name,
+          label: f.label,
+          type: f.type as TemplateField['type'],
+          required: f.required,
+          options: f.options,
+          order_index: idx + 1
+        })),
+        tables: [],
+        isCustom: false
+      },
+      {
+        id: 'section2',
+        name: 'Section 2 - Invoice & Goods Details',
+        order_index: 2,
+        color_class: 'bg-warning',
+        fields: section2Fields.map((f, idx) => ({
+          id: f.name,
+          name: f.name,
+          label: f.label,
+          type: f.type as TemplateField['type'],
+          required: f.required,
+          options: f.options,
+          order_index: idx + 1
+        })),
+        tables: [],
+        isCustom: false
+      },
+      {
+        id: 'section3',
+        name: 'Section 3 - Transportation Details',
+        order_index: 3,
+        color_class: 'bg-success',
+        fields: section3Fields.map((f, idx) => ({
+          id: f.name,
+          name: f.name,
+          label: f.label,
+          type: f.type as TemplateField['type'],
+          required: f.required,
+          options: f.options,
+          order_index: idx + 1
+        })),
+        tables: [],
+        isCustom: false
+      },
+      {
+        id: 'section4',
+        name: 'Section 4 - Report Section',
+        order_index: 4,
+        color_class: 'bg-info',
+        fields: section4Fields.map((f, idx) => ({
+          id: f.name,
+          name: f.name,
+          label: f.label,
+          type: f.type as TemplateField['type'],
+          required: f.required,
+          options: f.options,
+          order_index: idx + 1
+        })),
+        tables: [],
+        isCustom: false
+      }
+    ];
+    
+    setDynamicSections(defaultSections);
+  }, [claim.form_data, templates, claim.policy_type_id]); // Add templates dependency
+
   
-  if (savedDynamicSections && savedDynamicSections.length > 0) {
-    // Load saved sections
-    setDynamicSections(savedDynamicSections);
-    return;
-  }
-
-  // CRITICAL FIX: Don't create default sections if we already have sections in state
-  // This prevents duplicate fields when loading templates
-  if (dynamicSections.length > 0) {
-    console.log('⚠️ Skipping default section creation - sections already exist');
-    return;
-  }
-
-  // Only create default sections if no saved sections and no sections in state
-  const additionalFields = getAdditionalDetailsFields();
-  const section1Fields = additionalFields.slice(0, 13);
-  const section2Fields = additionalFields.slice(13, 23);
-  const section3Fields = additionalFields.slice(23, 29);
-  const section4Fields = additionalFields.slice(29);
-
-  const defaultSections: DynamicSection[] = [
-    // ... rest of the code
-  ];
-  
-  console.log('✅ Creating default sections');
-  setDynamicSections(defaultSections);
-}, [claim.form_data]); // IMPORTANT: Remove dynamicSections from dependencies
-
-
   // Now define these after useEffect where getAdditionalDetailsFields is available
   const additionalFields = getAdditionalDetailsFields();
   const section1Fields = additionalFields.slice(0, 13);

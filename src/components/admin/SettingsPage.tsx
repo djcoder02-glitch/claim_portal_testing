@@ -3,6 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, FileText, Edit } from "lucide-react";
 import { PolicyTypesManager } from "@/components/admin/PolicyTypesManager";
 import { NewClaimFieldsManager } from "@/components/admin/NewClaimFieldsManager";
+import { DocumentRequirementsManager } from "@/components/admin/DocumentRequirementsManager";
+
 
 export const SettingsPage = () => {
   return (
@@ -18,7 +20,7 @@ export const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="policy-types" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="policy-types" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Policy Types
@@ -26,6 +28,10 @@ export const SettingsPage = () => {
           <TabsTrigger value="claim-fields" className="flex items-center gap-2">
             <Edit className="w-4 h-4" />
             Claim Fields
+          </TabsTrigger>
+          <TabsTrigger value="doc-requirements" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Document Requirements
           </TabsTrigger>
         </TabsList>
 
@@ -36,6 +42,10 @@ export const SettingsPage = () => {
         <TabsContent value="claim-fields" className="space-y-4">
           <NewClaimFieldsManager />
         </TabsContent>
+        <TabsContent value="doc-requirements" className="space-y-4">
+          <DocumentRequirementsManager />
+        </TabsContent>
+        
       </Tabs>
     </div>
   );

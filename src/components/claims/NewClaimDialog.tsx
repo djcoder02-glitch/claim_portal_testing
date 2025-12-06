@@ -148,6 +148,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
   };
 
   if (policyTypesLoading) {
+    
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -164,6 +165,7 @@ export const NewClaimDialog = ({ open, onOpenChange }: NewClaimDialogProps) => {
       </Dialog>
     );
   }
+  
 
   const renderDynamicField = (field: any) => {
     const errorMsg = errors[field.name]?.message as string;
