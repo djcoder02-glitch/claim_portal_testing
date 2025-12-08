@@ -135,11 +135,16 @@ export const TeamManagement = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('surveyors')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
       
       if (error) throw error;
-      return data as Surveyor[];
+      
+      // Sort alphabetically by name on the frontend
+      const sorted = (data as Surveyor[]).sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      
+      return sorted;
     },
   });
 
@@ -320,10 +325,10 @@ export const TeamManagement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="w-[40%]">Name</TableHead>
+                      <TableHead className="w-[20%]">Status</TableHead>
+                      <TableHead className="w-[20%]">Created</TableHead>
+                      <TableHead className="text-right w-[20%]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

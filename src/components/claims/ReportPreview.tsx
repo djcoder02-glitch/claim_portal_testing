@@ -485,8 +485,8 @@ function buildReportJson(
     company: claim.policy_types?.name || "Insurance Company",
     reportName: `Claim Report - ${claim.claim_number}`,
     assets: {
-      backgroundImage:
-        "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20bg.png",
+      firstPageBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20bg.png?updatedAt=1763381793043",
+      otherPagesBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
     },
     components,
   };

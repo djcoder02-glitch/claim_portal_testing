@@ -57,13 +57,6 @@ interface ImageGridProps {
 // Add color options for sections
 const colorOptions = [
   { value: 'bg-gradient-primary', label: 'Blue', class: 'bg-gradient-primary' },
-  { value: 'bg-warning', label: 'Orange', class: 'bg-warning' },
-  { value: 'bg-success', label: 'Green', class: 'bg-success' },
-  { value: 'bg-info', label: 'Teal', class: 'bg-info' },
-  { value: 'bg-red-600', label: 'Red', class: 'bg-red-600' },
-  { value: 'bg-purple-600', label: 'Purple', class: 'bg-purple-600' },
-  { value: 'bg-indigo-600', label: 'Indigo', class: 'bg-indigo-600' },
-  { value: 'bg-pink-600', label: 'Pink', class: 'bg-pink-600' },
 ];
 
 const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels, sectionImages }) => {
@@ -241,7 +234,7 @@ export const AdditionalInformationForm = ({ claim }: AdditionalInformationFormPr
   const [showNewSectionDialog, setShowNewSectionDialog] = useState(false);
   const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
-  const [newSectionColor, setNewSectionColor] = useState('bg-slate-600');
+  const [newSectionColor, setNewSectionColor] = useState('bg-slate-400');
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const initialTemplateState = useRef<{
@@ -768,7 +761,7 @@ const isInitialMount = useRef(true);
     setDynamicSections([...dynamicSections, newSection]);
 
     setNewSectionName('');
-    setNewSectionColor('bg-slate-600');
+    setNewSectionColor('bg-slate-400');
     setShowNewSectionDialog(false);
     toast.success(`Section "${newSectionName}" added!`);
   };
@@ -1130,7 +1123,7 @@ const loadTemplate = (template: FormTemplate) => {
         id: 'section2',
         name: 'Section 2 - Invoice & Goods Details',
         order_index: 2,
-        color_class: 'bg-warning',
+        color_class: 'bg-gradient-primary',
         fields: section2Fields.map((f, idx) => ({
           id: f.name,
           name: f.name,
@@ -1147,7 +1140,7 @@ const loadTemplate = (template: FormTemplate) => {
         id: 'section3',
         name: 'Section 3 - Transportation Details',
         order_index: 3,
-        color_class: 'bg-success',
+        color_class: 'bg-gradient-primary',
         fields: section3Fields.map((f, idx) => ({
           id: f.name,
           name: f.name,
@@ -1164,7 +1157,7 @@ const loadTemplate = (template: FormTemplate) => {
         id: 'section4',
         name: 'Section 4 - Report Section',
         order_index: 4,
-        color_class: 'bg-info',
+        color_class: 'bg-gradient-primary',
         fields: section4Fields.map((f, idx) => ({
           id: f.name,
           name: f.name,
@@ -2368,7 +2361,7 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
                             className="mt-1.5"
                           />
                         </div>
-                        <div>
+                        {/* <div>
                           <Label htmlFor="section-color" className="text-sm font-medium">Section Color</Label>
                           <Select value={newSectionColor} onValueChange={setNewSectionColor}>
                             <SelectTrigger className="mt-1.5">
@@ -2385,7 +2378,7 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
+                        </div> */}
                       </div>
                       
                       <div className="flex justify-end gap-3 pt-4 border-t">
