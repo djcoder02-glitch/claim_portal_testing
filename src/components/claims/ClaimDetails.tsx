@@ -22,6 +22,8 @@ import { useAuth } from '../auth/AuthProvider';
 import {SelectiveDocumentExtractor} from "./SelectiveDocumentExtractor"
 import { FeeBillForm } from "./FeeBillForm";
 import { Assessment } from "./Assessment";
+import { DocumentsTab } from "../documents/DocumentsTab";
+
 
 
 const statusConfig = {
@@ -649,7 +651,7 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
               </TabsContent>
 
               <TabsContent value="documents" className="space-y-6">
-                <DocumentManager claimId={claim.id} />
+                <DocumentsTab claimId={claim.id} />
               </TabsContent>
               <TabsContent value="assessment" className="space-y-6">
                 <Assessment claim={claim} />
