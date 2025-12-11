@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,81 +52,174 @@ interface FeeBillFormProps {
 // This is where you configure all fields, labels, and text
 // Easy to modify without touching the JSX below!
 
+// API Configuration
+const API_BASE = "https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws";
+
 // Fixed text configuration
 const FIXED_TEXT = {
   pageTitle: "Fee Bill Details",
-  companyName: "GONDALIA",
-  companyTagline: "INSURANCE SURVEYORS\nAND LOSS ASSESSORS",
-  companyServices: "MARINE • FIRE • MISCELLANEOUS • ENGINEERING",
-  invoiceHeader: "TAX INVOICE",
-  surveyorName: "RAJESH GONDALIA",
-  surveyorCredentials: "M. Tech Chemical - IITB, Chem. Engg.\nLic. No. SLA 36961\nExp. Date: 29.04.26",
-  footerPan: "PAN No.: ABIPG3168J",
-  footerGst: "GST REG. No. 27ABIPG3168J1ZH",
-  footerPhone: "9820213308",
-  footerEmail: "info@gondaliasurveyor.in",
-  footerWebsite: "gondalia.surveyor@gmail.com",
-  footerAddress: "117, Reena Complex,\nRamdev Nagar Road,\nVidyavihar (W) Mumbai - 400086",
-  signatureText: "For GONDALIA INSURANCE SURVEYORS\nAND LOSS ASSESSORS",
-  surveyorTitle: "SURVEYOR",
+  invoiceHeader: "SURVEY FEE INVOICE",
+  companyAddress: "UNITED INDIA INSURANCE CO. LTD., D.O. Tatibandh,\nRaipur",
+  nonGstBadge: "NON-GST INVOICE",
+  bankDetailsLabel: "BANK DETAILS FOR RTGS",
+  bankName: "ICICI BANK LTD., Nehru Nagar (East), Bhilai-490020 (C.G.)",
+  accountNumber: "001605050333",
+  ifscCode: "ICIC0000186",
+  feeTableNote: "** All the below amounts are in Indian Rupees **",
+  signatureName: "RAJESH GONDALIA",
+  advanceReceiptHeader: "ADVANCE RECEIPT",
 };
 
-const INVOICE_HEADER_FIELDS = [
-  {
-    key: 'invoice_number',
-    type: 'editable' as const,
-    defaultValue: '',
-    placeholder: '25-26/46764'
+// Policy information fields configuration (READ-ONLY - auto-populated)
+const POLICY_INFO_FIELDS = [
+  { 
+    key: 'insured_name',
+    label: 'THE INSURED',
+    type: 'readonly' as const,
+    source: 'form_data.insured_name'
   },
-  {
-    key: 'invoice_date',
-    type: 'editable' as const,
-    defaultValue: format(new Date(), 'dd.MM.yyyy')
-  }
+  { 
+    key: 'insurer_name',
+    label: 'THE INSURERS',
+    type: 'readonly' as const,
+    source: 'form_data.insurer'
+  },
+  { 
+    key: 'policy_number',
+    label: 'INSURANCE POLICY NUMBER',
+    type: 'readonly' as const,
+    source: 'form_data.policy_number'
+  },
+  { 
+    key: 'policy_type',
+    label: 'INSURANCE POLICY TYPE',
+    type: 'readonly' as const,
+    source: 'policy_types.name'
+  },
+  { 
+    key: 'insured_property',
+    label: 'INSURED PROPERTY',
+    type: 'readonly' as const,
+    source: 'form_data.insured_property'
+  },
+  { 
+    key: 'survey_type',
+    label: 'TYPE OF SURVEY',
+    type: 'readonly' as const,
+    source: 'form_data.survey_type',
+    defaultValue: 'Commercial Vehicle Final Survey'
+  },
 ];
 
-const CLIENT_FIELDS = [
-  { key: 'client_name', defaultValue: '', placeholder: 'Bajaj General Insurance Ltd.' },
-  { key: 'client_address_1', defaultValue: '', placeholder: 'Rustomji Aspire Bldg., 2nd Flr., Everad Nagar 2,' },
-  { key: 'client_address_2', defaultValue: '', placeholder: 'Near to Apex Honda Showroom, Off. Eastern Exp.' },
-  { key: 'client_address_3', defaultValue: '', placeholder: 'Highway, Near Priyadarshini Circle, Sion, Mumbai - 400022.' },
-  { key: 'client_gstn', defaultValue: '', placeholder: 'GSTN NO.27AABCB5730G1ZX' },
+// Editable fields that appear after policy info (EDITABLE)
+const EDITABLE_POLICY_FIELDS = [
+  { 
+    key: 'estimated_loss_amount',
+    label: 'ESTIMATED LOSS AMOUNT',
+    type: 'editable_currency' as const,
+    defaultValue: 0,
+    prefix: '₹ ',
+    conditionalText: (value: number) => value > 200000 ? '(More than 2 Lakhs)' : ''
+  },
+  { 
+    key: 'insured_declared_value',
+    label: "INSURED'S DECLARED VALUE ON I V",
+    type: 'editable_currency' as const,
+    defaultValue: 0,
+    prefix: '₹ ',
+    conditionalText: (value: number, compareValue?: number) => 
+      compareValue && value > compareValue ? '(More than estimate amt.)' : ''
+  },
 ];
 
-const INVOICE_LINE_ITEMS = [
+// Fee breakdown fields configuration
+const FEE_BREAKDOWN_FIELDS = [
   {
-    key: 'description',
-    label: 'DESCRIPTION',
-    type: 'textarea' as const,
-    defaultValue: '',
-    placeholder: 'Being fees for survey of the damaged property of Mrs. NIKITA BABLU MAHATRE...',
-    rowSpan: 1
+    section: 'Final Survey',
+    rows: [
+      {
+        key: 'final_survey_base',
+        label: 'Base Fee',
+        type: 'editable' as const,
+        defaultValue: 2800.00,
+      },
+      {
+        key: 'final_survey_additional',
+        label: 'Addl. Fee @ 0.70%',
+        type: 'calculated' as const,
+        calculation: (values: any) => (Number(values.final_survey_base) || 0) * 0.007,
+      },
+    ],
   },
   {
-    key: 'survey_fees',
-    label: 'Survey fees',
-    type: 'editable' as const,
-    defaultValue: 0,
-    calculationNote: true,
+    section: 'Reinspection',
+    rows: [
+      {
+        key: 'reinspection_fee',
+        label: '',
+        type: 'editable' as const,
+        defaultValue: 1000.00,
+      },
+    ],
   },
   {
-    key: 'survey_fees_note',
-    type: 'note' as const,
-    defaultValue: '',
-    placeholder: '(Fees on 1,33,465.00)'
+    section: 'LOCAL CONVEYANCE ALLOWANCE',
+    rows: [
+      {
+        key: 'local_conveyance_amount',
+        label: 'Visits Billed',
+        type: 'editable' as const,
+        defaultValue: 1500.00,
+        additionalInput: {
+          key: 'local_conveyance_visits',
+          defaultValue: 3,
+          type: 'number' as const,
+        },
+      },
+    ],
   },
   {
-    key: 'conveyance_charges',
-    label: 'Conveyance charges',
-    type: 'editable' as const,
-    defaultValue: 0,
+    section: 'TRAVELLING EXPENSES',
+    rows: [
+      {
+        key: 'travelling_amount',
+        label: 'Total Kms run',
+        type: 'calculated' as const,
+        calculation: (values: any) => 
+          (Number(values.travelling_km) || 0) * (Number(values.travelling_rate) || 0),
+        additionalInputs: [
+          { key: 'travelling_km', defaultValue: 0, label: 'Kms' },
+          { key: 'travelling_rate', defaultValue: 15.307, label: '@ ₹', suffix: '/km' },
+        ],
+      },
+    ],
   },
   {
-    key: 'photographs',
-    label: 'Photographs',
-    type: 'editable' as const,
-    defaultValue: 0,
-    hsn_sac: '997162',
+    section: 'OTHER EXPENSES',
+    rows: [
+      {
+        key: 'other_expenses',
+        label: '',
+        type: 'editable' as const,
+        defaultValue: 0,
+      },
+    ],
+  },
+  {
+    section: 'PHOTOGRAPH CHARGES',
+    rows: [
+      {
+        key: 'photography_amount',
+        label: 'Final Survey & Reinspection',
+        type: 'calculated' as const,
+        calculation: (values: any) => 
+          (Number(values.photography_survey_count) || 0) * (Number(values.photography_per_photo) || 0),
+        additionalInputs: [
+          { key: 'photography_survey_count', defaultValue: 1, label: 'Total Photographs #', suffix: 'Nos.' },
+          { key: 'photography_per_photo', defaultValue: 10, label: '@ ₹', suffix: 'per photograph' },
+        ],
+      },
+    ],
   },
 ];
 
@@ -135,113 +228,123 @@ const INVOICE_LINE_ITEMS = [
 export const FeeBillForm = ({ claim }: FeeBillFormProps) => {
   const [autoSaving, setAutoSaving] = useState(false);
   const updateClaimMutation = useUpdateClaimSilent();
-  const isCalculating = useRef(false);
-
+  
+  // Build default values from configuration
   const buildDefaultValues = () => {
-  const defaults: any = {};
+    const defaults: any = {
+      invoice_number: claim.claim_number || "",
+      invoice_date: claim.form_data?.invoice_date || format(new Date(), 'yyyy-MM-dd'),
+      bank_name: FIXED_TEXT.bankName,
+      account_number: FIXED_TEXT.accountNumber,
+      ifsc_code: FIXED_TEXT.ifscCode,
+    };
 
-  // Initialize invoice header
-  defaults.invoice_number = claim.form_data?.invoice_number || '';
-  defaults.invoice_date = claim.form_data?.invoice_date || format(new Date(), 'dd.MM.yyyy');
+    // Add read-only policy info fields
+    POLICY_INFO_FIELDS.forEach(field => {
+      const path = field.source.split('.');
+      let value: any = claim;
+      for (const key of path) {
+        value = value?.[key];
+      }
+      defaults[field.key] = value || field.defaultValue || "";
+    });
 
-  // Initialize client fields
-  CLIENT_FIELDS.forEach(field => {
-    defaults[field.key] = claim.form_data?.[field.key] || field.defaultValue || '';
-  });
+    // Add editable policy fields
+    EDITABLE_POLICY_FIELDS.forEach(field => {
+      defaults[field.key] = claim.form_data?.[field.key] || field.defaultValue || 0;
+    });
 
-  // Initialize claim number from claim data
-  defaults.claim_number = claim.claim_number || '';
+    // Add fee breakdown fields
+    FEE_BREAKDOWN_FIELDS.forEach(section => {
+      section.rows.forEach(row => {
+        defaults[row.key] = claim.form_data?.[row.key] || row.defaultValue || 0;
+        
+        // Add additional inputs
+        if (row.additionalInput) {
+          defaults[row.additionalInput.key] = 
+            claim.form_data?.[row.additionalInput.key] || row.additionalInput.defaultValue;
+        }
+        if (row.additionalInputs) {
+          row.additionalInputs.forEach(input => {
+            defaults[input.key] = claim.form_data?.[input.key] || input.defaultValue;
+          });
+        }
+      });
+    });
 
-  // Initialize line items
-  defaults.description = claim.form_data?.description || '';
-  defaults.survey_fees = claim.form_data?.survey_fees || 0;
-  defaults.survey_fees_note = claim.form_data?.survey_fees_note || '';
-  defaults.conveyance_charges = claim.form_data?.conveyance_charges || 0;
-  defaults.photographs = claim.form_data?.photographs || 0;
+    // Add totals
+    defaults.total_above = claim.form_data?.total_above || 0;
+    defaults.gst_amount = claim.form_data?.gst_amount || 0;
+    defaults.total_amount = claim.form_data?.total_amount || 0;
 
-  // Initialize calculated fields
-  defaults.taxable_value = claim.form_data?.taxable_value || 0;
-  defaults.cgst = claim.form_data?.cgst || 0;
-  defaults.sgst = claim.form_data?.sgst || 0;
-  defaults.igst = claim.form_data?.igst || 0;
-  defaults.round_off = claim.form_data?.round_off || 0;
-  defaults.total_invoice_value = claim.form_data?.total_invoice_value || 0;
-
-  return defaults;
-};
-
+    return defaults;
+  };
 
   const { register, watch, setValue, getValues } = useForm({
     defaultValues: buildDefaultValues()
   });
 
-// Auto-calculation and auto-save logic
-useEffect(() => {
-  let autoSaveTimer: NodeJS.Timeout | null = null;
-  
-  const subscription = watch((value) => {
-    if (isCalculating.current) return;
+  // Auto-calculation logic
+  useEffect(() => {
+    let autoSaveTimer: NodeJS.Timeout | null = null;
     
-    isCalculating.current = true;
-    
-    setTimeout(() => {
-      const surveyFees = Number(value.survey_fees) || 0;
-      const conveyance = Number(value.conveyance_charges) || 0;
-      const photos = Number(value.photographs) || 0;
-      const taxableValue = surveyFees + conveyance + photos;
+    const subscription = watch((values) => {
+      let total = 0;
+
+      // Calculate all fee breakdown fields
+      FEE_BREAKDOWN_FIELDS.forEach(section => {
+        section.rows.forEach(row => {
+          if (row.type === 'calculated' && row.calculation) {
+            const calculatedValue = row.calculation(values);
+            const formattedValue = Number(Number(calculatedValue).toFixed(2));
+            const currentValue = values[row.key];
+            
+            // Only update if value actually changed
+            if (currentValue !== formattedValue) {
+              setValue(row.key, formattedValue, { shouldValidate: false, shouldDirty: false });
+            }
+            total += calculatedValue;
+          } else if (row.type === 'editable') {
+            total += Number(values[row.key]) || 0;
+          }
+        });
+      });
+
+      const totalAbove = Number(total.toFixed(2));
+      const totalAmount = Number(total.toFixed(2));
       
-      const igstValue = Number(value.igst) || 0;
-      let cgst = 0, sgst = 0;
-      
-      if (igstValue === 0) {
-        cgst = taxableValue * 0.09;
-        sgst = taxableValue * 0.09;
+      // Only update if values changed
+      if (values.total_above !== totalAbove) {
+        setValue('total_above', totalAbove, { shouldValidate: false, shouldDirty: false });
+      }
+      if (values.gst_amount !== 0) {
+        setValue('gst_amount', 0, { shouldValidate: false, shouldDirty: false });
+      }
+      if (values.total_amount !== totalAmount) {
+        setValue('total_amount', totalAmount, { shouldValidate: false, shouldDirty: false });
       }
       
-      const totalBeforeRound = taxableValue + cgst + sgst + igstValue;
-      const roundedTotal = Math.round(totalBeforeRound);
-      const roundOff = roundedTotal - totalBeforeRound;
-      
-      setValue('taxable_value', Number(taxableValue.toFixed(2)));
-      setValue('cgst', Number(cgst.toFixed(2)));
-      setValue('sgst', Number(sgst.toFixed(2)));
-      setValue('round_off', Number(roundOff.toFixed(2)));
-      setValue('total_invoice_value', roundedTotal);
-      
-      setTimeout(() => {
-        isCalculating.current = false;
-      }, 100);
-      
+      // Auto-save after 1 second
       setAutoSaving(true);
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      
+      // Clear existing timer
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
       
       autoSaveTimer = setTimeout(() => {
-        saveData({
-          ...value,
-          taxable_value: Number(taxableValue.toFixed(2)),
-          cgst: Number(cgst.toFixed(2)),
-          sgst: Number(sgst.toFixed(2)),
-          round_off: Number(roundOff.toFixed(2)),
-          total_invoice_value: roundedTotal
-        });
+        saveData(getValues());
       }, 1000);
-    }, 0);
-  });
-  
-  return () => {
-    if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    subscription.unsubscribe();
-  };
-}, [watch, setValue]);
-
-
-  // Save on unmount (when navigating away)
-useEffect(() => {
-  return () => {
-    // Component is unmounting, no need to save here as watch already handles it
-  };
-}, []);
-
+    });
+    
+    // Cleanup function
+    return () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+      subscription.unsubscribe();
+    };
+  }, [watch, setValue, getValues]);
 
   const saveData = async (data: any) => {
     try {
@@ -261,10 +364,119 @@ useEffect(() => {
     }
   };
 
-
   const handleManualSave = async () => {
     await saveData(getValues());
     toast.success("Fee bill details saved!");
+  };
+
+  const handlePrintFeeBill = async () => {
+    const values = getValues();
+    
+    // Build JSON payload for Lambda
+    const payload = {
+      company: values.insurer_name || "Insurance Company",
+      reportName: `Fee Bill - ${values.invoice_number}`,
+      assets: {
+        firstPageBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20bg.png?updatedAt=1763381793043",
+        otherPagesBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
+      },
+      components: [
+        {
+          type: "header",
+          style: { wrapper: "px-0 py-2", title: "text-3xl font-extrabold tracking-wide text-black center" },
+          props: { text: FIXED_TEXT.invoiceHeader },
+        },
+        {
+          type: "table",
+          props: {
+            headers: ["Field", "Value"],
+            rows: [
+              ["Invoice No.", values.invoice_number],
+              ["Date", (() => {
+                try {
+                  const date = new Date(values.invoice_date);
+                  return isNaN(date.getTime()) ? format(new Date(), "MMM dd, yyyy") : format(date, "MMM dd, yyyy");
+                } catch {
+                  return format(new Date(), "MMM dd, yyyy");
+                }
+              })()],
+              ["Company", FIXED_TEXT.companyAddress],
+            ],
+          },
+        },
+        { type: "subheader", props: { text: FIXED_TEXT.bankDetailsLabel } },
+        {
+          type: "para",
+          props: { text: `${FIXED_TEXT.bankName} | A/C No.- ${FIXED_TEXT.accountNumber} | IFSC: ${FIXED_TEXT.ifscCode}` },
+        },
+        { type: "subheader", props: { text: "Policy Information" } },
+        {
+          type: "table",
+          props: {
+            headers: ["Field", "Value"],
+            rows: [
+              ...POLICY_INFO_FIELDS.map(f => [f.label, values[f.key] || "-"]),
+              ...EDITABLE_POLICY_FIELDS.map(f => [f.label, `₹ ${Number(values[f.key]).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`]),
+            ],
+          },
+        },
+        { type: "subheader", props: { text: "Professional Fee Breakdown" } },
+        {
+          type: "table",
+          props: {
+            headers: ["Section", "Description", "Amount (₹)"],
+            rows: FEE_BREAKDOWN_FIELDS.flatMap(section =>
+              section.rows.map(row => [
+                section.section,
+                row.label || "",
+                Number(values[row.key]).toFixed(2),
+              ])
+            ),
+          },
+        },
+        {
+          type: "table",
+          props: {
+            headers: ["", "Amount (₹)"],
+            rows: [
+              ["TOTAL OF ABOVE", Number(values.total_above).toFixed(2)],
+              ["ADD: GST (NOT LIABLE TO PAY)", "0.00"],
+              ["TOTAL AMOUNT", Number(values.total_amount).toFixed(2)],
+            ],
+          },
+        },
+        { type: "subheader", props: { text: FIXED_TEXT.advanceReceiptHeader } },
+        {
+          type: "para",
+          props: { 
+            text: `Received with thanks from 'United India Insurance Co. Ltd.' a sum of ${numberToWords(Number(values.total_amount))} Only towards above survey-bill.\n\n${FIXED_TEXT.signatureName}` 
+          },
+        },
+      ],
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/render.pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        console.error("PDF API error:", err);
+        toast.error("Failed to generate fee bill PDF");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      toast.success("Fee bill PDF opened in new tab");
+    } catch (error) {
+      console.error("Print fee bill error:", error);
+      toast.error("Failed to print fee bill");
+    }
   };
 
   return (
@@ -360,289 +572,234 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Header Card - Company Branding */}
-      <Card className="bg-white overflow-hidden border-2 border-gray-300">
-        <div className="p-6 bg-gradient-to-r from-gray-100 to-gray-200">
-          <div className="flex justify-between items-start">
-            {/* Left: Logo Placeholder */}
-            <div className="w-32 h-32 border-4 border-gray-400 flex items-center justify-center bg-white">
-              <span className="text-xs text-gray-500 text-center">Company<br/>LOGO</span>
-            </div>
-            
-            {/* Center: Company Info */}
-            <div className="flex-1 text-center px-8">
-              <h1 className="text-4xl font-bold text-gray-800 mb-2">{FIXED_TEXT.companyName}</h1>
-              <p className="text-lg font-semibold text-gray-700 whitespace-pre-line">{FIXED_TEXT.companyTagline}</p>
-              <p className="text-sm text-gray-600 mt-2">{FIXED_TEXT.companyServices}</p>
-            </div>
-            
-            {/* Right: Surveyor Details */}
-            <div className="text-right text-sm">
-              <p className="font-bold">{FIXED_TEXT.surveyorName}</p>
-              <p className="text-gray-600 whitespace-pre-line">{FIXED_TEXT.surveyorCredentials}</p>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Invoice Header and Details */}
+      {/* Main Invoice Table - Everything Combined */}
       <Card className="bg-white overflow-hidden border-2 border-gray-300">
         <div className="merged-header">{FIXED_TEXT.invoiceHeader}</div>
         <table className="excel-table">
           <tbody>
-            {/* Invoice Number and Date */}
+            {/* Invoice Number and Date Row */}
             <tr>
-              <td className="label-cell" style={{ width: '20%' }}>Invoice Number</td>
-              <td className="value-cell" style={{ width: '30%' }}>
-                <input {...register("invoice_number")} placeholder="25-26/46764" />
+              <td className="label-cell" style={{ width: '25%' }}>INVOICE NO.</td>
+              <td className="colon-separator">:</td>
+              <td className="value-cell" style={{ width: '25%' }}>
+                <input {...register("invoice_number")} readOnly className="read-only-cell" />
               </td>
-              <td className="label-cell" style={{ width: '20%' }}>Invoice Date</td>
-              <td className="value-cell" style={{ width: '30%' }}>
+              <td className="label-cell" style={{ width: '25%' }}>DATE</td>
+              <td className="colon-separator">:</td>
+              <td className="value-cell" style={{ width: '25%' }}>
                 <input {...register("invoice_date")} type="date" />
               </td>
             </tr>
-            
-            {/* Client Details Section */}
+
+            {/* Company Address Row */}
             <tr>
-              <td className="label-cell" colSpan={4} style={{ backgroundColor: '#e8e8e8', fontWeight: 'bold' }}>
-                CLIENT DETAILS
+              <td colSpan={3} className="value-cell" style={{ padding: '12px', fontWeight: '500', whiteSpace: 'pre-line' }}>
+                {FIXED_TEXT.companyAddress}
+              </td>
+              <td colSpan={3} className="value-cell" style={{ textAlign: 'center', backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                {FIXED_TEXT.nonGstBadge}
               </td>
             </tr>
-            
-            {/* Client Name */}
+
+            {/* Bank Details Header Row */}
             <tr>
-              <td className="label-cell">Name</td>
-              <td className="value-cell" colSpan={3}>
-                <input {...register("client_name")} placeholder="Bajaj General Insurance Ltd." />
+              <td className="label-cell" style={{ fontWeight: 'bold' }}>{FIXED_TEXT.bankDetailsLabel}</td>
+              <td colSpan={5} className="value-cell" style={{ padding: '8px' }}>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">{FIXED_TEXT.bankName}</span>
+                  <span className="font-medium">A/C No.- {FIXED_TEXT.accountNumber}</span>
+                  <span className="font-medium">IFSC Code: {FIXED_TEXT.ifscCode}</span>
+                </div>
               </td>
             </tr>
-            
-            {/* Address Lines */}
-            <tr>
-              <td className="label-cell">Address</td>
-              <td className="value-cell" colSpan={3}>
-                <input {...register("client_address_1")} placeholder="Rustomji Aspire Bldg., 2nd Flr., Everad Nagar 2," className="mb-1" />
-                <input {...register("client_address_2")} placeholder="Near to Apex Honda Showroom, Off. Eastern Exp." className="mb-1" />
-                <input {...register("client_address_3")} placeholder="Highway, Near Priyadarshini Circle, Sion, Mumbai - 400022." />
-              </td>
-            </tr>
-            
-            {/* GSTN */}
-            <tr>
-              <td className="label-cell">GSTN</td>
-              <td className="value-cell" colSpan={3}>
-                <input {...register("client_gstn")} placeholder="GSTN NO.27AABCB5730G1ZX" />
-              </td>
-            </tr>
-            
-            {/* Claim Number */}
-            <tr>
-              <td className="label-cell">Claim No.</td>
-              <td className="value-cell" colSpan={3}>
-                <input {...register("claim_number")} readOnly className="read-only-cell" />
-              </td>
-            </tr>
+
+            {/* Policy Information Fields - Generated from Config (READ-ONLY) */}
+            {POLICY_INFO_FIELDS.map((field) => (
+              <tr key={field.key}>
+                <td className="label-cell">{field.label}</td>
+                <td className="colon-separator">:</td>
+                <td className="value-cell" colSpan={4}>
+                  {watch(field.key) || ''}
+                </td>
+              </tr>
+            ))}
+
+            {/* Editable Policy Fields (EDITABLE) */}
+            {EDITABLE_POLICY_FIELDS.map((field) => (
+              <tr key={field.key}>
+                <td className="label-cell">{field.label}</td>
+                <td className="colon-separator">:</td>
+                <td className="value-cell" colSpan={4}>
+                  <div className="flex items-center gap-2">
+                    {field.prefix && <span>{field.prefix}</span>}
+                    <input 
+                      {...register(field.key, { valueAsNumber: true })} 
+                      type="number" 
+                      step="0.01"
+                      className="flex-1"
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          setValue(field.key, Number(value.toFixed(2)));
+                        }
+                      }}
+                    />
+                    {field.conditionalText && (
+                      <span className="text-sm text-gray-600">
+                        {field.conditionalText(
+                          Number(watch(field.key)),
+                          field.key === 'insured_declared_value' ? Number(watch('estimated_loss_amount')) : undefined
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Card>
 
-      {/* Invoice Line Items Table */}
+      {/* Professional Fee Breakdown */}
       <Card className="bg-white overflow-hidden border-2 border-gray-300">
+        <div className="p-4 text-center text-sm italic">
+          {FIXED_TEXT.feeTableNote}
+        </div>
         <table className="excel-table">
           <thead>
             <tr>
-              <th style={{ width: '50%' }}>DESCRIPTION</th>
-              <th style={{ width: '20%' }}>HSN / SAC CODE</th>
-              <th style={{ width: '30%', textAlign: 'right' }}>AMOUNT (RS.)</th>
+              <th style={{ width: '30%' }}>PROFESSIONAL FEE</th>
+              <th style={{ width: '40%' }}></th>
+              <th style={{ width: '30%', textAlign: 'right' }}></th>
             </tr>
           </thead>
           <tbody>
-            {/* Description (Large textarea) */}
-            <tr>
-              <td className="value-cell" rowSpan={1}>
-                <textarea 
-                  {...register("description")} 
-                  rows={6}
-                  placeholder="Being fees for survey of the damaged property of Mrs. NIKITA BABLU MAHATRE, Flat No. 502, A Wing, Sarvoday Datta CHS, Near Reti Bunder, Mota Gaon, Dombivali, Dist. Thane, on 23.10.2025. Insured with Bajaj General Insurance Ltd., Mumbai."
-                  style={{ resize: 'vertical' }}
-                />
-              </td>
-              <td className="value-cell"></td>
-              <td className="value-cell"></td>
-            </tr>
-            
-            {/* Survey Fees */}
-            <tr>
-              <td className="value-cell">
-                <div>Survey fees</div>
-                <input 
-                  {...register("survey_fees_note")} 
-                  placeholder="(Fees on 1,33,465.00)"
-                  className="text-sm text-gray-600"
-                  style={{ marginTop: '4px' }}
-                />
-              </td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell">
-                <input 
-                  {...register("survey_fees", { valueAsNumber: true })} 
-                  type="number" 
-                  step="0.01"
-                  className="number-cell"
-                />
-              </td>
-            </tr>
-            
-            {/* Conveyance Charges */}
-            <tr>
-              <td className="value-cell">Conveyance charges</td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell">
-                <input 
-                  {...register("conveyance_charges", { valueAsNumber: true })} 
-                  type="number" 
-                  step="0.01"
-                  className="number-cell"
-                />
-              </td>
-            </tr>
-            
-            {/* Photographs */}
-            <tr>
-              <td className="value-cell">Photographs</td>
-              <td className="value-cell">997162</td>
-              <td className="value-cell number-cell">
-                <input 
-                  {...register("photographs", { valueAsNumber: true })} 
-                  type="number" 
-                  step="0.01"
-                  className="number-cell"
-                />
-              </td>
-            </tr>
-            
-            {/* Taxable Value */}
+            {/* Fee Breakdown - Generated from Config */}
+            {FEE_BREAKDOWN_FIELDS.map((section, sectionIdx) => (
+              section.rows.map((row, rowIdx) => (
+                <tr key={`${sectionIdx}-${rowIdx}`}>
+                  {rowIdx === 0 && (
+                    <td 
+                      className="label-cell" 
+                      rowSpan={section.rows.length} 
+                      style={{ verticalAlign: 'middle' }}
+                    >
+                      {section.section}
+                    </td>
+                  )}
+                  <td className="value-cell">
+                    {row.label}
+                    {row.additionalInput && (
+                      <>
+                        {' '}
+                        <input 
+                          {...register(row.additionalInput.key, { valueAsNumber: true })} 
+                          type="number" 
+                          style={{ width: '50px', display: 'inline-block', textAlign: 'center' }} 
+                          onBlur={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              setValue(row.additionalInput!.key, Number(value.toFixed(2)));
+                            }
+                          }}
+                        />
+                        {' '}{row.label}
+                      </>
+                    )}
+                    {row.additionalInputs && (
+                      <div className="inline-flex items-center gap-2">
+                        {row.additionalInputs.map((input, idx) => (
+                          <span key={idx}>
+                            {input.label}{' '}
+                            <input 
+                              {...register(input.key, { valueAsNumber: true })} 
+                              type="number" 
+                              step={input.key.includes('rate') ? '0.001' : '0.01'}
+                              style={{ width: input.key.includes('rate') ? '80px' : '60px', display: 'inline-block', textAlign: 'center' }} 
+                              onBlur={(e) => {
+                                const value = parseFloat(e.target.value);
+                                if (!isNaN(value)) {
+                                  const decimals = input.key.includes('rate') ? 3 : 2;
+                                  setValue(input.key, Number(value.toFixed(decimals)));
+                                }
+                              }}
+                            />
+                            {input.suffix && ` ${input.suffix}`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className={`value-cell number-cell ${row.type === 'calculated' ? 'read-only-cell' : ''}`}>
+                    {row.type === 'calculated' ? (
+                      <input 
+                        value={watch(row.key)?.toFixed(2) || '0.00'} 
+                        readOnly 
+                        className="number-cell read-only-cell" 
+                      />
+                    ) : (
+                      <input 
+                        {...register(row.key, { valueAsNumber: true })} 
+                        type="number" 
+                        step="0.01" 
+                        className="number-cell"
+                        onBlur={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!isNaN(value)) {
+                            setValue(row.key, Number(value.toFixed(2)));
+                          }
+                        }}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))
+            ))}
+
+            {/* Totals */}
             <tr className="total-row">
-              <td className="label-cell" style={{ fontWeight: 'bold' }}>Taxable value</td>
-              <td className="value-cell">997162</td>
-              <td className="value-cell number-cell" style={{ fontWeight: 'bold' }}>
-                <input 
-                  value={watch('taxable_value')?.toFixed(2) || '0.00'} 
-                  readOnly 
-                  className="number-cell read-only-cell"
-                  style={{ fontWeight: 'bold' }}
-                />
+              <td colSpan={2} style={{ textAlign: 'right', paddingRight: '20px', fontWeight: 'bold' }}>TOTAL OF ABOVE</td>
+              <td className="number-cell" style={{ fontWeight: 'bold', fontSize: '16px' }}>
+                ₹ {watch('total_above')?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
               </td>
             </tr>
-            
-            {/* CGST 9% */}
+
+            {/* GST */}
             <tr>
-              <td className="value-cell">CGST (09%)</td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell">
-                <input 
-                  value={watch('cgst')?.toFixed(2) || '0.00'} 
-                  readOnly 
-                  className="number-cell read-only-cell"
-                />
+              <td colSpan={2} style={{ textAlign: 'right', paddingRight: '20px' }}>
+                <strong>ADD: GST (NOT LIABLE TO PAY)</strong> &lt; 0% &gt;
               </td>
+              <td className="number-cell">0.00</td>
             </tr>
-            
-            {/* SGST 9% */}
-            <tr>
-              <td className="value-cell">SGST (09%)</td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell">
-                <input 
-                  value={watch('sgst')?.toFixed(2) || '0.00'} 
-                  readOnly 
-                  className="number-cell read-only-cell"
-                />
-              </td>
-            </tr>
-            
-            {/* IGST 18% - Editable for inter-state */}
-            <tr>
-              <td className="value-cell">IGST (18%)</td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell">
-                <input 
-                  {...register("igst", { valueAsNumber: true })} 
-                  type="number" 
-                  step="0.01"
-                  className="number-cell"
-                  placeholder="0.00"
-                />
-              </td>
-            </tr>
-            
-            {/* Round Off */}
-            <tr>
-              <td className="value-cell">Round off</td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell">
-                <input 
-                  value={watch('round_off')?.toFixed(2) || '0.00'} 
-                  readOnly 
-                  className="number-cell read-only-cell"
-                />
-              </td>
-            </tr>
-            
-            {/* Total Invoice Value */}
+
+            {/* Final Total */}
             <tr className="final-total-row">
-              <td className="label-cell" style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                Total Invoice Value (In Figure)
-              </td>
-              <td className="value-cell"></td>
-              <td className="value-cell number-cell" style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                <input 
-                  value={watch('total_invoice_value')?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'} 
-                  readOnly 
-                  className="number-cell read-only-cell"
-                  style={{ fontWeight: 'bold', fontSize: '16px' }}
-                />
-              </td>
-            </tr>
-            
-            {/* Total in Words */}
-            <tr>
-              <td colSpan={3} className="value-cell" style={{ fontWeight: 'bold', padding: '12px' }}>
-                Total Invoice Value (In Words): Rupees {numberToWords(Number(watch('total_invoice_value')) || 0)} Only.
+              <td colSpan={2} style={{ textAlign: 'right', paddingRight: '20px', fontWeight: 'bold', fontSize: '18px' }}>TOTAL AMOUNT</td>
+              <td className="number-cell" style={{ fontWeight: 'bold', fontSize: '18px' }}>
+                ₹ {watch('total_amount')?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
               </td>
             </tr>
           </tbody>
         </table>
       </Card>
 
-      {/* Footer with Signature */}
+      {/* Advance Receipt */}
       <Card className="bg-white overflow-hidden border-2 border-gray-300">
+        <div className="merged-header">{FIXED_TEXT.advanceReceiptHeader}</div>
         <table className="excel-table">
           <tbody>
             <tr>
-              <td style={{ padding: '40px 20px', textAlign: 'right' }}>
-                <div style={{ display: 'inline-block', textAlign: 'center' }}>
-                  <div style={{ whiteSpace: 'pre-line', marginBottom: '60px', fontSize: '14px', fontWeight: '500' }}>
-                    {FIXED_TEXT.signatureText}
-                  </div>
-                  <div style={{ borderTop: '2px solid #000', paddingTop: '10px', minWidth: '200px' }}>
-                    <strong>{FIXED_TEXT.surveyorTitle}</strong>
-                  </div>
-                </div>
+              <td style={{ padding: '20px' }}>
+                Received with thanks from <b>'United India Insurance Co. Ltd.'</b> a sum of{' '}
+                <strong>{numberToWords(Number(watch('total_amount')) || 0)} Only</strong>
+                {' '}towards above survey-bill.
               </td>
             </tr>
-            
-            {/* Footer Details */}
             <tr>
-              <td style={{ padding: '20px', backgroundColor: '#f5f5f5', fontSize: '12px' }}>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div>{FIXED_TEXT.footerPan} | {FIXED_TEXT.footerGst}</div>
-                    <div className="mt-1">{FIXED_TEXT.footerPhone} | {FIXED_TEXT.footerEmail}</div>
-                    <div>{FIXED_TEXT.footerWebsite}</div>
-                  </div>
-                  <div className="text-right whitespace-pre-line">
-                    {FIXED_TEXT.footerAddress}
+              <td style={{ padding: '40px 20px 20px 20px' }}>
+                <div style={{ textAlign: 'right', marginRight: '40px' }}>
+                  <div style={{ borderTop: '2px solid #000', width: '200px', display: 'inline-block', textAlign: 'center', paddingTop: '10px' }}>
+                    <strong>{FIXED_TEXT.signatureName}</strong>
                   </div>
                 </div>
               </td>
@@ -650,6 +807,17 @@ useEffect(() => {
           </tbody>
         </table>
       </Card>
+
+      {/* Print Fee Bill Button */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handlePrintFeeBill}
+          className="bg-blue-600 hover:bg-blue-700"
+          size="lg"
+        >
+          Print Fee Bill
+        </Button>
+      </div>
     </div>
   );
 };
