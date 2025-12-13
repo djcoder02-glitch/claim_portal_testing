@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link2, Copy, Check } from "lucide-react";
@@ -70,6 +71,20 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
     },
   });
 
+  useEffect(() => {
+  if (documents) {
+    const assigned = documents.reduce((acc, doc) => {
+      if (doc.field_label && doc.is_selected) {
+        acc[doc.field_label] = doc;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+    
+    setAssignedDocuments(assigned);
+  }
+}, [documents]);
+
+
   // Get required documents from policy type
   const requiredDocuments = (claim?.policy_types?.required_documents as string[]) || [];
 
@@ -118,6 +133,28 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
       toast.error("Failed to delete document");
     },
   });
+
+  const assignMutation = useMutation({
+  mutationFn: async ({ documentId, fieldLabel }: { documentId: string; fieldLabel: string }) => {
+    const { error } = await supabase
+      .from('claim_documents')
+      .update({ 
+        field_label: fieldLabel,
+        is_selected: true 
+      })
+      .eq('id', documentId);
+
+    if (error) throw error;
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+  },
+  onError: (error) => {
+    console.error("Assign error:", error);
+    toast.error("Failed to assign document");
+  },
+});
+
   
   // View document
   const handleViewDocument = (fileUrl: string) => {
@@ -130,18 +167,35 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
       ...prev,
       [section]: document
     }));
+    assignMutation.mutate({ documentId: document.id, fieldLabel: section }); // ADD THIS LINE
     toast.success(`Document assigned to ${section}`);
   };
 
+
   // Remove document from section
   const handleRemoveDocument = (section: string) => {
-    setAssignedDocuments(prev => {
-      const newDocs = { ...prev };
-      delete newDocs[section];
-      return newDocs;
-    });
-    toast.success(`Document removed from ${section}`);
-  };
+  const docToRemove = assignedDocuments[section];
+  
+  setAssignedDocuments(prev => {
+    const newDocs = { ...prev };
+    delete newDocs[section];
+    return newDocs;
+  });
+  
+  // ADD THIS BLOCK
+  if (docToRemove) {
+    supabase
+      .from('claim_documents')
+      .update({ field_label: null, is_selected: false })
+      .eq('id', docToRemove.id)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+      });
+  }
+  
+  toast.success(`Document removed from ${section}`);
+};
+
 
 // Direct upload from local files
 const handleDirectUpload = async (files: FileList | null) => {
