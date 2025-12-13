@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Eye, X, FileText } from "lucide-react";
+import { Upload, Eye, X, FileText, Trash2, Edit2} from "lucide-react";
 import { DocumentSelectorDialog } from "./DocumentSelectorDialog";
+import { Input } from "@/components/ui/input"
 
 interface AssignedDocument {
   id: string;
@@ -21,6 +22,9 @@ interface DocumentRequirementSectionProps {
   onAssign: (document: AssignedDocument) => void;
   onRemove: () => void;
   onView: (url: string) => void;
+   isCustom?: boolean;
+  onRemoveSection?: () => void; 
+  onEditLabel?: (newLabel: string) => void; 
 }
 
 export const DocumentRequirementSection = ({
@@ -32,16 +36,76 @@ export const DocumentRequirementSection = ({
   onAssign,
   onRemove,
   onView,
+  isCustom = false,
+  onRemoveSection, 
+  onEditLabel,
 }: DocumentRequirementSectionProps) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [isEditingLabel, setIsEditingLabel] = useState(false); 
+  const [editedLabel, setEditedLabel] = useState(label);
 
   return (
     <>
       <Card className="border-2">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">{label}</CardTitle>
+            <div className="flex items-center gap-2 flex-1">
+              {!isEditingLabel ? (
+                <>
+                  <CardTitle className="text-base">{label}</CardTitle>
+                  {onEditLabel && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEditingLabel(true);
+                        setEditedLabel(label);
+                      }}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <Input
+                    value={editedLabel}
+                    onChange={(e) => setEditedLabel(e.target.value)}
+                    className="h-8 max-w-xs"
+                    autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && editedLabel.trim()) {
+                        onEditLabel?.(editedLabel.trim());
+                        setIsEditingLabel(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (editedLabel.trim()) {
+                        onEditLabel?.(editedLabel.trim());
+                        setIsEditingLabel(false);
+                      }
+                    }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsEditingLabel(false);
+                      setEditedLabel(label);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+              
               {recommended && (
                 <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
                   Recommended
@@ -53,20 +117,35 @@ export const DocumentRequirementSection = ({
                 </Badge>
               )}
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setSelectorOpen(true)}
-              className="gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              Select the Documennt
-            </Button>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelectorOpen(true)}
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Select Document
+              </Button>
+              
+              {isCustom && onRemoveSection && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onRemoveSection}
+                  className="text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
           {description && (
             <p className="text-xs text-gray-600 mt-1">{description}</p>
           )}
         </CardHeader>
+
 
         {assignedDocument && (
           <CardContent className="pt-0">

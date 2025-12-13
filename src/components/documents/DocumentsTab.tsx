@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { generateBatchUploadToken } from "@/lib/uploadTokens";
 import { Upload as UploadIcon } from "lucide-react";
 import { uploadDocument } from "@/lib/uploadDocument";
-
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,9 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
   const [copied, setCopied] = useState(false);
   const [assignedDocuments, setAssignedDocuments] = useState<Record<string, any>>({});
   const queryClient = useQueryClient();
+  const [customSections, setCustomSections] = useState<string[]>([]);
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null); 
 
@@ -71,22 +74,36 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
     },
   });
 
+  // Get required documents from policy type
+  const requiredDocuments = (claim?.policy_types?.required_documents as string[]) || [];
+
+    // Add this useEffect after documents query
   useEffect(() => {
   if (documents) {
+    // Load assigned documents
     const assigned = documents.reduce((acc, doc) => {
-      if (doc.field_label && doc.is_selected) {
+      if (doc.field_label && doc.is_selected && doc.file_type !== 'placeholder') {
         acc[doc.field_label] = doc;
       }
       return acc;
     }, {} as Record<string, any>);
     
     setAssignedDocuments(assigned);
+    
+    // Load custom sections (field_labels that don't match policy required_documents)
+    const customLabels = documents
+      .filter(doc => 
+        doc.field_label && 
+        !requiredDocuments.includes(doc.field_label) &&
+        !doc.field_label.startsWith('Uploaded by:') &&
+        doc.file_type === 'placeholder'
+      )
+      .map(doc => doc.field_label as string)
+      .filter((label, index, self) => self.indexOf(label) === index);
+    
+    setCustomSections(customLabels);
   }
-}, [documents]);
-
-
-  // Get required documents from policy type
-  const requiredDocuments = (claim?.policy_types?.required_documents as string[]) || [];
+}, [documents, requiredDocuments]);
 
   // Generate upload link
   const handleGenerateLink = async () => {
@@ -145,6 +162,13 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
       .eq('id', documentId);
 
     if (error) throw error;
+    await supabase
+      .from('claim_documents')
+      .delete()
+      .eq('claim_id', claimId)
+      .eq('field_label', fieldLabel)
+      .eq('file_type', 'placeholder');
+
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
@@ -209,7 +233,7 @@ const handleDirectUpload = async (files: FileList | null) => {
   const uploadPromises = Array.from(files).map(async (file) => {
     try {
       // Upload to AWS S3
-      const result = await uploadDocument(file, claimId, "Claim Admin");
+      const result = await uploadDocument(file, claimId, "You");
 
       // Save metadata to Supabase
       const { error } = await supabase
@@ -224,9 +248,9 @@ const handleDirectUpload = async (files: FileList | null) => {
           upload_token: null,
           uploaded_via_link: true, // CHANGED: Set to true so it shows in grid
           is_selected: false,
-          field_label: "Uploaded by: Claim Admin (Creator)", // CHANGED: Shows in grid
+          field_label: null, // CHANGED: Shows in grid
           metadata: {
-            uploader_name: "Claim Admin (Creator)", // CHANGED: Shows in card
+            uploader_name: "YOU", // CHANGED: Shows in card
             upload_date: new Date().toISOString(),
             upload_source: 'direct'
           }
@@ -249,6 +273,59 @@ const handleDirectUpload = async (files: FileList | null) => {
   // Refresh documents list
   queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
 };
+
+  // Add this function before the return statement (around line 185)
+  const handleAddCustomSection = () => {
+    if (!newSectionName.trim()) {
+      toast.error("Please enter a section name");
+      return;
+    }
+    
+    if ([...requiredDocuments, ...customSections].includes(newSectionName.trim())) {
+      toast.error("This section already exists");
+      return;
+    }
+    
+    setCustomSections(prev => [...prev, newSectionName.trim()]);
+    setNewSectionName("");
+    setShowAddSection(false);
+    toast.success("Custom section added");
+
+
+    supabase
+    .from('claim_documents')
+    .insert({
+      claim_id: claimId,
+      file_name: `_placeholder_${newSectionName.trim()}`,
+      file_path: '',
+      file_type: 'placeholder',
+      file_size: 0,
+      is_selected: false,
+      field_label: newSectionName.trim(),
+      metadata: { is_placeholder: true }
+    } as any)
+    .then(() => {
+      queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+    });
+  };
+
+  const handleRemoveCustomSection = async (sectionName: string) => {
+    setCustomSections(prev => prev.filter(s => s !== sectionName));
+    handleRemoveDocument(sectionName);
+     
+    const { error } = await supabase
+    .from('claim_documents')
+    .delete()
+    .eq('claim_id', claimId)
+    .eq('field_label', sectionName)
+    .eq('file_type', 'placeholder');
+  
+  if (!error) {
+    queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+  }
+  
+  toast.success("Custom section removed");
+  };
 
 
   return (
@@ -311,7 +388,7 @@ const handleDirectUpload = async (files: FileList | null) => {
             </div>
           ) : (
             <UploadedDocumentsGrid
-              documents={documents}
+              documents={documents.filter(doc => doc.file_type !== 'placeholder')} 
               onDelete={(id) => deleteMutation.mutate(id)}
               onView={handleViewDocument}
             />
@@ -328,24 +405,76 @@ const handleDirectUpload = async (files: FileList | null) => {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {requiredDocuments.length === 0 ? (
+          {requiredDocuments.length === 0 && customSections.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No document requirements defined for this policy type.
             </div>
           ) : (
-            requiredDocuments.map((docLabel: string, index: number) => (
-              <DocumentRequirementSection
-                key={docLabel}
-                label={docLabel}
-                description={`Upload ${docLabel} document for this claim`}
-                recommended={index < 2}
-                claimId={claimId}
-                assignedDocument={assignedDocuments[docLabel]}
-                onAssign={(doc) => handleAssignDocument(docLabel, doc)}
-                onRemove={() => handleRemoveDocument(docLabel)}
-                onView={handleViewDocument}
-              />
-            ))
+            <>
+              {/* Required Documents from Policy Type */}
+              {requiredDocuments.map((docLabel: string, index: number) => (
+                <DocumentRequirementSection
+                  key={docLabel}
+                  label={docLabel}
+                  description={`Upload ${docLabel} document for this claim`}
+                  recommended={index < 2}
+                  claimId={claimId}
+                  assignedDocument={assignedDocuments[docLabel]}
+                  onAssign={(doc) => handleAssignDocument(docLabel, doc)}
+                  onRemove={() => handleRemoveDocument(docLabel)}
+                  onView={handleViewDocument}
+                  isCustom={false}
+                />
+              ))}
+              
+              {/* Custom Sections */}
+              {customSections.map((sectionName) => (
+                <DocumentRequirementSection
+                  key={sectionName}
+                  label={sectionName}
+                  description={`Upload ${sectionName} document for this claim`}
+                  recommended={false}
+                  claimId={claimId}
+                  assignedDocument={assignedDocuments[sectionName]}
+                  onAssign={(doc) => handleAssignDocument(sectionName, doc)}
+                  onRemove={() => handleRemoveDocument(sectionName)}
+                  onView={handleViewDocument}
+                  isCustom={true}
+                  onRemoveSection={() => handleRemoveCustomSection(sectionName)}
+                />
+              ))}
+            </>
+          )}
+          
+          {/* Add Custom Section Button/Form */}
+          {!showAddSection ? (
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAddSection(true)}
+              className="w-full border-dashed border-2"
+            >
+              + Add Custom Document Section
+            </Button>
+          ) : (
+            <Card className="border-2 border-blue-300">
+              <CardContent className="pt-6">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter section name (e.g., Purchase Order)"
+                    value={newSectionName}
+                    onChange={(e) => setNewSectionName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomSection()}
+                  />
+                  <Button onClick={handleAddCustomSection}>Add</Button>
+                  <Button variant="outline" onClick={() => {
+                    setShowAddSection(false);
+                    setNewSectionName("");
+                  }}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </CardContent>
       </Card>
