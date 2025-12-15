@@ -59,7 +59,6 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
         .from('claim_documents')
         .select('*')
         .eq('claim_id', claimId)
-        .eq('uploaded_via_link', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -77,8 +76,9 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
   // Get required documents from policy type
   const requiredDocuments = (claim?.policy_types?.required_documents as string[]) || [];
 
-    // Add this useEffect after documents query
-  useEffect(() => {
+useEffect(() => {
+  console.log("Documents changed, reloading sections. Documents count:", documents?.length);
+  
   if (documents) {
     // Load assigned documents
     const assigned = documents.reduce((acc, doc) => {
@@ -89,21 +89,14 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
     }, {} as Record<string, any>);
     
     setAssignedDocuments(assigned);
-    
-    // Load custom sections (field_labels that don't match policy required_documents)
-    const customLabels = documents
-      .filter(doc => 
-        doc.field_label && 
-        !requiredDocuments.includes(doc.field_label) &&
-        !doc.field_label.startsWith('Uploaded by:') &&
-        doc.file_type === 'placeholder'
-      )
-      .map(doc => doc.field_label as string)
-      .filter((label, index, self) => self.indexOf(label) === index);
-    
-    setCustomSections(customLabels);
   }
-}, [documents, requiredDocuments]);
+  
+  // Load custom sections from claim metadata instead of database
+  if (claim?.metadata?.custom_document_sections) {
+    setCustomSections(claim.metadata.custom_document_sections);
+  }
+}, [documents, claim]);
+
 
   // Generate upload link
   const handleGenerateLink = async () => {
@@ -153,6 +146,14 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
 
   const assignMutation = useMutation({
   mutationFn: async ({ documentId, fieldLabel }: { documentId: string; fieldLabel: string }) => {
+    // First check what kind of document we're assigning
+    const { data: docToAssign } = await supabase
+      .from('claim_documents')
+      .select('file_type')
+      .eq('id', documentId)
+      .single();
+
+    // Update the document
     const { error } = await supabase
       .from('claim_documents')
       .update({ 
@@ -162,13 +163,16 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
       .eq('id', documentId);
 
     if (error) throw error;
-    await supabase
-      .from('claim_documents')
-      .delete()
-      .eq('claim_id', claimId)
-      .eq('field_label', fieldLabel)
-      .eq('file_type', 'placeholder');
-
+    
+    // ONLY delete placeholder if we assigned a REAL document (not a placeholder)
+    if (docToAssign?.file_type !== 'placeholder') {
+      await supabase
+        .from('claim_documents')
+        .delete()
+        .eq('claim_id', claimId)
+        .eq('field_label', fieldLabel)
+        .eq('file_type', 'placeholder');
+    }
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
@@ -178,6 +182,7 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
     toast.error("Failed to assign document");
   },
 });
+
 
   
   // View document
@@ -274,58 +279,90 @@ const handleDirectUpload = async (files: FileList | null) => {
   queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
 };
 
-  // Add this function before the return statement (around line 185)
-  const handleAddCustomSection = () => {
-    if (!newSectionName.trim()) {
-      toast.error("Please enter a section name");
-      return;
-    }
-    
-    if ([...requiredDocuments, ...customSections].includes(newSectionName.trim())) {
-      toast.error("This section already exists");
-      return;
-    }
-    
-    setCustomSections(prev => [...prev, newSectionName.trim()]);
-    setNewSectionName("");
-    setShowAddSection(false);
-    toast.success("Custom section added");
-
-
-    supabase
-    .from('claim_documents')
-    .insert({
-      claim_id: claimId,
-      file_name: `_placeholder_${newSectionName.trim()}`,
-      file_path: '',
-      file_type: 'placeholder',
-      file_size: 0,
-      is_selected: false,
-      field_label: newSectionName.trim(),
-      metadata: { is_placeholder: true }
-    } as any)
-    .then(() => {
-      queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
-    });
-  };
-
-  const handleRemoveCustomSection = async (sectionName: string) => {
-    setCustomSections(prev => prev.filter(s => s !== sectionName));
-    handleRemoveDocument(sectionName);
-     
-    const { error } = await supabase
-    .from('claim_documents')
-    .delete()
-    .eq('claim_id', claimId)
-    .eq('field_label', sectionName)
-    .eq('file_type', 'placeholder');
-  
-  if (!error) {
-    queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+  const handleAddCustomSection = async () => {
+  if (!newSectionName.trim()) {
+    toast.error("Please enter a section name");
+    return;
   }
   
-  toast.success("Custom section removed");
+  if ([...requiredDocuments, ...customSections].includes(newSectionName.trim())) {
+    toast.error("This section already exists");
+    return;
+  }
+  
+  const sectionName = newSectionName.trim();
+  setNewSectionName("");
+  setShowAddSection(false);
+
+  console.log("=== ADDING CUSTOM SECTION ===");
+  console.log("Claim ID:", claimId);
+  console.log("Section name:", sectionName);
+  
+  // Get current metadata
+  const currentMetadata = (claim as any)?.metadata || {};
+  const currentSections = currentMetadata.custom_document_sections || [];
+  
+  console.log("Current metadata:", currentMetadata);
+  console.log("Current sections:", currentSections);
+  
+  const newMetadata = {
+    ...currentMetadata,
+    custom_document_sections: [...currentSections, sectionName]
   };
+  
+  console.log("New metadata to save:", newMetadata);
+  
+  // Update claim metadata
+  const { error, data } = await supabase
+    .from('claims')
+    .update({
+      metadata: newMetadata
+    } as any)
+    .eq('id', claimId)
+    .select(); // ADD .select() to see what was updated
+
+  console.log("Update result - error:", error);
+  console.log("Update result - data:", data);
+
+  if (error) {
+    console.error("Error saving custom section:", error);
+    toast.error("Failed to save custom section");
+  } else {
+    console.log("Success! Setting custom sections to:", [...customSections, sectionName]);
+    setCustomSections(prev => [...prev, sectionName]);
+    queryClient.invalidateQueries({ queryKey: ['claim', claimId] });
+    toast.success("Custom section added");
+  }
+};
+
+
+  const handleRemoveCustomSection = async (sectionName: string) => {
+  handleRemoveDocument(sectionName);
+  
+  // Remove from claim metadata
+  const currentMetadata = (claim as any)?.metadata || {};
+
+  const currentSections = currentMetadata.custom_document_sections || [];
+  
+  const { error } = await supabase
+    .from('claims')
+    .update({
+      metadata: {
+        ...currentMetadata,
+        custom_document_sections: [...currentSections, sectionName]
+      }
+    } as any)
+    .eq('id', claimId);
+
+  if (!error) {
+    setCustomSections(prev => prev.filter(s => s !== sectionName));
+    queryClient.invalidateQueries({ queryKey: ['claim', claimId] });
+    toast.success("Custom section removed");
+  } else {
+    toast.error("Failed to remove section");
+  }
+};
+
 
 
   return (
@@ -388,7 +425,11 @@ const handleDirectUpload = async (files: FileList | null) => {
             </div>
           ) : (
             <UploadedDocumentsGrid
-              documents={documents.filter(doc => doc.file_type !== 'placeholder')} 
+              documents={documents.filter(doc => 
+                doc.file_type !== 'placeholder' && 
+                !doc.file_name.startsWith('BATCH_TOKEN_') &&
+                !doc.file_name.startsWith('__BATCH_TOKEN_')
+              )} 
               onDelete={(id) => deleteMutation.mutate(id)}
               onView={handleViewDocument}
             />

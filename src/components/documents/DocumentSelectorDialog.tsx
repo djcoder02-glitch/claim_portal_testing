@@ -35,17 +35,17 @@ export const DocumentSelectorDialog = ({
 
   // Fetch uploaded documents
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ['uploaded-documents', claimId],
+    queryKey: ['documents-selector', claimId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('claim_documents')
         .select('*')
         .eq('claim_id', claimId)
-        .eq('uploaded_via_link', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      // Filter out placeholders from the selection dialog
+      return data?.filter(doc => doc.file_type !== 'placeholder') || [];
     },
     enabled: open,
   });

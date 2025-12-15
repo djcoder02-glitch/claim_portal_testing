@@ -1853,7 +1853,8 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className={`flex-1 justify-between p-4 h-auto text-left ${section.color_class} text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
+                className={`flex-1 justify-between p-4 h-auto text-left text-white hover:opacity-90 transition-all duration-200 rounded-tl-lg rounded-tr-none`}
+style={{ backgroundColor: '#6B7FB8' }}
               >
                 <h4 className="text-lg font-semibold flex items-center gap-2">
                   <Info className="w-5 h-5" />
@@ -1877,8 +1878,9 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
                 className={`h-auto px-3 py-2 transition-all duration-200 ${
                   isEditing 
                     ? 'bg-white text-blue-600 hover:bg-blue-50 border-l border-blue-200' 
-                    : `${section.color_class} text-white hover:bg-white/20 border-l border-white/20`
+                    : 'text-white hover:bg-white/20 border-l border-white/20'
                 }`}
+                style={!isEditing ? { backgroundColor: '#6B7FB8' } : undefined}
                 title={isEditing ? 'Exit edit mode' : 'Edit section'}
               >
                 <Edit className="w-4 h-4" />
@@ -1892,7 +1894,8 @@ const allFields = [...uniqueConvertedFields, ...sectionCustomFields];
                     e.stopPropagation();
                     removeSection(section.id);
                   }}
-                  className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 ${section.color_class} text-white hover:bg-red-500 border-l border-white/20`}
+                  className={`h-auto px-3 py-2 rounded-tr-lg rounded-tl-none transition-all duration-200 text-white hover:bg-red-500 border-l border-white/20`}
+                  style={{ backgroundColor: '#6B7FB8' }}
                   title="Remove section"
                 >
                   <Trash2 className="w-4 h-4" />
