@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tables } from "@/integrations/supabase/types";
+import { useQuery } from "@tanstack/react-query";
 
 type ClaimDocumentRow = Tables<'claim_documents'>;
 
@@ -14,8 +15,8 @@ interface SelectiveDocumentExtractorProps {
   claimId: string;
   documentLabel: string; // e.g., "Policy Document", "Invoice", etc.
   documentTitle: string; // Display title
+  policyTypeId: string; // ADD THIS - to fetch parsing config
   documentDescription: string; // Description text
-  fieldsToExtract: string[]; // Array of field names to extract
   onDataExtracted: (data: Record<string, any>) => void; // Callback when data is extracted
 }
 
@@ -24,7 +25,7 @@ export const SelectiveDocumentExtractor = ({
   documentLabel,
   documentTitle,
   documentDescription,
-  fieldsToExtract,
+  policyTypeId,
   onDataExtracted,
 }: SelectiveDocumentExtractorProps) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -32,6 +33,26 @@ export const SelectiveDocumentExtractor = ({
   const [uploadedDocument, setUploadedDocument] = useState<ClaimDocumentRow | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
+
+  const { data: parsingConfig } = useQuery({
+    queryKey: ["parsing-config", policyTypeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("policy_types")
+        .select("parsing_config")
+        .eq("id", policyTypeId)
+        .single();
+      
+      if (error) throw error;
+      return data?.parsing_config;
+    },
+    enabled: !!policyTypeId,
+  });
+
+  // Determine fields to extract based on document type
+  const fieldsToExtract = documentLabel === "Bill of Entry"
+    ? (parsingConfig?.bill_of_entry || [])
+    : (parsingConfig?.policy_document || []);
 
   // Load existing document on mount
   useEffect(() => {

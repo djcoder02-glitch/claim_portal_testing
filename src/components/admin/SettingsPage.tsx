@@ -4,7 +4,7 @@ import { Settings as SettingsIcon, FileText, Edit } from "lucide-react";
 import { PolicyTypesManager } from "@/components/admin/PolicyTypesManager";
 import { NewClaimFieldsManager } from "@/components/admin/NewClaimFieldsManager";
 import { DocumentRequirementsManager } from "@/components/admin/DocumentRequirementsManager";
-
+import { ParsingConfigManager } from "@/components/admin/ParsingConfigManager";
 
 export const SettingsPage = () => {
   return (
@@ -20,7 +20,7 @@ export const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="policy-types" className="space-y-6">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="policy-types" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Policy Types
@@ -33,6 +33,10 @@ export const SettingsPage = () => {
             <FileText className="w-4 h-4" />
             Document Requirements
           </TabsTrigger>
+          <TabsTrigger value="parsing-config" className="flex items-center gap-2">
+            <SettingsIcon className="w-4 h-4" />
+            Parsing Config
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="policy-types" className="space-y-4">
@@ -44,6 +48,9 @@ export const SettingsPage = () => {
         </TabsContent>
         <TabsContent value="doc-requirements" className="space-y-4">
           <DocumentRequirementsManager />
+        </TabsContent>
+        <TabsContent value="parsing-config" className="space-y-4">
+          <ParsingConfigManager />
         </TabsContent>
         
       </Tabs>

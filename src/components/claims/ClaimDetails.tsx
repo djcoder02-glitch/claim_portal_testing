@@ -71,10 +71,10 @@ export const ClaimDetails = () => {
   // console.log('[ClaimDetails] Claim user_id:', claim?.user_id);
   // console.log('[ClaimDetails] Claim exists:', !!claim);
 
-  const POLICY_DOCUMENT_FIELDS = [
-  'policy_type',
-  'policy_id',
-];
+//   const POLICY_DOCUMENT_FIELDS = [
+//   'policy_type',
+//   'policy_id',
+// ];
 
 
 const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>) => {
@@ -575,10 +575,10 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
             {/* Policy Document Upload & Extraction */}
             <SelectiveDocumentExtractor
               claimId={id!}
+              policyTypeId={claim.policy_type_id}
               documentLabel="Policy Document"
               documentTitle="Policy Document"
               documentDescription="Upload your policy document (PDF format required for field extraction)"
-              fieldsToExtract={POLICY_DOCUMENT_FIELDS}
               onDataExtracted={handlePolicyDocumentExtracted}
             />
 

@@ -39,6 +39,10 @@ export interface PolicyType {
   created_at: string;
   updated_at: string;
   required_documents?: string[]; 
+  parsing_config?: {
+    bill_of_entry?: string[];
+    policy_document?: string[];
+  };
 }
 
 interface DatabaseClaimRow {
@@ -83,6 +87,10 @@ export const useClaims = () => {
         throw error;
       }
       console.log('[useClaims] Fetched claims count:', data?.length);
+
+      if (!data) {
+        return [];
+      }
 
       return data.map((row: any) => ({
         ...row,
