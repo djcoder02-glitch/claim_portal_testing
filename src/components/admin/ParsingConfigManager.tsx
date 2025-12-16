@@ -45,6 +45,7 @@ export const ParsingConfigManager = () => {
   }, [selectedPolicyType, policyTypes]);
 
   // Save mutation
+  // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
@@ -59,14 +60,21 @@ export const ParsingConfigManager = () => {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["policy-types"] });
+      
+      // ADD THIS - Log what was saved
+      const { data } = await supabase
+        .from("policy_types")
+        .select("name, parsing_config")
+        .eq("id", selectedPolicyType)
+        .single();
+      console.log("✅ Saved parsing config:", data);
+      
       toast.success("Parsing configuration saved!");
     },
-    onError: (error: any) => {
-      toast.error("Failed to save: " + error.message);
-    }
   });
+  
 
   const addBillField = () => {
     if (newBillField.trim()) {
