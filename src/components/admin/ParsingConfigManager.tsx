@@ -33,14 +33,19 @@ export const ParsingConfigManager = () => {
   // Load parsing config when policy type selected
   useEffect(() => {
     if (selectedPolicyType) {
-      const policy = policyTypes?.find(p => p.id === selectedPolicyType);
-      if (policy?.parsing_config) {
-        setBillFields(policy.parsing_config.bill_of_entry || []);
-        setPolicyFields(policy.parsing_config.policy_document || []);
-      } else {
-        setBillFields([]);
-        setPolicyFields([]);
-      }
+      type ParsingConfig = {
+        bill_of_entry?: any[];  // Adjust types as needed
+        policy_document?: any[];
+      };
+      const policy = policies.find(p => p.id === selectedPolicyType);
+        if (policy?.parsing_config) {
+          const config = policy.parsing_config as ParsingConfig;
+          setBillFields(config.bill_of_entry || []);
+          setPolicyFields(config.policy_document || []);
+        } else {
+          setBillFields([]);
+          setPolicyFields([]);  // Added for consistency
+        }
     }
   }, [selectedPolicyType, policyTypes]);
 
