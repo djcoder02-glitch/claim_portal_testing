@@ -110,6 +110,39 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
   }
 };
 
+const handleBillOfEntryExtracted = async (extractedData: Record<string, any>) => {
+  console.log('✅ Bill of Entry Data Extracted:', extractedData);
+  
+  try {
+    // Get current form data
+    const currentFormData = claim?.form_data || {};
+    
+    // Merge with extracted data
+    const updatedFormData = {
+      ...currentFormData,
+      ...extractedData
+    };
+
+    // Save to database
+    await updateClaimSilentMutation.mutateAsync({
+      id: claim!.id,
+      updates: {
+        form_data: updatedFormData as Json
+      }
+    });
+
+    // Show success message
+    toast.success(`✅ Successfully saved ${Object.keys(extractedData).length} fields from Bill of Entry!`);
+    
+    // Refresh claim data
+    queryClient.invalidateQueries({ queryKey: ["claim", id] });
+    
+  } catch (error) {
+    console.error('❌ Failed to save extracted data:', error);
+    toast.error('Failed to save extracted data to database');
+  }
+};
+
 
   useEffect(() => {
     const loadExistingDocuments = async () => {
@@ -505,72 +538,14 @@ const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>)
             </Card>
 
             {/* Bill of Entry Upload */}
-            <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-lg">
-                  <FileText className="w-5 h-5" />
-                  <span>Bill of Entry</span>
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Upload your Bill of Entry document (PDF format required for analysis)
-                </p>
-              </CardHeader>
-              <CardContent>
-                {!uploadedBillOfEntry ? (
-                  <div className="border-2 border-dashed rounded-lg p-4 text-center space-y-3">
-                    <Input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      onChange={(e) => handleBillOfEntryUpload(e.target.files)}
-                      disabled={isUploading}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                      className="w-full"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {isUploading ? "Uploading..." : "Browse PDF"}
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Only PDF files are accepted (Max 10MB)
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center space-x-2 text-green-700">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="text-sm font-medium">{uploadedBillOfEntry.file_name}</span>
-                      </div>
-                      <p className="text-xs text-green-600 mt-1">Uploaded successfully</p>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        onClick={handleReUpload}
-                        size="sm"
-                        className="flex-1"
-                      >
-                        Re-upload
-                      </Button>
-                      <Button
-                        onClick={handleExtractData}
-                        disabled={isExtracting}
-                        size="sm"
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        {isExtracting ? 'Extracting...' : 'Populate Fields'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <SelectiveDocumentExtractor
+              claimId={id!}
+              policyTypeId={claim.policy_type_id}
+              documentLabel="Bill of Entry"
+              documentTitle="Bill of Entry"
+              documentDescription="Upload your Bill of Entry document (PDF format required for field extraction)"
+              onDataExtracted={handleBillOfEntryExtracted}
+            />
 
             {/* Policy Document Upload & Extraction */}
             <SelectiveDocumentExtractor

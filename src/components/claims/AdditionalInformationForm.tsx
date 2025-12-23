@@ -350,7 +350,7 @@ const isInitialMount = useRef(true);
       isInitialMount.current = false;
       reset(claim.form_data || {});
     }
-  }, [claim.form_data, reset]);
+  }, [reset]); // Don't depend on claim.form_data to prevent reset on every change
 
   const onSubmit = async (data: Record<string, unknown>) => {
   console.log('🔥 onSubmit called with data:', data);
@@ -382,7 +382,10 @@ const isInitialMount = useRef(true);
         custom_fields_metadata: customFields,  // Current custom fields from state
         hidden_fields: Array.from(hiddenFields),
         field_labels: fieldLabels,
+        current_template_name: currentTemplate?.name, // ADD THIS LINE
+        is_template_modified: isTemplateModified, // ADD THIS LINE
         dynamic_sections_metadata: dynamicSections.map(section => {
+
           // Merge custom fields that belong to this section into section.fields
           const sectionCustomFields = customFields
             .filter(f => f.section === section.id)
@@ -440,7 +443,9 @@ const isInitialMount = useRef(true);
     };
     setCustomFields(prev => [...prev, newField]);
     setPendingSaves(prev => new Set([...prev, newField.name]));
+    setIsTemplateModified(true); // MARK AS MODIFIED
   };
+
 
   const saveCustomField = async (fieldName: string) => {
     try {
@@ -792,6 +797,7 @@ const isInitialMount = useRef(true);
   };
   
   setDynamicSections([...dynamicSections, newSection]);
+  setIsTemplateModified(true); // MARK AS MODIFIED
   setShowNewSectionDialog(false);
   setSelectedTemplate(null);
   setNewSectionName('');
@@ -800,6 +806,7 @@ const isInitialMount = useRef(true);
 
   const removeSection = (sectionId: string) => {
     setDynamicSections(prev => prev.filter(section => section.id !== sectionId));
+    setIsTemplateModified(true); // MARK AS MODIFIED
     toast.success("Section removed");
   };
 
@@ -956,7 +963,13 @@ const saveAsTemplate = async () => {
       };
     });
     
-    // If replacing, delete the old template first
+    // Prevent overwriting the DEFAULT template
+    if (existingTemplate && existingTemplate.is_default) {
+      toast.error("Cannot overwrite the DEFAULT template. Please save with a different name.");
+      return;
+    }
+    
+    // If replacing a non-default template, delete the old one first
     if (existingTemplate) {
       await supabase
         .from('form_templates')
@@ -1063,6 +1076,12 @@ const loadTemplate = (template: FormTemplate) => {
 
   // Initialize dynamic sections from existing structure
   useEffect(() => {
+    // GUARD: Don't reinitialize if sections already loaded
+    if (dynamicSections.length > 0) {
+      console.log('⏭️ Skipping initialization - sections already loaded');
+      return;
+    }
+    
     // Check if we have saved sections in the claim data
     const savedDynamicSections = claim.form_data?.dynamic_sections_metadata as DynamicSection[] | undefined;
     console.log('🔄 Initializing dynamic sections from claim data:', savedDynamicSections);
@@ -1071,6 +1090,22 @@ const loadTemplate = (template: FormTemplate) => {
       // Load saved sections
       console.log('✅ Loading saved sections from claim data');
       setDynamicSections(savedDynamicSections);
+      
+      // Restore template state from saved data
+      const savedTemplateName = claim.form_data?.current_template_name as string | undefined;
+      const savedIsModified = claim.form_data?.is_template_modified as boolean | undefined;
+      
+      if (savedTemplateName) {
+        const template = templates.find(t => t.name === savedTemplateName);
+        if (template) {
+          setCurrentTemplate(template);
+        }
+      }
+      
+      if (savedIsModified !== undefined) {
+        setIsTemplateModified(savedIsModified);
+      }
+      
       return;
     }
 
@@ -1090,6 +1125,7 @@ const loadTemplate = (template: FormTemplate) => {
       }));
       setDynamicSections(convertedSections);
       setCurrentTemplate(defaultTemplate);
+      setIsTemplateModified(false); // ADD THIS LINE
       return;
     }
 
@@ -1173,7 +1209,7 @@ const loadTemplate = (template: FormTemplate) => {
     ];
     
     setDynamicSections(defaultSections);
-  }, [claim.form_data, templates, claim.policy_type_id]); // Add templates dependency
+  }, [templates, claim.policy_type_id, dynamicSections.length]); // Only reinitialize when these change
 
   
   // Now define these after useEffect where getAdditionalDetailsFields is available
@@ -2049,7 +2085,10 @@ style={{ backgroundColor: '#6B7FB8' }}
         {currentTemplate && (
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="bg-white">
-              {isTemplateModified ? `${currentTemplate.name} - EDITED*` : currentTemplate.name}
+                {currentTemplate?.name}
+                  {isTemplateModified && currentTemplate && (
+                    <span className="text-orange-600 ml-1">- EDITED*</span>
+                  )}
             </Badge>
           </div>
         )}
@@ -2131,7 +2170,7 @@ style={{ backgroundColor: '#6B7FB8' }}
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
                     {/* Show checkbox to overwrite current template */}
-                    {currentTemplate && (
+                    {currentTemplate && !currentTemplate.is_default && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
                         <div className="flex items-center justify-between">
                           <Label htmlFor="overwrite-template" className="text-sm font-medium cursor-pointer">

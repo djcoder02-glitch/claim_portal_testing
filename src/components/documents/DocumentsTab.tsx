@@ -428,7 +428,8 @@ const handleDirectUpload = async (files: FileList | null) => {
               documents={documents.filter(doc => 
                 doc.file_type !== 'placeholder' && 
                 !doc.file_name.startsWith('BATCH_TOKEN_') &&
-                !doc.file_name.startsWith('__BATCH_TOKEN_')
+                !doc.file_name.startsWith('__BATCH_TOKEN_')&&
+                !doc.file_name.startsWith('__TOKEN_')
               )} 
               onDelete={(id) => deleteMutation.mutate(id)}
               onView={handleViewDocument}

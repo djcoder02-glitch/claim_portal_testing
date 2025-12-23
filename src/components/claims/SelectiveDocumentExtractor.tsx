@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,12 @@ import { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 
 type ClaimDocumentRow = Tables<'claim_documents'>;
+
+interface ParsingConfig {
+  bill_of_entry?: string[];
+  policy_document?: string[];
+}
+
 
 interface SelectiveDocumentExtractorProps {
   claimId: string;
@@ -34,7 +40,7 @@ export const SelectiveDocumentExtractor = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: parsingConfig } = useQuery({
+  const { data: parsingConfig } = useQuery<ParsingConfig | null>({
     queryKey: ["parsing-config", policyTypeId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -44,15 +50,28 @@ export const SelectiveDocumentExtractor = ({
         .single();
       
       if (error) throw error;
-      return data?.parsing_config;
+      return (data?.parsing_config as ParsingConfig) || null;
     },
     enabled: !!policyTypeId,
   });
+  
 
-  // Determine fields to extract based on document type
-  const fieldsToExtract = documentLabel === "Bill of Entry"
-    ? (parsingConfig?.bill_of_entry || [])
-    : (parsingConfig?.policy_document || []);
+  const fieldsToExtract: string[] = React.useMemo(() => {
+    if (!parsingConfig) {
+      console.log(`📋 [${documentLabel}] No parsing config loaded yet`);
+      return [];
+    }
+    
+    const fields = documentLabel === "Bill of Entry"
+      ? (parsingConfig.bill_of_entry || [])
+      : (parsingConfig.policy_document || []);
+    
+    console.log(`📋 [${documentLabel}] Parsing config loaded:`, parsingConfig);
+    console.log(`📋 [${documentLabel}] Fields to extract (${fields.length}):`, fields);
+    
+    return fields;
+  }, [parsingConfig, documentLabel]);
+
 
   // Load existing document on mount
   useEffect(() => {
@@ -126,26 +145,28 @@ export const SelectiveDocumentExtractor = ({
     },
   });
 
-  // Extract data mutation
+// Extract data mutation with timeout
   const extractDataMutation = useMutation({
     mutationFn: async (documentData: ClaimDocumentRow) => {
-      const { data: fileData, error } = await supabase.storage
-        .from('claim-documents')
-        .download(documentData.file_path);
+      // Create extraction promise
+      const extractionPromise = (async () => {
+        const { data: fileData, error } = await supabase.storage
+          .from('claim-documents')
+          .download(documentData.file_path);
 
-      if (error) throw new Error(`Failed to download file: ${error.message}`);
+        if (error) throw new Error(`Failed to download file: ${error.message}`);
 
-      const arrayBuffer = await fileData.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+        const arrayBuffer = await fileData.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
 
-      let binary = '';
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-      const base64Data = btoa(binary);
+        let binary = '';
+        for (let i = 0; i < uint8Array.length; i++) {
+          binary += String.fromCharCode(uint8Array[i]);
+        }
+        const base64Data = btoa(binary);
 
-      // Call your backend API with the fields to extract
-      const response = await fetch('https://reports-backend-48dg.onrender.com/extract-selective-fields', {
+        // Call your backend API with the fields to extract
+        const response = await fetch('https://reports-backend-48dg.onrender.com/extract-selective-fields', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +178,16 @@ export const SelectiveDocumentExtractor = ({
       });
 
       if (!response.ok) throw new Error('Extraction failed');
-      return response.json();
+        return response.json();
+      })(); // Close extractionPromise
+
+      // Create timeout promise (60 seconds)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Extraction timeout after 60 seconds. Try with fewer fields (currently ${fieldsToExtract.length} fields).`)), 60000)
+      );
+
+      // Race between extraction and timeout
+      return await Promise.race([extractionPromise, timeoutPromise]);
     },
     onSuccess: (result) => {
       if (result.success && result.extractedData) {
@@ -189,6 +219,14 @@ export const SelectiveDocumentExtractor = ({
   const handleExtractData = async () => {
     if (!uploadedDocument) return;
 
+    // Validate that fields are configured
+    if (!fieldsToExtract || fieldsToExtract.length === 0) {
+      toast.error(`No fields configured for ${documentLabel}. Please configure fields in Admin Settings → Parsing Config.`);
+      return;
+    }
+
+    console.log(`🔍 Extracting ${fieldsToExtract.length} fields from ${documentLabel}:`, fieldsToExtract);
+
     setIsExtracting(true);
     try {
       await extractDataMutation.mutateAsync(uploadedDocument);
@@ -196,6 +234,7 @@ export const SelectiveDocumentExtractor = ({
       setIsExtracting(false);
     }
   };
+
 
   const handleReUpload = () => {
     setUploadedDocument(null);
@@ -260,13 +299,52 @@ export const SelectiveDocumentExtractor = ({
               </Button>
               <Button
                 onClick={handleExtractData}
-                disabled={isExtracting}
+                disabled={isExtracting || !fieldsToExtract || fieldsToExtract.length === 0}
                 size="sm"
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                title={(!fieldsToExtract || fieldsToExtract.length === 0) ? "No fields configured. Go to Settings → Parsing Config" : ""}
               >
-                {isExtracting ? "Extracting..." : "Extract Data"}
+                {isExtracting 
+                  ? `Extracting fields...` 
+                  : `Extract Data fields`
+                }
               </Button>
+
             </div>
+
+            {/* Info about field count and performance */}
+            {fieldsToExtract && fieldsToExtract.length > 15 && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <span className="text-blue-600 text-sm">ℹ️</span>
+                  <div className="flex-1">
+                    <p className="text-xs text-blue-800 font-medium">
+                      Extracting fields
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Large extractions may take 30-60 seconds. Consider reducing to 8-10 fields for faster results.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Warning when no fields configured */}
+            {(!fieldsToExtract || fieldsToExtract.length === 0) && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <span className="text-yellow-600 text-sm">⚠️</span>
+                  <div className="flex-1">
+                    <p className="text-xs text-yellow-800 font-medium">
+                      No fields configured for {documentLabel}
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Go to <strong>Settings → Parsing Config</strong> to configure which fields should be extracted.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
