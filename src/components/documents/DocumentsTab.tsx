@@ -425,12 +425,27 @@ const handleDirectUpload = async (files: FileList | null) => {
             </div>
           ) : (
             <UploadedDocumentsGrid
-              documents={documents.filter(doc => 
-                doc.file_type !== 'placeholder' && 
-                !doc.file_name.startsWith('BATCH_TOKEN_') &&
-                !doc.file_name.startsWith('__BATCH_TOKEN_')&&
-                !doc.file_name.startsWith('__TOKEN_')
-              )} 
+              documents={documents
+                .filter(doc => 
+                  doc.file_type !== 'placeholder' && 
+                  !doc.file_name.startsWith('BATCH_TOKEN_') &&
+                  !doc.file_name.startsWith('__BATCH_TOKEN_') &&
+                  !doc.file_name.startsWith('__TOKEN_')
+                )
+                .map(doc => ({
+                  id: doc.id,
+                  field_label: doc.field_label || undefined,
+                  file_name: doc.file_name,
+                  file_type: doc.file_type,
+                  file_path: doc.file_path,
+                  file_size: doc.file_size,
+                  uploaded_by: doc.uploaded_by || null,
+                  created_at: doc.created_at,
+                  is_selected: doc.is_selected || undefined,
+                  token_expires_at: doc.token_expires_at || undefined,
+                  upload_token: doc.upload_token || undefined,
+                  uploaded_via_link: doc.uploaded_via_link || undefined,
+                }))} 
               onDelete={(id) => deleteMutation.mutate(id)}
               onView={handleViewDocument}
             />
