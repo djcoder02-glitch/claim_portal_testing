@@ -11,7 +11,7 @@ import {
   UserCog,
   Building2,
   Bell,
-  LogOut,
+  LogOut,Star,
   ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,16 @@ const getMainNavItems = (isAdmin: boolean): NavItem[] => {
       href: "/claims",
       icon: FileText,
     },
+    {
+        title: "Value Added Services",
+        href: "/value-added-services",
+        icon: Star,
+      },
+      {
+        title: "Clients",
+        href: "/clients",
+        icon: Building2,
+      },
   ];
 
   if (isAdmin) {
@@ -65,6 +75,7 @@ const getMainNavItems = (isAdmin: boolean): NavItem[] => {
         href: "/settings",
         icon: Settings,
       },
+      
       {
         title: "Management",
         href: "/management",
@@ -148,6 +159,14 @@ const getPageTitle = (pathname: string): { title: string; subtitle: string } => 
     '/management': {
       title: 'Management',
       subtitle: 'Manage users, roles, and permissions'
+    },
+     '/value-added-services': {
+      title: 'Value Added Services',
+      subtitle: 'Manage your value-added service offerings'
+    },
+    '/clients': {
+      title: 'Client Management',
+      subtitle: 'Manage client companies and addresses'
     },
     '/profile': {
       title: 'Profile',

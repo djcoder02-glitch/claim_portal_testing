@@ -19,6 +19,8 @@ import {TeamManagement} from "./pages/TeamManagement";
 import Setting from "./pages/Settings";
 import Brokers from "./pages/Brokers";
 import Customers from "./pages/Customers";
+import {ValueAddedServices} from "./pages/ValueAddedServices";
+import {Clients} from "./pages/Clients";
 import { PublicUpload } from "./pages/PublicUpload"; 
 
 const queryClient = new QueryClient();
@@ -109,6 +111,19 @@ const App = () => (
                   <Customers />} 
               />
               
+              <Route 
+                path="/value-added-services" 
+                element={
+                    <ValueAddedServices />
+                } 
+              />
+              
+              <Route 
+                path="/clients" 
+                element={
+                    <Clients />
+                } 
+              />
               <Route 
                 path="/notifications" 
                 element={
