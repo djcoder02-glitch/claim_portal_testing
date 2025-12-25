@@ -186,8 +186,25 @@ useEffect(() => {
 
   
   // View document
-  const handleViewDocument = (fileUrl: string) => {
-    window.open(fileUrl, '_blank');
+  const handleViewDocument = async (filePath: string) => {
+    try {
+      // Check if it's already a full URL (S3) or a Supabase storage path
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        // It's already a full URL from S3 - open directly
+        window.open(filePath, '_blank');
+      } else {
+        // It's a Supabase storage path - need signed URL
+        const { data, error } = await supabase.storage
+          .from("claim-documents")
+          .createSignedUrl(filePath, 3600); // URL valid for 1 hour
+        
+        if (error) throw error;
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (error) {
+      toast.error("Failed to load document preview");
+      console.error(error);
+    }
   };
 
   // Assign document to section

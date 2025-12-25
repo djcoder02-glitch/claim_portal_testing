@@ -95,64 +95,59 @@ export const UploadedDocumentsGrid = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
         {documents.map((doc) => (
           <Card
             key={doc.id}
-            className="group hover:shadow-xl transition-all duration-200 border-2 hover:border-blue-400"
+            className="group hover:shadow-lg transition-all duration-200 border hover:border-blue-400 cursor-pointer relative"
+            onClick={() => onView(doc.file_path)}
           >
-            <CardContent className="p-5 space-y-4">
-              {/* File Icon */}
-              <div className={`w-full aspect-square rounded-xl flex items-center justify-center ${getFileIcon(doc.file_name)} transition-transform group-hover:scale-105`}>
-                <span className="text-4xl font-bold">
+            {/* Delete button - Top Right */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="absolute top-1 right-1 text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0 z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(doc);
+              }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+
+            <CardContent className="p-3">
+              {/* PDF Icon - Top Left */}
+              <div className={`w-14 h-14 rounded-lg flex items-center justify-center ${getFileIcon(doc.file_name)} transition-transform group-hover:scale-105`}>
+                <span className="text-base font-bold">
                   {doc.file_name.split('.').pop()?.toUpperCase()}
                 </span>
               </div>
 
-              {/* File Info */}
-              <div className="space-y-2">
-                <p className="text-sm font-semibold truncate" title={doc.file_name}>
+              {/* File Details - Below Icon, Left Aligned */}
+              <div className="mt-2 space-y-1">
+                {/* File Name */}
+                <p className="text-sm font-semibold break-words line-clamp-2 leading-tight" title={doc.file_name}>
                   {doc.file_name}
                 </p>
-                <p className="text-xs text-gray-500 font-medium">
+                
+                {/* File Size */}
+                <p className="text-xs text-gray-500">
                   {(doc.file_size / 1024 / 1024).toFixed(2)} MB
                 </p>
-              </div>
 
-              {/* Metadata */}
-              <div className="space-y-2 pt-2 border-t">
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <User className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate font-medium" title={getUploaderName(doc)}>
+                {/* Uploader */}
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <User className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate" title={getUploaderName(doc)}>
                     {getUploaderName(doc)}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="font-medium">{getUploadDate(doc)}</span>
+                {/* Date */}
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                  <span>{getUploadDate(doc)}</span>
                 </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-3 border-t">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
-                  onClick={() => onView(doc.file_path)}
-                >
-                  <Eye className="w-4 h-4 mr-1.5" />
-                  View
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300"
-                  onClick={() => handleDeleteClick(doc)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
             </CardContent>
           </Card>
