@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link2, Copy, Check } from "lucide-react";
@@ -25,6 +26,7 @@ interface DocumentsTabProps {
 }
 
 export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
+  const location = useLocation();
   const [uploadLinkDialogOpen, setUploadLinkDialogOpen] = useState(false);
   const [uploadLink, setUploadLink] = useState("");
   const [copied, setCopied] = useState(false);
@@ -36,16 +38,44 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null); 
 
-  // Fetch claim to get policy_type_id
+  // AUTO-DETECT which table and field to use based on URL
+  const isVASReport = location.pathname.includes("/value-added-services/");
+  const isClientReport = location.pathname.includes("/clients/");
+  
+  const documentTable = isVASReport 
+    ? "vas_documents"
+    : isClientReport
+    ? "client_documents"
+    : "claim_documents";
+  
+  const reportTable = isVASReport
+    ? "vas_reports"
+    : isClientReport
+    ? "client_reports"
+    : "claims";
+    
+  const reportIdField = documentTable === "claim_documents" ? "claim_id" : "report_id";
+
+  // Fetch claim/report to get policy_type_id or service/company info
   const { data: claim } = useQuery({
-    queryKey: ['claim', claimId],
+    queryKey: ['claim', claimId, reportTable],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('claims')
-        .select('*, policy_types(id, name, required_documents)')
+      let query = supabase
+        .from(reportTable)
+        .select('*')
         .eq('id', claimId)
         .single();
+      
+      // Add policy_types join only for claims
+      if (reportTable === 'claims') {
+        query = supabase
+          .from(reportTable)
+          .select('*, policy_types(id, name, required_documents)')
+          .eq('id', claimId)
+          .single();
+      }
 
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -53,12 +83,12 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
 
   // Fetch uploaded documents
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ['uploaded-documents', claimId],
+    queryKey: ['uploaded-documents', claimId, documentTable],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('claim_documents')
+        .from(documentTable)
         .select('*')
-        .eq('claim_id', claimId)
+        .eq(reportIdField, claimId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -73,7 +103,7 @@ export const DocumentsTab = ({ claimId }: DocumentsTabProps) => {
     },
   });
 
-  // Get required documents from policy type
+  // Get required documents from policy type (only for claims)
   const requiredDocuments = (claim?.policy_types?.required_documents as string[]) || [];
 
 useEffect(() => {
@@ -91,7 +121,7 @@ useEffect(() => {
     setAssignedDocuments(assigned);
   }
   
-  // Load custom sections from claim metadata instead of database
+  // Load custom sections from claim/report metadata
   if (claim?.metadata?.custom_document_sections) {
     setCustomSections(claim.metadata.custom_document_sections);
   }
@@ -128,14 +158,14 @@ useEffect(() => {
   const deleteMutation = useMutation({
     mutationFn: async (documentId: string) => {
       const { error } = await supabase
-        .from('claim_documents')
+        .from(documentTable)
         .delete()
         .eq('id', documentId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+      queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId, documentTable] });
       toast.success("Document deleted successfully");
     },
     onError: (error) => {
@@ -148,14 +178,14 @@ useEffect(() => {
   mutationFn: async ({ documentId, fieldLabel }: { documentId: string; fieldLabel: string }) => {
     // First check what kind of document we're assigning
     const { data: docToAssign } = await supabase
-      .from('claim_documents')
+      .from(documentTable)
       .select('file_type')
       .eq('id', documentId)
       .single();
 
     // Update the document
     const { error } = await supabase
-      .from('claim_documents')
+      .from(documentTable)
       .update({ 
         field_label: fieldLabel,
         is_selected: true 
@@ -167,15 +197,15 @@ useEffect(() => {
     // ONLY delete placeholder if we assigned a REAL document (not a placeholder)
     if (docToAssign?.file_type !== 'placeholder') {
       await supabase
-        .from('claim_documents')
+        .from(documentTable)
         .delete()
-        .eq('claim_id', claimId)
+        .eq(reportIdField, claimId)
         .eq('field_label', fieldLabel)
         .eq('file_type', 'placeholder');
     }
   },
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+    queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId, documentTable] });
   },
   onError: (error) => {
     console.error("Assign error:", error);
@@ -213,167 +243,135 @@ useEffect(() => {
       ...prev,
       [section]: document
     }));
-    assignMutation.mutate({ documentId: document.id, fieldLabel: section }); // ADD THIS LINE
+    assignMutation.mutate({ documentId: document.id, fieldLabel: section });
     toast.success(`Document assigned to ${section}`);
   };
 
 
   // Remove document from section
-  const handleRemoveDocument = (section: string) => {
-  const docToRemove = assignedDocuments[section];
-  
-  setAssignedDocuments(prev => {
-    const newDocs = { ...prev };
-    delete newDocs[section];
-    return newDocs;
-  });
-  
-  // ADD THIS BLOCK
-  if (docToRemove) {
-    supabase
-      .from('claim_documents')
-      .update({ field_label: null, is_selected: false })
-      .eq('id', docToRemove.id)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
-      });
-  }
-  
-  toast.success(`Document removed from ${section}`);
-};
+  const handleRemoveDocument = async (section: string) => {
+    const docToRemove = assignedDocuments[section];
+    
+    if (docToRemove) {
+      const { error } = await supabase
+        .from(documentTable)
+        .update({ 
+          field_label: null,
+          is_selected: false 
+        })
+        .eq('id', docToRemove.id);
 
+      if (!error) {
+        setAssignedDocuments(prev => {
+          const newAssigned = { ...prev };
+          delete newAssigned[section];
+          return newAssigned;
+        });
+        queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId, documentTable] });
+        toast.success("Document removed from section");
+      } else {
+        toast.error("Failed to remove document");
+      }
+    }
+  };
 
-// Direct upload from local files
+// Handle direct file upload
 const handleDirectUpload = async (files: FileList | null) => {
   if (!files || files.length === 0) return;
-
+  
   setIsUploading(true);
+  let successCount = 0;
   
-  // Get current user info
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  const uploadPromises = Array.from(files).map(async (file) => {
-    try {
-      // Upload to AWS S3
-      const result = await uploadDocument(file, claimId, "You");
-
-      // Save metadata to Supabase
-      const { error } = await supabase
-        .from('claim_documents')
-        .insert({
-          claim_id: claimId,
-          file_name: file.name,
-          file_path: result.url,
-          file_type: file.name.split('.').pop() || 'unknown',
-          file_size: file.size,
-          uploaded_by: user?.id || null, // CHANGED: Use admin's user ID
-          upload_token: null,
-          uploaded_via_link: true, // CHANGED: Set to true so it shows in grid
-          is_selected: false,
-          field_label: null, // CHANGED: Shows in grid
-          metadata: {
-            uploader_name: "YOU", // CHANGED: Shows in card
-            upload_date: new Date().toISOString(),
-            upload_source: 'direct'
-          }
-        } as any);
-
-      if (error) throw error;
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       
-      toast.success(`${file.name} uploaded successfully`);
-    } catch (error) {
-      console.error(`Failed to upload ${file.name}:`, error);
-      toast.error(`Failed to upload ${file.name}`);
+      try {
+        await uploadDocument(file, claimId);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        toast.error(`Failed to upload ${file.name}`);
+      }
     }
-  });
-
-  await Promise.all(uploadPromises);
-  
-  setIsUploading(false);
-  setSelectedFiles(null);
-  
-  // Refresh documents list
-  queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId] });
+    
+    if (successCount > 0) {
+      toast.success(`Successfully uploaded ${successCount} file(s)`);
+      queryClient.invalidateQueries({ queryKey: ['uploaded-documents', claimId, documentTable] });
+    }
+  } finally {
+    setIsUploading(false);
+    // Reset the file input
+    const input = document.getElementById('direct-upload-input') as HTMLInputElement;
+    if (input) input.value = '';
+  }
 };
 
-  const handleAddCustomSection = async () => {
+
+const handleAddCustomSection = async () => {
   if (!newSectionName.trim()) {
     toast.error("Please enter a section name");
     return;
   }
-  
-  if ([...requiredDocuments, ...customSections].includes(newSectionName.trim())) {
+
+  if (customSections.includes(newSectionName.trim())) {
     toast.error("This section already exists");
     return;
   }
-  
-  const sectionName = newSectionName.trim();
-  setNewSectionName("");
-  setShowAddSection(false);
 
-  console.log("=== ADDING CUSTOM SECTION ===");
-  console.log("Claim ID:", claimId);
-  console.log("Section name:", sectionName);
+  const updatedSections = [...customSections, newSectionName.trim()];
   
-  // Get current metadata
-  const currentMetadata = (claim as any)?.metadata || {};
-  const currentSections = currentMetadata.custom_document_sections || [];
-  
-  console.log("Current metadata:", currentMetadata);
-  console.log("Current sections:", currentSections);
-  
-  const newMetadata = {
-    ...currentMetadata,
-    custom_document_sections: [...currentSections, sectionName]
-  };
-  
-  console.log("New metadata to save:", newMetadata);
-  
-  // Update claim metadata
-  const { error, data } = await supabase
-    .from('claims')
+  // Update claim/report metadata
+  const { error } = await supabase
+    .from(reportTable)
     .update({
-      metadata: newMetadata
-    } as any)
-    .eq('id', claimId)
-    .select(); // ADD .select() to see what was updated
+      metadata: {
+        ...claim?.metadata,
+        custom_document_sections: updatedSections
+      }
+    })
+    .eq('id', claimId);
 
-  console.log("Update result - error:", error);
-  console.log("Update result - data:", data);
-
-  if (error) {
-    console.error("Error saving custom section:", error);
-    toast.error("Failed to save custom section");
-  } else {
-    console.log("Success! Setting custom sections to:", [...customSections, sectionName]);
-    setCustomSections(prev => [...prev, sectionName]);
-    queryClient.invalidateQueries({ queryKey: ['claim', claimId] });
+  if (!error) {
+    setCustomSections(updatedSections);
+    setNewSectionName("");
+    setShowAddSection(false);
+    queryClient.invalidateQueries({ queryKey: ['claim', claimId, reportTable] });
     toast.success("Custom section added");
+  } else {
+    toast.error("Failed to add section");
   }
 };
 
-
-  const handleRemoveCustomSection = async (sectionName: string) => {
-  handleRemoveDocument(sectionName);
+const handleRemoveCustomSection = async (sectionName: string) => {
+  const updatedSections = customSections.filter(s => s !== sectionName);
   
-  // Remove from claim metadata
-  const currentMetadata = (claim as any)?.metadata || {};
-
-  const currentSections = currentMetadata.custom_document_sections || [];
+  // Also remove the document assignment if exists
+  const docToRemove = assignedDocuments[sectionName];
+  if (docToRemove) {
+    await supabase
+      .from(documentTable)
+      .update({ 
+        field_label: null,
+        is_selected: false 
+      })
+      .eq('id', docToRemove.id);
+  }
   
+  // Update claim/report metadata
   const { error } = await supabase
-    .from('claims')
+    .from(reportTable)
     .update({
       metadata: {
-        ...currentMetadata,
-        custom_document_sections: [...currentSections, sectionName]
+        ...claim?.metadata,
+        custom_document_sections: updatedSections
       }
-    } as any)
+    })
     .eq('id', claimId);
 
   if (!error) {
     setCustomSections(prev => prev.filter(s => s !== sectionName));
-    queryClient.invalidateQueries({ queryKey: ['claim', claimId] });
+    queryClient.invalidateQueries({ queryKey: ['claim', claimId, reportTable] });
     toast.success("Custom section removed");
   } else {
     toast.error("Failed to remove section");
@@ -391,7 +389,7 @@ const handleDirectUpload = async (files: FileList | null) => {
             <div>
               <CardTitle className="text-2xl">Documents</CardTitle>
               <p className="text-sm text-gray-600 mt-1">
-                Manage all documents for this claim
+                Manage all documents for this {isVASReport ? 'VAS report' : isClientReport ? 'client report' : 'claim'}
               </p>
             </div>
             <div className="flex gap-3">
@@ -475,17 +473,23 @@ const handleDirectUpload = async (files: FileList | null) => {
         <CardHeader>
           <CardTitle className="text-xl">Upload Documents</CardTitle>
           <p className="text-sm text-gray-600">
-            These are suggested document types based on your policy type. Upload what you have available.
+            {reportTable === 'claims' 
+              ? 'These are suggested document types based on your policy type. Upload what you have available.'
+              : 'Add and organize documents for this report.'
+            }
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {requiredDocuments.length === 0 && customSections.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No document requirements defined for this policy type.
+              {reportTable === 'claims' 
+                ? 'No document requirements defined for this policy type.'
+                : 'No document sections yet. Add custom sections to organize your documents.'
+              }
             </div>
           ) : (
             <>
-              {/* Required Documents from Policy Type */}
+              {/* Required Documents from Policy Type (only for claims) */}
               {requiredDocuments.map((docLabel: string, index: number) => (
                 <DocumentRequirementSection
                   key={docLabel}
@@ -506,7 +510,7 @@ const handleDirectUpload = async (files: FileList | null) => {
                 <DocumentRequirementSection
                   key={sectionName}
                   label={sectionName}
-                  description={`Upload ${sectionName} document for this claim`}
+                  description={`Upload ${sectionName} document`}
                   recommended={false}
                   claimId={claimId}
                   assignedDocument={assignedDocuments[sectionName]}

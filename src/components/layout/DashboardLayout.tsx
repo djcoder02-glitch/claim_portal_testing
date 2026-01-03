@@ -52,12 +52,12 @@ const getMainNavItems = (isAdmin: boolean): NavItem[] => {
     },
     {
         title: "Value Added Services",
-        href: "/value-added-services",
+        href: "/value-added-services/reports",
         icon: Star,
       },
       {
         title: "Clients",
-        href: "/clients",
+        href: "/clients/reports",
         icon: Building2,
       },
   ];
@@ -164,9 +164,17 @@ const getPageTitle = (pathname: string): { title: string; subtitle: string } => 
       title: 'Value Added Services',
       subtitle: 'Manage your value-added service offerings'
     },
+    '/value-added-services/reports': {
+      title: 'VAS Reports Dashboard',
+      subtitle: 'Manage and track your value-added service reports'
+    },
     '/clients': {
       title: 'Client Management',
       subtitle: 'Manage client companies and addresses'
+    },
+    '/clients/reports': {
+      title: 'Client Reports Dashboard',
+      subtitle: 'Manage and track your client service reports'
     },
     '/profile': {
       title: 'Profile',

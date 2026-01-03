@@ -22,6 +22,10 @@ import Customers from "./pages/Customers";
 import {ValueAddedServices} from "./pages/ValueAddedServices";
 import {Clients} from "./pages/Clients";
 import { PublicUpload } from "./pages/PublicUpload"; 
+import { VASReportsDashboard } from "./pages/VASReportsDashboard";
+import { ClientReportsDashboard } from "./pages/ClientReportsDashboard";
+import { VASReportDetail } from "./pages/VASReportDetail";
+import { ClientReportDetail } from "./pages/ClientReportDetail";
 
 const queryClient = new QueryClient();
 
@@ -71,59 +75,50 @@ const App = () => (
               {/* Claims Management */}
               <Route path="/claims" element={<ClaimsDashboard />} />
               
-              {/* Placeholder Routes - Can be implemented later */}
+              {/* Analytics */}
               <Route path="analytics" element={<Analytics />} />
               
+              {/* Settings */}
               <Route 
                 path="/settings" 
-                element={<Setting />
-                } 
+                element={<Setting />} 
               />
               
+              {/* Management */}
               <Route 
                 path="/management" 
                 element={
                   <ProtectedRoute requireAdmin={true}>
-                  <TeamManagement />
+                    <TeamManagement />
                   </ProtectedRoute>
                 } 
               />
               
-              <Route 
-                path="/profile" 
-                element={
-                  <Profile />
-                } 
-              />
+              {/* Profile */}
+              <Route path="/profile" element={<Profile />} />
               
+              {/* Help */}
               <Route path="/help" element={<HelpCenter />} />
               
+              {/* Agents and Brokers */}
+              <Route path="/agents-brokers" element={<Brokers />} />
               
-              <Route 
-                path="/agents-brokers" 
-                element={
-                  <Brokers />}
-              />
+              {/* Customers */}
+              <Route path="/customers" element={<Customers />} />
               
-              <Route 
-                path="/customers" 
-                element={
-                  <Customers />} 
-              />
+              {/* VAS Management (old page) */}
+              <Route path="/value-added-services" element={<ValueAddedServices />} />
               
-              <Route 
-                path="/value-added-services" 
-                element={
-                    <ValueAddedServices />
-                } 
-              />
+              {/* Clients Management (old page) */}
+              <Route path="/clients" element={<Clients />} />
               
-              <Route 
-                path="/clients" 
-                element={
-                    <Clients />
-                } 
-              />
+              {/* VAS Reports Dashboard - NEW */}
+              <Route path="/value-added-services/reports" element={<VASReportsDashboard />} />
+              
+              {/* Client Reports Dashboard - NEW */}
+              <Route path="/clients/reports" element={<ClientReportsDashboard />} />
+              
+              {/* Notifications */}
               <Route 
                 path="/notifications" 
                 element={
@@ -135,12 +130,34 @@ const App = () => (
               />
             </Route>
             
+            {/* Full-Width Detail Pages (Outside DashboardLayout) */}
+            
             {/* Claim Details - Full Width (No Layout) */}
             <Route 
               path="/claims/:id" 
               element={
                 <ProtectedRoute>
                   <ClaimDetails />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* VAS Report Details - Full Width (No Layout) - NEW */}
+            <Route 
+              path="/value-added-services/reports/:id" 
+              element={
+                <ProtectedRoute>
+                  <VASReportDetail />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Client Report Details - Full Width (No Layout) - NEW */}
+            <Route 
+              path="/clients/reports/:id" 
+              element={
+                <ProtectedRoute>
+                  <ClientReportDetail />
                 </ProtectedRoute>
               } 
             />
