@@ -26,7 +26,7 @@ import { VASReportsDashboard } from "./pages/VASReportsDashboard";
 import { ClientReportsDashboard } from "./pages/ClientReportsDashboard";
 import { VASReportDetail } from "./pages/VASReportDetail";
 import { ClientReportDetail } from "./pages/ClientReportDetail";
-
+import {ImageGenerator} from "./pages/ImageGenerator"
 const queryClient = new QueryClient();
 
 /**
@@ -105,6 +105,9 @@ const App = () => (
               
               {/* Customers */}
               <Route path="/customers" element={<Customers />} />
+              
+              {/* Image Generator */}
+              <Route path="/image-generator" element={<ImageGenerator />} />
               
               {/* VAS Management (old page) */}
               <Route path="/value-added-services" element={<ValueAddedServices />} />

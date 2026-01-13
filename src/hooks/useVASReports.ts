@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 export interface VASReport {
+  broker_id: null;
   id: string;
   user_id: string;
   service_id: string;
@@ -96,7 +97,9 @@ export const useCreateVASReport = () => {
           title: reportData.title,
           user_id: user.id,
           intimation_date: reportData.intimation_date || null,
-          form_data: reportData.form_data || null,
+          form_data: (reportData.form_data && Object.keys(reportData.form_data).length > 0 
+            ? reportData.form_data 
+            : null) as any,
           report_amount: reportData.report_amount || null,
           status: 'pending'
         })
@@ -127,9 +130,18 @@ export const useUpdateVASReport = () => {
       id: string;
       updates: Partial<VASReport>;
     }) => {
+      // Clean the updates before sending
+      const cleanedUpdates : any= { ...updates };
+      
+      // Convert empty form_data to null
+      if (cleanedUpdates.form_data !== undefined) {
+        if (!cleanedUpdates.form_data || Object.keys(cleanedUpdates.form_data).length === 0) {
+          cleanedUpdates.form_data = null;
+        }
+      }
       const { data, error } = await supabase
         .from("vas_reports")
-        .update(updates)
+        .update(cleanedUpdates)
         .eq("id", id)
         .select()
         .single();

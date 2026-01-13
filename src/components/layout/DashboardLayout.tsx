@@ -12,7 +12,7 @@ import {
   Building2,
   Bell,
   LogOut,Star,
-  ChevronLeft
+  ChevronLeft,Image
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -80,6 +80,11 @@ const getMainNavItems = (isAdmin: boolean): NavItem[] => {
         title: "Management",
         href: "/management",
         icon: Users,
+      },
+      {
+        title: "Image Generator",
+        href: "/image-generator",
+        icon: Image,  // You'll need to import this
       },
     ];
   }
