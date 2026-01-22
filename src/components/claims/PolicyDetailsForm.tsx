@@ -104,29 +104,38 @@ export const PolicyDetailsForm = ({ claim }: PolicyDetailsFormProps) => {
 
 
   const handleAutosave = useCallback(async (data: Record<string, any>) => {
-    // Detect table type
-    const isVASReport = 'service_id' in claim && !('policy_type_id' in claim);
-    const isClientReport = 'company_id' in claim && !('policy_type_id' in claim);
-    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
-    
-    // Clean the data
-    const cleanedData: any = { ...data };
-    Object.keys(cleanedData).forEach(key => {
-      if (cleanedData[key] === undefined || cleanedData[key] === '') {
-        cleanedData[key] = null;
-      }
-    });
-    
-    const { error } = await supabase
-      .from(tableName)
-      .update({ form_data: cleanedData })
-      .eq("id", claim.id);
-      
-    if (error) {
-      console.error("Autosave error:", error);
-      throw error;
+  console.log('🔄 Autosave triggered');
+  console.log('🔍 Claim keys:', Object.keys(claim));
+  console.log('🔑 service_id:', (claim as any).service_id);
+  console.log('🔑 company_id:', (claim as any).company_id);
+  
+  // BETTER DETECTION: Check for service_id (VAS) or company_id (Client Reports)
+  const isVASReport = !!(claim as any).service_id;
+  const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+  const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+  
+  console.log('💾 Autosave to table:', tableName);
+  
+  // Clean the data
+  const cleanedData: any = { ...data };
+  Object.keys(cleanedData).forEach(key => {
+    if (cleanedData[key] === undefined || cleanedData[key] === '') {
+      cleanedData[key] = null;
     }
-  }, [claim]);
+  });
+  
+  const { error } = await supabase
+    .from(tableName)
+    .update({ form_data: cleanedData })
+    .eq("id", claim.id);
+    
+  if (error) {
+    console.error("❌ Autosave error:", error);
+    throw error;
+  }
+  
+  console.log('✅ Autosave successful');
+}, [claim]);
 
   useAutosave({ control, onSave: handleAutosave, delay: 2000, enabled: false });
 
@@ -192,54 +201,64 @@ useEffect(() => {
   };
 
   const saveField = async (fieldName: string) => {
-    if(!isMountedRef.current) return;
-    try {
-      // Detect table type
-      const isVASReport = 'service_id' in claim && !('policy_type_id' in claim);
-      const isClientReport = 'company_id' in claim && !('policy_type_id' in claim);
-      const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+  if(!isMountedRef.current) return;
+  
+  console.log('💾 Saving field:', fieldName);
+  console.log('🔍 Claim keys:', Object.keys(claim));
+  
+  try {
+    // BETTER DETECTION: Check for service_id (VAS) or company_id (Client Reports)
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+    
+    console.log('💾 Saving to table:', tableName);
+    
+    const fieldValue = watch(fieldName);
+    const existingData = claim.form_data || {};
+    
+    // Clean the data
+    const dataToSave: any = {
+      ...existingData,
+      [fieldName]: fieldValue === undefined || fieldValue === '' ? null : fieldValue,
+      field_labels: fieldLabels,
+    };
+    
+    // Remove undefined values
+    Object.keys(dataToSave).forEach(key => {
+      if (dataToSave[key] === undefined) {
+        dataToSave[key] = null;
+      }
+    });
+
+    // Use direct Supabase update with correct table
+    const { error } = await supabase
+      .from(tableName)
+      .update({ form_data: dataToSave })
+      .eq("id", claim.id);
       
-      const fieldValue = watch(fieldName);
-      const existingData = claim.form_data || {};
-      
-      // Clean the data
-      const dataToSave: any = {
-        ...existingData,
-        [fieldName]: fieldValue === undefined || fieldValue === '' ? null : fieldValue,
-        field_labels: fieldLabels,
-      };
-      
-      // Remove undefined values
-      Object.keys(dataToSave).forEach(key => {
-        if (dataToSave[key] === undefined) {
-          dataToSave[key] = null;
-        }
+    if (error) {
+      console.error('❌ Save field error:', error);
+      throw error;
+    }
+    
+    if(isMountedRef.current){
+      setPendingSaves((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldName);
+        return newSet;
       });
 
-      // Use direct Supabase update with correct table
-      const { error } = await supabase
-        .from(tableName)
-        .update({ form_data: dataToSave })
-        .eq("id", claim.id);
-        
-      if (error) throw error;
-      
-      if(isMountedRef.current){
-        setPendingSaves((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(fieldName);
-          return newSet;
-        });
-
-        toast.success("Policy detail saved", { duration: 1800 }); 
-      }
-    } catch (error) {
-      if(isMountedRef.current){
-        console.error("Failed to save field:", error);
-        toast.error("Failed to save field", { duration: 1800 });
-      }
+      toast.success("Policy detail saved", { duration: 1800 }); 
+      console.log('✅ Field saved successfully');
     }
-  };
+  } catch (error) {
+    if(isMountedRef.current){
+      console.error("Failed to save field:", error);
+      toast.error("Failed to save field", { duration: 1800 });
+    }
+  }
+};
 
   const renderField = (field: FormField) => {
     const fieldValue = watch(field.name);
@@ -517,35 +536,72 @@ useEffect(() => {
   ];
 
   const onSubmit = async (data: Record<string, any>) => {
-    try {
-      // Detect table based on claim type - VAS reports have service_id, Client reports have company_id
-      const isVASReport = 'service_id' in claim && !('policy_type_id' in claim);
-      const isClientReport = 'company_id' in claim && !('policy_type_id' in claim);
-      const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
-      
-      // Clean form_data - remove undefined and convert empty objects to null
-      const cleanedFormData :any= { ...data, field_labels: fieldLabels };
-      Object.keys(cleanedFormData).forEach(key => {
-        if (cleanedFormData[key] === undefined || cleanedFormData[key] === '') {
-          cleanedFormData[key] = null;
-        }
-      });
-      
-      const { error } = await supabase
-        .from(tableName)
-        .update({
-          form_data: cleanedFormData,
-        })
-        .eq("id", claim.id);
-
-      if (error) throw error;
-      
-      toast.success("Policy details updated successfully!");
-    } catch (error) {
-      console.error("Failed to update claim:", error);
-      toast.error("Failed to update policy details");
+  console.log('🔥 onSubmit CALLED');
+  console.log('🔍 Claim object keys:', Object.keys(claim));
+  console.log('📋 claim.claim_number:', claim.claim_number);
+  console.log('📋 claim.report_number:', (claim as any).report_number);
+  console.log('🔑 claim.service_id:', (claim as any).service_id);
+  console.log('🔑 claim.company_id:', (claim as any).company_id);
+  console.log('🔑 claim.policy_type_id:', claim.policy_type_id);
+  
+  try {
+    // BETTER DETECTION: Check for service_id (VAS) or company_id (Client Reports)
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+    
+    console.log('💾 Detection results:', { isVASReport, isClientReport, tableName });
+    
+    // Rest of the code stays the same...
+    const { data: existingRecord, error: checkError } = await supabase
+      .from(tableName)
+      .select('id, form_data')
+      .eq('id', claim.id)
+      .maybeSingle();
+    
+    console.log('🔍 Existing record check:', { existingRecord, checkError });
+    
+    if (!existingRecord) {
+      console.error('❌ Record not found in', tableName);
+      toast.error(`Record not found in ${tableName} table`);
+      return;
     }
-  };
+    
+    const existingFormData = existingRecord.form_data || {};
+    
+    const cleanedFormData: any = { 
+      ...existingFormData,
+      ...data,
+      field_labels: { 
+        ...(existingFormData.field_labels || {}),
+        ...fieldLabels 
+      }
+    };
+    
+    Object.keys(cleanedFormData).forEach(key => {
+      if (cleanedFormData[key] === undefined || cleanedFormData[key] === '') {
+        cleanedFormData[key] = null;
+      }
+    });
+    
+    console.log('✅ Final data to save:', cleanedFormData);
+    
+    const { error, data: result } = await supabase
+      .from(tableName)
+      .update({ form_data: cleanedFormData })
+      .eq("id", claim.id)
+      .select();
+
+    console.log('📤 Supabase response:', { error, result });
+
+    if (error) throw error;
+    
+    toast.success("Policy details updated successfully!");
+  } catch (error) {
+    console.error("❌ Failed to update:", error);
+    toast.error("Failed to update policy details");
+  }
+};
 
   const handleBrokerChange = async (brokerId: string) => {
   if (brokerId === "new") {
@@ -553,22 +609,44 @@ useEffect(() => {
     return;
   }
 
-  // Optimistically update UI immediately
   const previousBrokerId = selectedBrokerId;
   setSelectedBrokerId(brokerId);
 
   try {
-    // Save to database
-    const { error } = await supabase
-      .from("claims")
-      .update({ broker_id: brokerId || null })
-      .eq("id", claim.id);
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
 
-    if (error) throw error;
+  if (isClientReport) {
+    return null; // Don't render Policy Details for Client Reports
+  }
+
+    // For VAS/Client reports, store in form_data; for claims, use broker_id column
+    if (isVASReport || isClientReport) {
+      const existingFormData = claim.form_data || {};
+      const { error } = await supabase
+        .from(tableName)
+        .update({ 
+          form_data: { 
+            ...existingFormData, 
+            broker_id: brokerId || null 
+          } 
+        })
+        .eq("id", claim.id);
+
+      if (error) throw error;
+    } else {
+      // Regular claims use broker_id column
+      const { error } = await supabase
+        .from(tableName)
+        .update({ broker_id: brokerId || null })
+        .eq("id", claim.id);
+
+      if (error) throw error;
+    }
     
     toast.success("Broker assigned successfully");
   } catch (error) {
-    // Rollback on error
     console.error("[handleBrokerChange] Error:", error);
     setSelectedBrokerId(previousBrokerId);
     toast.error("Failed to assign broker");
@@ -576,41 +654,64 @@ useEffect(() => {
 };
 
 
-
 const handleCreateBroker = async () => {
-    if (!newBrokerData.name.trim()) {
-      toast.error("Broker name is required");
-      return;
-    }
+  if (!newBrokerData.name.trim()) {
+    toast.error("Broker name is required");
+    return;
+  }
 
-    try {
-      const { data, error } = await supabase
-        .from('brokers')
-        .insert([newBrokerData])
-        .select()
-        .single();
+  try {
+    const { data, error } = await supabase
+      .from('brokers')
+      .insert([newBrokerData])
+      .select()
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setBrokers([...brokers, data]);
-      setSelectedBrokerId(data.id);
-      
-      // Use direct Supabase update
+    setBrokers([...brokers, data]);
+    setSelectedBrokerId(data.id);
+    
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+    
+    // For VAS/Client reports, store in form_data; for claims, use broker_id column
+
+      if (isClientReport) {
+    return null; // Don't render Policy Details for Client Reports
+  }
+  
+    if (isVASReport || isClientReport) {
+      const existingFormData = claim.form_data || {};
       const { error: updateError } = await supabase
-        .from("claims")
+        .from(tableName)
+        .update({ 
+          form_data: { 
+            ...existingFormData, 
+            broker_id: data.id 
+          } 
+        })
+        .eq("id", claim.id);
+
+      if (updateError) throw updateError;
+    } else {
+      const { error: updateError } = await supabase
+        .from(tableName)
         .update({ broker_id: data.id })
         .eq("id", claim.id);
 
       if (updateError) throw updateError;
-
-      toast.success("Broker created and assigned successfully");
-      setShowBrokerDialog(false);
-      setNewBrokerData({ name: "", email: "", contact: "", company: "" });
-    } catch (error) {
-      console.error("Error creating broker:", error);
-      toast.error("Failed to create broker");
     }
-  };
+
+    toast.success("Broker created and assigned successfully");
+    setShowBrokerDialog(false);
+    setNewBrokerData({ name: "", email: "", contact: "", company: "" });
+  } catch (error) {
+    console.error("Error creating broker:", error);
+    toast.error("Failed to create broker");
+  }
+};
 
 
 

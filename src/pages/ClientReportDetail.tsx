@@ -17,11 +17,10 @@ export const ClientReportDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: report, isLoading } = useClientReportById(id!);
-  const [activeTab, setActiveTab] = useState("policy-details");
+  const [activeTab, setActiveTab] = useState("additional-info");
 
   const handleTabChange = (value: string) => {
     const sectionNames: Record<string, string> = {
-      "policy-details": "Policy Details",
       "additional-info": "Additional Information", 
       "report-preview": "View Report",
       "documents": "Documents",
@@ -31,7 +30,7 @@ export const ClientReportDetail = () => {
     
     if (activeTab !== value) {
       const currentSectionName = sectionNames[activeTab];
-      if (currentSectionName && (activeTab === "policy-details" || activeTab === "additional-info")) {
+      if (currentSectionName && (activeTab === "additional-info")) {
         toast.success(`${currentSectionName} saved successfully`);
       }
     }
@@ -129,14 +128,14 @@ export const ClientReportDetail = () => {
           <div>
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
               <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
-                <TabsList className="grid w-full grid-cols-6 bg-slate-100 h-14">
-                  <TabsTrigger 
+                <TabsList className="grid w-full grid-cols-5 bg-slate-100 h-14">
+                  {/* <TabsTrigger 
                     value="policy-details" 
                     className="flex items-center space-x-2 data-[state=active]:bg-slate-700 data-[state=active]:text-white transition-all duration-200"
                   >
                     <FileText className="w-4 h-4" />
                     <span>Policy Details</span>
-                  </TabsTrigger>
+                  </TabsTrigger> */}
                   <TabsTrigger 
                     value="additional-info" 
                     className="flex items-center space-x-2 data-[state=active]:bg-slate-600 data-[state=active]:text-white transition-all duration-200"

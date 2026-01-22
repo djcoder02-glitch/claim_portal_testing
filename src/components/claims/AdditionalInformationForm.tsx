@@ -384,7 +384,7 @@ const isInitialMount = useRef(true);
         field_labels: fieldLabels,
         current_template_name: currentTemplate?.name, // ADD THIS LINE
         is_template_modified: isTemplateModified, // ADD THIS LINE
-        dynamic_sections_metadata: dynamicSections.map(section => {
+        dynamic_sections_metadata: JSON.parse(JSON.stringify( dynamicSections.map(section => {
 
           // Merge custom fields that belong to this section into section.fields
           const sectionCustomFields = customFields
@@ -408,7 +408,8 @@ const isInitialMount = useRef(true);
               fields: [...section.fields, ...newCustomFields],
               tables: section.tables || []
             };
-          }),
+          })
+        )),
                   ...existingCustomEntries,  // ← Move this AFTER to preserve old custom field VALUES
                   ...imagesData, 
                 };
@@ -417,13 +418,20 @@ const isInitialMount = useRef(true);
     console.log('📦 dynamic_sections_metadata:', dataWithMetadata.dynamic_sections_metadata);
 
 
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: dataWithMetadata as any,
-          // intimation_date: ""
-        },
-      });
+     const { error } = await supabase
+  .from('vas_reports')
+  .update({ form_data: dataWithMetadata })
+  .eq('id', claim.id)
+  .select()
+  .single();
+
+if (error) {
+  console.error('Failed to save:', error);
+  toast.error(`Failed to save: ${error.message}`);
+  return;
+}
+
+toast.success("VAS report saved successfully!");
           console.log('✅ Save completed');
 
     } catch (error) {
@@ -459,13 +467,22 @@ const isInitialMount = useRef(true);
         field_labels: fieldLabels,
       };
       
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: dataWithMetadata as any,
-          // intimation_date: ""
-        },
-      });
+      const isVASReport = !!(claim as any).service_id;
+const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+
+console.log('💾 Saving to table:', tableName);
+
+const { error } = await supabase
+  .from(tableName)
+  .update({ form_data: dataWithMetadata })
+  .eq('id', claim.id);
+
+if (error) {
+  console.error('❌ Save error:', error);
+  toast.error(`Failed to save: ${error.message}`);
+  return;
+}
       
       setPendingSaves(prev => {
         const newSet = new Set(prev);
@@ -478,9 +495,9 @@ const isInitialMount = useRef(true);
       });
     } catch (error) {
       console.error('Failed to save custom field:', error);
-      toast.error("Failed to save field", {
-        duration: 2000,
-      });
+      // toast.error("Failed to save field", {
+      //   duration: 2000,
+      // });
     }
   };
   
