@@ -165,8 +165,15 @@ export const SelectiveDocumentExtractor = ({
         }
         const base64Data = btoa(binary);
 
+         // ADD THESE LOGS
+        console.log(`🚀 [${documentLabel}] Sending to backend:`, {
+          fieldsCount: fieldsToExtract.length,
+          fields: fieldsToExtract,
+          documentType: documentLabel
+        });
+
         // Call your backend API with the fields to extract
-        const response = await fetch('https://reports-backend-48dg.onrender.com/extract-selective-fields', {
+        const response = await fetch('https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws/extract-selective-fields', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -181,9 +188,9 @@ export const SelectiveDocumentExtractor = ({
         return response.json();
       })(); // Close extractionPromise
 
-      // Create timeout promise (60 seconds)
+      // Create timeout promise (180 seconds)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`Extraction timeout after 60 seconds. Try with fewer fields (currently ${fieldsToExtract.length} fields).`)), 60000)
+        setTimeout(() => reject(new Error(`Extraction timeout after 180 seconds. Try with fewer fields (currently ${fieldsToExtract.length} fields).`)), 180000)
       );
 
       // Race between extraction and timeout

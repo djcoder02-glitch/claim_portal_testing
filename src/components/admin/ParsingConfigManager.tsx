@@ -37,7 +37,7 @@ export const ParsingConfigManager = () => {
         bill_of_entry?: any[];  // Adjust types as needed
         policy_document?: any[];
       };
-      const policy = policies.find(p => p.id === selectedPolicyType);
+      const policy = policyTypes?.find(p => p.id === selectedPolicyType);
         if (policy?.parsing_config) {
           const config = policy.parsing_config as ParsingConfig;
           setBillFields(config.bill_of_entry || []);
