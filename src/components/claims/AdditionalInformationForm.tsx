@@ -46,6 +46,7 @@ interface ImageGridProps {
   images: string[];
   setImages: (urls: string[]) => void;
   claimId: string;
+  claim: Claim;  // ← ADD THIS
   claimFormData: Record<string, unknown>;
   updateClaim: ReturnType<typeof useUpdateClaimSilent>;
   customFields: FormField[];
@@ -59,91 +60,101 @@ const colorOptions = [
   { value: 'bg-gradient-primary', label: 'Blue', class: 'bg-gradient-primary' },
 ];
 
-const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels, sectionImages }) => {
+const ImageGrid: React.FC<ImageGridProps> = ({ sectionKey, images, setImages, claimId, claim, claimFormData, updateClaim, customFields, hiddenFields, fieldLabels, sectionImages }) => {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    if (!e.target.files?.length) return;
+  if (!e.target.files?.length) return;
 
-    const file = e.target.files[0];
-    const formData = new FormData();
-    formData.append("file", file);
+  const file = e.target.files[0];
+  const formData = new FormData();
+  formData.append("file", file);
 
-    // 🔔 Start loading toast
-    const toastId = toast.loading("Uploading image...");
+  const toastId = toast.loading("Uploading image...");
 
-    try {
-      console.log("Uploading image to backend...");
-      // const res = await fetch("http://localhost:5000/upload-image", {
-      const res = await fetch("https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws/upload-image", {
-        method: "POST",
-        body: formData,
-      });
-      console.log("Upload response:", res);
+  try {
+    console.log("Uploading image to backend...");
+    const res = await fetch("https://mlkkk63swrqairyiahlk357sui0argkn.lambda-url.ap-south-1.on.aws/upload-image", {
+      method: "POST",
+      body: formData,
+    });
+    console.log("Upload response:", res);
 
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
+    if (!res.ok) throw new Error("Upload failed");
+    const data = await res.json();
 
-      const updated = [...images];
-      updated[index] = data.url;
-      setImages(updated);
-      console.log(sectionKey, " ke images updated:", updated);
+    const updated = [...images];
+    updated[index] = data.url;
+    setImages(updated);
+    console.log(sectionKey, " ke images updated:", updated);
 
-      // 🔥 Save into Supabase JSON
-      await updateClaim.mutateAsync({
-        id: claimId,
-        updates: {
-          form_data: {
-            ...claimFormData,
-            [`${sectionKey}_images`]: updated,
-            custom_fields_metadata: customFields,
-            hidden_fields: Array.from(hiddenFields),
-            field_labels: fieldLabels,
-          } as any,
-        },
-      });
+    // CRITICAL: Detect table type using service_id/company_id
+    const isVASReport = 'service_id' in claim;
+    const isClientReport = 'company_id' in claim && !('service_id' in claim);
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
 
-      console.log(sectionImages);
-      console.log("Images", images)
-      console.log("claim", claimFormData);
+    console.log('💾 Saving image to table:', tableName);
 
-      // ✅ Update toast on success
-      toast.success("Image uploaded successfully!", { id: toastId, duration: 2000 });
-    } catch (err) {
-      console.error("Image upload failed", err);
-      // ❌ Update toast on failure
-      toast.error("Image upload failed. Please try again.", { id: toastId, duration: 2500 });
-    }
-  };
+    const { error: uploadError } = await supabase
+      .from(tableName)
+      .update({
+        form_data: {
+          ...claimFormData,
+          [`${sectionKey}_images`]: updated,
+          custom_fields_metadata: customFields,
+          hidden_fields: Array.from(hiddenFields),
+          field_labels: fieldLabels,
+        }
+      })
+      .eq('id', claimId);
+
+    if (uploadError) throw uploadError;
+
+    console.log(sectionImages);
+    console.log("Images", images)
+    console.log("claim", claimFormData);
+
+    toast.success("Image uploaded successfully!", { id: toastId, duration: 2000 });
+  } catch (err) {
+    console.error("Image upload failed", err);
+    toast.error("Image upload failed. Please try again.", { id: toastId, duration: 2500 });
+  }
+};
 
   const handleRemove = async (index: number) => {
-    // 🔔 Start loading toast
-    const toastId = toast.loading("Removing image...");
+  const toastId = toast.loading("Removing image...");
 
-    try {
-      const updated = [...images];
-      updated[index] = "";
-      setImages(updated);
+  try {
+    const updated = [...images];
+    updated[index] = "";
+    setImages(updated);
 
-      await updateClaim.mutateAsync({
-        id: claimId,
-        updates: {
-          form_data: {
-            ...claimFormData,
-            [`${sectionKey}_images`]: updated,
-            custom_fields_metadata: customFields,
-            hidden_fields: Array.from(hiddenFields),
-            field_labels: fieldLabels,
-          } as any,
-        },
-      });
+    // CRITICAL: Detect table type using service_id/company_id
+    const isVASReport = 'service_id' in claim;
+    const isClientReport = 'company_id' in claim && !('service_id' in claim);
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
 
-      // ✅ Success toast
-      toast.success("Image removed successfully.", { id: toastId, duration: 2000 });
-    } catch (error) {
-      console.error("Failed to remove image:", error);
-      // ❌ Error toast
-      toast.error("Failed to remove image.", { id: toastId, duration: 2500 });
-    }
-  };
+    console.log('💾 Removing image from table:', tableName);
+
+    const { error: removeError } = await supabase
+      .from(tableName)
+      .update({
+        form_data: {
+          ...claimFormData,
+          [`${sectionKey}_images`]: updated,
+          custom_fields_metadata: customFields,
+          hidden_fields: Array.from(hiddenFields),
+          field_labels: fieldLabels,
+        }
+      })
+      .eq('id', claimId);
+
+    if (removeError) throw removeError;
+
+    toast.success("Image removed successfully.", { id: toastId, duration: 2000 });
+  } catch (error) {
+    console.error("Failed to remove image:", error);
+    toast.error("Failed to remove image.", { id: toastId, duration: 2500 });
+  }
+};
 
   return (
     <div className="mt-4">
@@ -332,8 +343,8 @@ useEffect(() => {
   useAutosave({
     control,
     onSave: handleAutosave,
-    delay: 10000,
-    enabled: false,
+    delay: 3000,
+    enabled: true,
   });
 
   const toggleSection = (section : string) => {
@@ -385,8 +396,7 @@ const isInitialMount = useRef(true);
         current_template_name: currentTemplate?.name, // ADD THIS LINE
         is_template_modified: isTemplateModified, // ADD THIS LINE
         dynamic_sections_metadata: JSON.parse(JSON.stringify( dynamicSections.map(section => {
-
-          // Merge custom fields that belong to this section into section.fields
+// Merge custom fields that belong to this section into section.fields
           const sectionCustomFields = customFields
             .filter(f => f.section === section.id)
             .map(field => ({
@@ -410,29 +420,33 @@ const isInitialMount = useRef(true);
             };
           })
         )),
-                  ...existingCustomEntries,  // ← Move this AFTER to preserve old custom field VALUES
-                  ...imagesData, 
-                };
+        ...existingCustomEntries,  // ← Move this AFTER to preserve old custom field VALUES
+        ...imagesData, 
+      };
 
       console.log('💾 Data being saved:', dataWithMetadata);
-    console.log('📦 dynamic_sections_metadata:', dataWithMetadata.dynamic_sections_metadata);
+      console.log('📦 dynamic_sections_metadata:', dataWithMetadata.dynamic_sections_metadata);
 
+      // CRITICAL: Detect table type using service_id/company_id
+      const isVASReport = !!(claim as any).service_id;
+      const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+      const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+      
+      console.log('💾 Saving to table:', tableName, { isVASReport, isClientReport });
 
-     const { error } = await supabase
-  .from('vas_reports')
-  .update({ form_data: dataWithMetadata })
-  .eq('id', claim.id)
-  .select()
-  .single();
+      const { error } = await supabase
+        .from(tableName)  // ← Use dynamic tableName
+        .update({ form_data: dataWithMetadata })
+        .eq('id', claim.id);
 
-if (error) {
-  console.error('Failed to save:', error);
-  toast.error(`Failed to save: ${error.message}`);
-  return;
-}
+      if (error) {
+        console.error('❌ Save error:', error);
+        toast.error(`Failed to save: ${error.message}`);
+        return;
+      }
 
-toast.success("VAS report saved successfully!");
-          console.log('✅ Save completed');
+      console.log('✅ Save completed');
+      toast.success("Additional information saved successfully!");
 
     } catch (error) {
       console.error("Failed to update claim:", error);
@@ -467,22 +481,23 @@ toast.success("VAS report saved successfully!");
         field_labels: fieldLabels,
       };
       
+      // CRITICAL: Detect table type using service_id/company_id
       const isVASReport = !!(claim as any).service_id;
-const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
-const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+      const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+      const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
 
-console.log('💾 Saving to table:', tableName);
+      console.log('💾 Saving custom field to table:', tableName);
 
-const { error } = await supabase
-  .from(tableName)
-  .update({ form_data: dataWithMetadata })
-  .eq('id', claim.id);
+      const { error } = await supabase
+        .from(tableName)
+        .update({ form_data: dataWithMetadata })
+        .eq('id', claim.id);
 
-if (error) {
-  console.error('❌ Save error:', error);
-  toast.error(`Failed to save: ${error.message}`);
-  return;
-}
+      if (error) {
+        console.error('❌ Save error:', error);
+        toast.error(`Failed to save: ${error.message}`);
+        return;
+      }
       
       setPendingSaves(prev => {
         const newSet = new Set(prev);
@@ -490,17 +505,16 @@ if (error) {
         return newSet;
       });
       
-      toast.success("Claim updated successfully!", {
+      toast.success("Field saved successfully!", {
         duration: 2000,
       });
     } catch (error) {
       console.error('Failed to save custom field:', error);
-      // toast.error("Failed to save field", {
-      //   duration: 2000,
-      // });
+      toast.error("Failed to save field", {
+        duration: 2000,
+      });
     }
   };
-  
   // const saveFieldLabel = async (fieldName: string) => {
   //   try {
   //     const existingData = claim.form_data || {};
@@ -530,70 +544,90 @@ if (error) {
   // };
 
   const saveFieldLabel = async (fieldName: string) => {
-    try {
-      const existingData = claim.form_data || {};
-      const updatedLabels = { ...(typeof existingData.field_labels === "object" && existingData.field_labels !== null ? existingData.field_labels : {}), ...fieldLabels };
-      
-      // Update dynamic sections metadata with the new label
-      const updatedSections = dynamicSections.map(section => ({
-        ...section,
-        fields: section.fields.map(field => 
-          field.name === fieldName 
-            ? { ...field, label: fieldLabels[fieldName] || field.label } as TemplateField
-            : field
-        )
-      }));
-      
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: {
-            ...existingData,
-            field_labels: updatedLabels,
-            custom_fields_metadata: customFields as unknown[],
-            hidden_fields: Array.from(hiddenFields),
-            dynamic_sections_metadata: updatedSections,
-          } as any,
-          // intimation_date: ""
-        },
-      });
-      
-      setEditingLabels(prev => {
-        const next = new Set(prev);
-        next.delete(fieldName);
-        return next;
-      });
-      toast.success("Label updated", { duration: 1500 });
-    } catch (err) {
-      console.error("Failed to save label", err);
-      toast.error("Failed to save label", { duration: 1500 });
+  try {
+    const existingData = claim.form_data || {};
+    const updatedLabels = { ...(typeof existingData.field_labels === "object" && existingData.field_labels !== null ? existingData.field_labels : {}), ...fieldLabels };
+    
+    // Update dynamic sections metadata with the new label
+    const updatedSections = dynamicSections.map(section => ({
+      ...section,
+      fields: section.fields.map(field => 
+        field.name === fieldName 
+          ? { ...field, label: fieldLabels[fieldName] || field.label } as TemplateField
+          : field
+      )
+    }));
+    
+    // CRITICAL: Detect table type using service_id/company_id
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+
+    console.log('💾 Saving label to table:', tableName);
+
+    const { error } = await supabase
+      .from(tableName)
+      .update({
+        form_data: {
+          ...existingData,
+          field_labels: updatedLabels,
+          custom_fields_metadata: customFields as unknown[],
+          hidden_fields: Array.from(hiddenFields),
+          dynamic_sections_metadata: updatedSections,
+        }
+      })
+      .eq('id', claim.id);
+    
+    if (error) {
+      console.error('❌ Save label error:', error);
+      throw error;
     }
-  };
+    
+    setEditingLabels(prev => {
+      const next = new Set(prev);
+      next.delete(fieldName);
+      return next;
+    });
+    toast.success("Label updated", { duration: 1500 });
+  } catch (err) {
+    console.error("Failed to save label", err);
+    toast.error("Failed to save label", { duration: 1500 });
+  }
+};
 
   const removeField = async (fieldName: string) => {
-    const updatedHiddenFields = new Set([...hiddenFields, fieldName]);
-    setHiddenFields(updatedHiddenFields);
-    setIsTemplateModified(true);
+  const updatedHiddenFields = new Set([...hiddenFields, fieldName]);
+  setHiddenFields(updatedHiddenFields);
+  setIsTemplateModified(true);
+  
+  try {
+    const currentFormData = watch();
+    const dataWithMetadata = {
+      ...currentFormData,
+      custom_fields_metadata: customFields,
+      hidden_fields: Array.from(updatedHiddenFields),
+    };
     
-    try {
-      const currentFormData = watch();
-      const dataWithMetadata = {
-        ...currentFormData,
-        custom_fields_metadata: customFields,
-        hidden_fields: Array.from(updatedHiddenFields),
-      };
-      
-      await updateClaimMutation.mutateAsync({
-        id: claim.id,
-        updates: {
-          form_data: dataWithMetadata as any,
-          // intimation_date: ""
-        },
-      });
-    } catch (error) {
-      console.error('Failed to save field removal:', error);
+    // CRITICAL: Detect table type using service_id/company_id
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+
+    console.log('💾 Removing field from table:', tableName);
+
+    const { error } = await supabase
+      .from(tableName)
+      .update({ form_data: dataWithMetadata })
+      .eq('id', claim.id);
+    
+    if (error) {
+      console.error('❌ Remove field error:', error);
+      throw error;
     }
-  };
+  } catch (error) {
+    console.error('Failed to save field removal:', error);
+  }
+};
 
   const removeCustomField = (fieldName: string) => {
     setCustomFields(prev => prev.filter(field => field.name !== fieldName));
@@ -2075,6 +2109,7 @@ style={{ backgroundColor: '#6B7FB8' }}
                   }))
                 }
                 claimId={claim.id}
+                claim={claim}
                 claimFormData={claim.form_data || {}}
                 updateClaim={updateClaimMutation}
                 customFields={customFields}

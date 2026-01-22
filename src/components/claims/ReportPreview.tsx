@@ -508,7 +508,6 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
       
       if (error) throw error;
       
-      // Filter out token placeholders and only show selected documents
       const filteredDocs = (data as ClaimDocument[]).filter(
         doc => !doc.file_name.startsWith("__TOKEN_PLACEHOLDER_") && doc.is_selected === true
       );
@@ -526,6 +525,7 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
     }, {} as Record<string, ClaimDocument[]>) || {};
 
   const [sections, setSections] = useState<ReportSection[]>(() => getDynamicSectionsFromClaim(claim));
+  const [includeHeader, setIncludeHeader] = useState(true); // ADD THIS STATE
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -550,6 +550,15 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handlePreview = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
+    
+    // UPDATE ASSETS BASED ON TOGGLE
+    payload.assets = {
+      firstPageBackground: includeHeader 
+        ? "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20bg.png?updatedAt=1763381793043" 
+        : "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
+      otherPagesBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
+    };
+    
     const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -569,6 +578,15 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
 
   const handleDownload = async () => {
     const payload = buildReportJson(claim, sections, groupedDocuments);
+    
+    // UPDATE ASSETS BASED ON TOGGLE
+    payload.assets = {
+      firstPageBackground: includeHeader 
+        ? "https://placeholder.com/first-page-with-header.png" 
+        : "https://placeholder.com/first-page-without-header.png",
+      otherPagesBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
+    };
+    
     const res = await fetch(`${API_BASE}/render.pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -613,6 +631,25 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
               </div>
             </SortableContext>
           </DndContext>
+
+          {/* ADD THIS SECTION FOR HEADER TOGGLE */}
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <Label htmlFor="header-toggle" className="text-sm font-medium">
+                  Include Header on First Page
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Toggle to show or hide the header section on the first page
+                </p>
+              </div>
+              <Switch
+                id="header-toggle"
+                checked={includeHeader}
+                onCheckedChange={setIncludeHeader}
+              />
+            </div>
+          </div>
 
           <div className="mt-6 pt-4 border-t grid grid-cols-1 sm:grid-cols-3 gap-2">
             <Button variant="secondary" onClick={handlePreview}>
