@@ -554,9 +554,9 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
     // UPDATE ASSETS BASED ON TOGGLE
     payload.assets = {
       firstPageBackground: includeHeader 
-        ? "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20bg.png?updatedAt=1763381793043" 
-        : "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
-      otherPagesBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
+        ? "https://ik.imagekit.io/pritvik/Untitled%20design%20(1).png" 
+        : "https://ik.imagekit.io/pritvik/Untitled%20design%20(2).png",
+      otherPagesBackground: "https://ik.imagekit.io/pritvik/Untitled%20design%20(2).png",
     };
     
     const res = await fetch(`${API_BASE}/render.pdf`, {
@@ -582,9 +582,9 @@ export const ReportPreview = ({ claim }: ReportPreviewProps) => {
     // UPDATE ASSETS BASED ON TOGGLE
     payload.assets = {
       firstPageBackground: includeHeader 
-        ? "https://placeholder.com/first-page-with-header.png" 
-        : "https://placeholder.com/first-page-without-header.png",
-      otherPagesBackground: "https://ik.imagekit.io/pritvik/Reports%20-%20generic%20footer%20only%20bg",
+        ? "https://ik.imagekit.io/pritvik/Untitled%20design%20(1).png" 
+        : "https://ik.imagekit.io/pritvik/Untitled%20design%20(2).png",
+      otherPagesBackground: "https://ik.imagekit.io/pritvik/Untitled%20design%20(2).png",
     };
     
     const res = await fetch(`${API_BASE}/render.pdf`, {
