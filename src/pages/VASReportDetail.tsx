@@ -162,6 +162,7 @@ const handleBackClick = () => {
               documentTitle="Bill of Entry"
               documentDescription="Upload your Bill of Entry document (PDF format required for field extraction)"
               onDataExtracted={handleBillOfEntryExtracted}
+              entityType="vas"
             />
 
             {/* Policy Document Upload */}
@@ -172,6 +173,7 @@ const handleBackClick = () => {
               documentTitle="Policy Document"
               documentDescription="Upload your policy document (PDF format required for field extraction)"
               onDataExtracted={handlePolicyDocumentExtracted}
+              entityType="vas"
             />
           </div>
 

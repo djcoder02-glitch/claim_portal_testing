@@ -10,6 +10,8 @@ import { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 
 type ClaimDocumentRow = Tables<'claim_documents'>;
+type VASDocumentRow = Tables<'vas_documents'>;
+type ClientDocumentRow = Tables<'client_documents'>;
 
 interface ParsingConfig {
   bill_of_entry?: string[];
@@ -24,6 +26,7 @@ interface SelectiveDocumentExtractorProps {
   policyTypeId: string; // ADD THIS - to fetch parsing config
   documentDescription: string; // Description text
   onDataExtracted: (data: Record<string, any>) => void; // Callback when data is extracted
+  entityType?: 'claim' | 'vas' | 'client';
 }
 
 export const SelectiveDocumentExtractor = ({
@@ -33,23 +36,68 @@ export const SelectiveDocumentExtractor = ({
   documentDescription,
   policyTypeId,
   onDataExtracted,
+  entityType = 'claim',  
 }: SelectiveDocumentExtractorProps) => {
+  
+  const tableName = 
+    entityType === 'vas' ? 'vas_documents' : 
+    entityType === 'client' ? 'client_documents' : 
+    'claim_documents';
+    
+  const bucketName = 
+    entityType === 'vas' ? 'vas-documents' : 
+    entityType === 'client' ? 'client-documents' : 
+    'claim-documents';
+    
+  const idColumn = 
+    entityType === 'vas' ? 'report_id' : 
+    entityType === 'client' ? 'report_id' : 
+    'claim_id';
+    
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [uploadedDocument, setUploadedDocument] = useState<ClaimDocumentRow | null>(null);
+  const [uploadedDocument, setUploadedDocument] = useState<ClaimDocumentRow | VASDocumentRow | ClientDocumentRow | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient(); 
 
   const { data: parsingConfig } = useQuery<ParsingConfig | null>({
-    queryKey: ["parsing-config", policyTypeId],
+    queryKey: ["parsing-config", policyTypeId, entityType],
     queryFn: async () => {
+      // Try VAS services for VAS entity type
+      if (entityType === 'vas') {
+        const { data, error } = await supabase
+          .from("value_added_services")
+          .select("parsing_config")
+          .eq("id", policyTypeId)
+          .maybeSingle();
+        
+        if (!error && data) return (data?.parsing_config as ParsingConfig) || null;
+      }
+      
+      // Try client_companies for client entity type
+      if (entityType === 'client') {
+        const { data, error } = await supabase
+          .from("client_companies")
+          .select("parsing_config")
+          .eq("id", policyTypeId)
+          .maybeSingle();
+        
+        if (!error && data) return (data?.parsing_config as ParsingConfig) || null;
+        // If client query fails, return null instead of falling back
+        return null;
+      }
+      
+      // Default to policy_types for claims only
       const { data, error } = await supabase
         .from("policy_types")
         .select("parsing_config")
         .eq("id", policyTypeId)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching policy type config:', error);
+        return null; // Return null instead of throwing
+      }
       return (data?.parsing_config as ParsingConfig) || null;
     },
     enabled: !!policyTypeId,
@@ -80,9 +128,9 @@ export const SelectiveDocumentExtractor = ({
 
       try {
         const { data: documents, error } = await supabase
-          .from('claim_documents')
+          .from(tableName)
           .select('*')
-          .eq('claim_id', claimId)
+          .eq(idColumn, claimId)
           .eq('field_label', documentLabel)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -104,8 +152,8 @@ export const SelectiveDocumentExtractor = ({
   }, [claimId, documentLabel]);
 
   // Upload document mutation
-  const uploadDocumentMutation = useMutation<ClaimDocumentRow, Error, File>({
-    mutationFn: async (file: File): Promise<ClaimDocumentRow> => {
+  const uploadDocumentMutation = useMutation<ClaimDocumentRow | VASDocumentRow | ClientDocumentRow, Error, File>({
+    mutationFn: async (file: File): Promise<ClaimDocumentRow | VASDocumentRow | ClientDocumentRow> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
@@ -113,29 +161,31 @@ export const SelectiveDocumentExtractor = ({
       const filePath = `${user.id}/${claimId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("claim-documents")
+        .from(bucketName)
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
+      const insertData: any = {
+        [idColumn]: claimId,
+        file_name: file.name,
+        file_path: filePath,
+        file_type: file.type,
+        file_size: file.size,
+        uploaded_by: user.id,
+        field_label: documentLabel,
+      };
+
       const { data, error } = await supabase
-        .from("claim_documents")
-        .insert({
-          claim_id: claimId,
-          file_name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-          uploaded_by: user.id,
-          field_label: documentLabel,
-        })
+        .from(tableName)
+        .insert(insertData)
         .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    onSuccess: (data: ClaimDocumentRow) => {
+    onSuccess: (data: ClaimDocumentRow | VASDocumentRow | ClientDocumentRow) => {
       queryClient.invalidateQueries({ queryKey: ["claim-documents", claimId] });
       setUploadedDocument(data);
       toast.success(`${documentTitle} uploaded successfully!`);
@@ -147,13 +197,11 @@ export const SelectiveDocumentExtractor = ({
 
 // Extract data mutation with timeout
   const extractDataMutation = useMutation({
-    mutationFn: async (documentData: ClaimDocumentRow) => {
-      // Create extraction promise
+    mutationFn: async (documentData: ClaimDocumentRow | VASDocumentRow | ClientDocumentRow) => {
       const extractionPromise = (async () => {
         const { data: fileData, error } = await supabase.storage
-          .from('claim-documents')
+          .from(bucketName)
           .download(documentData.file_path);
-
         if (error) throw new Error(`Failed to download file: ${error.message}`);
 
         const arrayBuffer = await fileData.arrayBuffer();

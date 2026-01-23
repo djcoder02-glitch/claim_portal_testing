@@ -35,7 +35,7 @@ export const useClientReports = () => {
         .from("client_reports")
         .select(`
           *,
-          client_companies!inner(company_name, company_code),
+          client_companies(company_name, company_code),
           client_addresses(address_label, full_address, city, state)
         `)
         .order("created_at", { ascending: false });
@@ -63,7 +63,7 @@ export const useClientReportById = (id: string) => {
         .from("client_reports")
         .select(`
           *,
-          client_companies!inner(company_name, company_code),
+          client_companies(company_name, company_code),
           client_addresses(address_label, full_address, city, state, pincode)
         `)
         .eq("id", id)

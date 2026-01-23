@@ -12,6 +12,8 @@ import { FeeBillForm } from "@/components/claims/FeeBillForm";
 import { DocumentsTab } from "@/components/documents/DocumentsTab";
 import { Assessment } from "@/components/claims/Assessment";
 import { toast } from "sonner";
+import { SelectiveDocumentExtractor } from "@/components/claims/SelectiveDocumentExtractor";
+
 
 export const ClientReportDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +43,17 @@ export const ClientReportDetail = () => {
   const handleBackClick = () => {
     navigate("/clients/reports");
   };
+
+  const handleBillOfEntryExtracted = async (extractedData: Record<string, any>) => {
+    console.log('✅ Bill of Entry Data Extracted:', extractedData);
+    toast.success(`✅ Successfully saved ${Object.keys(extractedData).length} fields from Bill of Entry!`);
+  };
+
+  const handlePolicyDocumentExtracted = async (extractedData: Record<string, any>) => {
+    console.log('✅ Policy Document Data Extracted:', extractedData);
+    toast.success(`✅ Successfully saved ${Object.keys(extractedData).length} fields from Policy Document!`);
+  };
+
 
   if (isLoading) {
     return (
@@ -124,8 +137,57 @@ export const ClientReportDetail = () => {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 gap-6">
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Report Overview Card */}
+            <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Report Overview</h3>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm text-slate-500">Client</span>
+                    <p className="font-medium text-slate-900">{report.company_name}</p>
+                  </div>
+                  {report.address_label && (
+                    <div>
+                      <span className="text-sm text-slate-500">Address</span>
+                      <p className="font-medium text-slate-900">{report.address_label}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-sm text-slate-500">Status</span>
+                    <p className="font-medium text-slate-900 capitalize">{report.status.replace('_', ' ')}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Bill of Entry Upload */}
+            <SelectiveDocumentExtractor
+              claimId={report.id}
+              policyTypeId={report.company_id}
+              documentLabel="Bill of Entry"
+              documentTitle="Bill of Entry"
+              documentDescription="Upload your Bill of Entry document (PDF format required for field extraction)"
+              onDataExtracted={handleBillOfEntryExtracted}
+              entityType="client"
+            />
+
+            {/* Policy Document Upload */}
+            <SelectiveDocumentExtractor
+              claimId={report.id}
+              policyTypeId={report.company_id}
+              documentLabel="Policy Document"
+              documentTitle="Policy Document"
+              documentDescription="Upload your policy document (PDF format required for field extraction)"
+              onDataExtracted={handlePolicyDocumentExtracted}
+              entityType="client"
+            />
+          </div>
+
+          {/* Right Content Area */}
+          <div className="lg:col-span-3">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
               <Card className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-sm p-2">
                 <TabsList className="grid w-full grid-cols-5 bg-slate-100 h-14">
