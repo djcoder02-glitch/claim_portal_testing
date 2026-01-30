@@ -51,9 +51,9 @@ export const useAutosave = ({ control, onSave, delay = 2000, enabled = true }: U
         // Toast removed - will be shown manually when appropriate
       } catch (error) {
         console.error('Autosave failed:', error);
-        // toast.error('Failed to save changes automatically', {
-        //   duration: 2500,
-        // });
+        toast.error('Failed to save changes automatically', {
+          duration: 2500,
+        });
       } finally {
         savingRef.current = false;
       }
