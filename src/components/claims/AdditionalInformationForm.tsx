@@ -316,6 +316,15 @@ useEffect(() => {
 
   // Autosave functionality
   const handleAutosave = useCallback(async (data: Record<string, unknown>) => {
+    console.log('🔄 Autosave triggered for AdditionalInfo');
+    
+    // CRITICAL: Detect table type using service_id/company_id
+    const isVASReport = !!(claim as any).service_id;
+    const isClientReport = !!(claim as any).company_id && !(claim as any).service_id;
+    const tableName = isVASReport ? 'vas_reports' : isClientReport ? 'client_reports' : 'claims';
+    
+    console.log('💾 Autosaving to table:', tableName);
+
     const standardData = Object.fromEntries(
       Object.entries(data).filter(([k]) => !k.startsWith("custom_"))
     );
@@ -324,26 +333,40 @@ useEffect(() => {
       Object.entries(claim.form_data || {}).filter(([k]) => k.startsWith("custom_"))
     );
 
-    await updateClaimMutation.mutateAsync({
-      id: claim.id,
-      updates: {
-        form_data: {
-          ...standardData,
-          ...existingCustomEntries,
-          custom_fields_metadata: (claim.form_data?.custom_fields_metadata as unknown[]) || [],
-          hidden_fields: (claim.form_data?.hidden_fields as string[]) || [],
-          field_labels: (claim.form_data?.field_labels as Record<string, string>) || {},
-        } as any,
-        // intimation_date: ""
-      },
+    // Clean the data - convert undefined/empty to null
+    const cleanedData: any = {
+      ...standardData,
+      ...existingCustomEntries,
+      custom_fields_metadata: customFields || [],
+      hidden_fields: Array.from(hiddenFields),
+      field_labels: fieldLabels,
+      dynamic_sections_metadata: dynamicSections,
+    };
+    
+    Object.keys(cleanedData).forEach(key => {
+      if (cleanedData[key] === undefined || cleanedData[key] === '') {
+        cleanedData[key] = null;
+      }
     });
-  }, [claim.id, updateClaimMutation, claim.form_data]);
-// IMPORTANT: Keep delay high and enabled: false to prevent saving while typing
-  // Data saves automatically on blur (clicking outside field) and on tick button
+
+    // Use direct Supabase update with correct table
+    const { error } = await supabase
+      .from(tableName)
+      .update({ form_data: cleanedData })
+      .eq("id", claim.id);
+      
+    if (error) {
+      console.error('❌ Autosave error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Autosave successful');
+  }, [claim, customFields, hiddenFields, fieldLabels, dynamicSections]);
+
   useAutosave({
     control,
     onSave: handleAutosave,
-    delay: 3000,
+    delay: 2000,
     enabled: true,
   });
 
